@@ -1,0 +1,682 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Langkah Kecil</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=DM+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: satu kolom sempit, kartu progres di atas, satu "langkah berikutnya" untuk mengurangi pilihan, tab Hari ini / Hadiah. */
+:root {
+  --bg: #F2F5F7;
+  --surface: #FFFFFF;
+  --ink: #1B2730;
+  --muted: #566772;
+  --line: #D9E1E6;
+  --box-line: #8FA1AC;
+  --tab-bg: #E4EAEE;
+  --accent: #1D7487;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #DDEEF2;
+  --gold: #D9A12F;
+  --gold-ink: #7A4E0A;
+  --gold-soft: #F7E9C8;
+  --focus: #1D7487;
+  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12181D;
+    --surface: #1A2229;
+    --ink: #E6EDF2;
+    --muted: #93A4B0;
+    --line: #2A353E;
+    --box-line: #6B7D89;
+    --tab-bg: #1F2A32;
+    --accent: #6CC6D8;
+    --accent-ink: #0C1A1F;
+    --accent-soft: #1C3A42;
+    --gold: #E3B04B;
+    --gold-ink: #F0C877;
+    --gold-soft: #3A2F16;
+    --focus: #6CC6D8;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12181D;
+  --surface: #1A2229;
+  --ink: #E6EDF2;
+  --muted: #93A4B0;
+  --line: #2A353E;
+  --box-line: #6B7D89;
+  --tab-bg: #1F2A32;
+  --accent: #6CC6D8;
+  --accent-ink: #0C1A1F;
+  --accent-soft: #1C3A42;
+  --gold: #E3B04B;
+  --gold-ink: #F0C877;
+  --gold-soft: #3A2F16;
+  --focus: #6CC6D8;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  padding-block: 20px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.app { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+button { font: inherit; color: inherit; }
+
+.top { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
+.top > div { min-width: 0; }
+.date { margin: 0 0 4px; color: var(--muted); font-size: .875rem; font-weight: 500; }
+h1 { font-family: var(--font-display); font-size: 1.75rem; line-height: 1.1; margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+h2 { font-family: var(--font-display); font-size: 1.0625rem; margin: 0; text-wrap: balance; }
+
+.chip {
+  min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--surface); font-weight: 600; cursor: pointer; flex: none;
+}
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+.tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; background: var(--tab-bg); border-radius: 14px; }
+.tab { min-height: 44px; border: 0; background: transparent; border-radius: 10px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.tab[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+.stack { display: flex; flex-direction: column; gap: 16px; }
+.muted { color: var(--muted); }
+.small { font-size: .875rem; }
+
+.btn { min-height: 44px; padding: 0 18px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; cursor: pointer; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.gold { background: var(--gold); border-color: var(--gold); color: #2A1B02; }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.btn.dashed { border-style: dashed; width: 100%; background: transparent; color: var(--muted); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Progres */
+.progress-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.big { font-family: var(--font-display); font-size: 2rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.big small { font-size: 1rem; font-weight: 600; color: var(--muted); }
+.bar { height: 12px; border-radius: 999px; background: var(--accent-soft); overflow: hidden; }
+.bar > span { display: block; height: 100%; width: 0; background: var(--accent); border-radius: inherit; transition: width .4s ease; }
+.bar.gold { background: var(--gold-soft); }
+.bar.gold > span { background: var(--gold); }
+.progress-msg { margin: 10px 0 0; color: var(--muted); font-size: .9375rem; }
+
+.switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.switch-row p { margin: 0; min-width: 0; }
+.switch { position: relative; width: 52px; height: 32px; flex: none; border-radius: 999px; border: 0; background: var(--box-line); cursor: pointer; padding: 0; }
+.switch::after { content: ""; position: absolute; top: 4px; left: 4px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform .2s ease; }
+.switch[aria-checked="true"] { background: var(--accent); }
+.switch[aria-checked="true"]::after { transform: translateX(20px); }
+
+/* Langkah berikutnya */
+.focus { background: var(--accent-soft); border-color: transparent; }
+.eyebrow { margin: 0 0 4px; font-size: .75rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.focus-name { font-family: var(--font-display); font-size: 1.375rem; line-height: 1.25; font-weight: 600; margin: 0 0 4px; overflow-wrap: anywhere; text-wrap: balance; }
+.focus .hint { margin: 0 0 14px; color: var(--muted); font-size: .9375rem; }
+
+/* Daftar */
+.group-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+.count { color: var(--muted); font-size: .875rem; font-variant-numeric: tabular-nums; }
+.tasks { list-style: none; margin: 0; padding: 0; }
+.task { border-top: 1px solid var(--line); }
+.task:first-child { border-top: 0; }
+.check { position: relative; display: flex; align-items: center; gap: 14px; min-height: 52px; padding: 6px 0; cursor: pointer; }
+.check input { position: absolute; left: 0; top: 50%; width: 28px; height: 28px; margin: -14px 0 0; opacity: 0; cursor: pointer; }
+.box { width: 28px; height: 28px; flex: none; border-radius: 8px; border: 2px solid var(--box-line); display: grid; place-items: center; color: transparent; transition: background .15s ease, border-color .15s ease; }
+.check input:checked + .box { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.check input:focus-visible + .box { outline: 3px solid var(--focus); outline-offset: 2px; }
+.name { min-width: 0; overflow-wrap: anywhere; }
+.task.done .name { color: var(--muted); text-decoration: line-through; }
+.star-tag { color: var(--gold-ink); font-size: .75rem; font-weight: 600; margin-left: 6px; white-space: nowrap; }
+
+/* Mode ubah */
+.erow { display: flex; align-items: center; gap: 6px; padding: 5px 0; }
+.text-in {
+  flex: 1; min-width: 0; min-height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--bg); color: var(--ink); font: inherit;
+}
+.num-in { flex: none; width: 76px; text-align: center; }
+.icon-btn { width: 44px; height: 44px; flex: none; border: 0; background: transparent; border-radius: 10px; cursor: pointer; font-size: 1.25rem; color: var(--muted); }
+.icon-btn[aria-pressed="true"] { color: var(--gold); }
+.icon-btn:hover { background: var(--tab-bg); }
+.group-edit { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.group-edit .text-in { font-family: var(--font-display); font-weight: 600; }
+.edit-note { margin: 0; font-size: .875rem; color: var(--muted); }
+
+/* Hadiah */
+.balance { background: var(--gold-soft); border-color: transparent; }
+.points { font-family: var(--font-display); font-size: 2.75rem; font-weight: 700; line-height: 1; color: var(--gold-ink); font-variant-numeric: tabular-nums; }
+.points small { font-size: 1rem; font-weight: 600; }
+.reward-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.reward-top > div { min-width: 0; }
+.reward-name { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.reward-cost { margin: 0; color: var(--muted); font-size: .875rem; font-variant-numeric: tabular-nums; }
+.history { list-style: none; margin: 8px 0 0; padding: 0; }
+.history li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); font-size: .9375rem; }
+.history li span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.history li span:last-child { color: var(--muted); flex: none; }
+
+.pill { font-size:.75rem; font-weight:600; padding:2px 10px; border-radius:999px; background:var(--accent-soft); color:var(--ink); }
+.status { text-align: center; color: var(--muted); font-size: .8125rem; min-height: 1.25rem; margin: 0; }
+
+.toast {
+  position: fixed; z-index: 20; left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px)); max-width: 420px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 14px; border-radius: 12px; background: var(--ink); color: var(--bg); box-shadow: 0 6px 24px rgba(0,0,0,.25);
+}
+.toast button { min-height: 44px; padding: 0 8px; border: 0; background: transparent; color: var(--bg); font-weight: 700; text-decoration: underline; cursor: pointer; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bar > span, .switch::after, .box { transition: none; }
+}
+@media (max-width: 380px) {
+  .num-in { width: 64px; }
+}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div>
+      <p class="date" id="date"></p>
+      <h1>Langkah Kecil</h1>
+    </div>
+    <button class="chip" id="editBtn" type="button" data-act="edit" aria-pressed="false">Ubah</button>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Bagian aplikasi">
+    <button class="tab" type="button" role="tab" id="tabToday" data-act="tab" data-tab="today" aria-selected="true" aria-controls="paneToday">Hari ini</button>
+    <button class="tab" type="button" role="tab" id="tabRewards" data-act="tab" data-tab="rewards" aria-selected="false" aria-controls="paneRewards">Hadiah</button>
+    <button class="tab" type="button" role="tab" id="tabSettings" data-act="tab" data-tab="settings" aria-selected="false" aria-controls="paneSettings">Pengaturan</button>
+  </div>
+
+  <main>
+    <section id="paneToday" class="stack" role="tabpanel" aria-labelledby="tabToday">
+      <div class="card" id="progressCard"></div>
+      <div class="card focus" id="focusCard" hidden></div>
+      <p class="edit-note" id="editNote" hidden>Mode ubah aktif. Ketuk nama untuk mengganti. Bintang menandai langkah inti yang tetap tampil saat hari berat.</p>
+      <div class="stack" id="groups"></div>
+    </section>
+
+    <section id="paneRewards" class="stack" role="tabpanel" aria-labelledby="tabRewards" hidden>
+      <div class="card balance" id="balanceCard"></div>
+      <div class="stack" id="rewards"></div>
+      <div class="card" id="historyCard" hidden></div>
+    </section>
+    <section id="paneSettings" class="stack" role="tabpanel" aria-labelledby="tabSettings" hidden>
+      <div class="card">
+        <div class="group-head"><h2>Sinkronisasi</h2><span class="pill ok">Tersambung</span></div>
+        <p class="muted small" style="margin:0 0 8px">Perangkat di jaringan yang sama ditemukan otomatis. Tidak perlu mengisi alamat IP.</p>
+        <ul class="history">
+          <li><span>Desktop (perangkat ini)</span><span>Aktif di latar belakang</span></li>
+          <li><span>Ponsel Luthfi</span><span>Sinkron 2 menit lalu</span></li>
+        </ul>
+        <div class="row" style="margin-top:12px"><button class="btn primary" type="button">Sinkronkan sekarang</button></div>
+      </div>
+      <div class="card">
+        <h2 style="margin-bottom:4px">Desktop</h2>
+        <div class="switch-row" style="border-top:0;margin-top:0;padding-top:0"><p><strong>Jalankan saat komputer menyala</strong><br><span class="muted small">Berjalan di latar belakang (baki sistem) agar sinkronisasi tetap tersedia.</span></p>
+          <button class="switch" type="button" role="switch" data-act="sw" aria-checked="true" aria-label="Jalankan saat startup"></button></div>
+        <div class="switch-row"><p><strong>Sinkron otomatis</strong><br><span class="muted small">Dua arah, saat ada di jaringan yang sama. Data terbaru yang dipakai.</span></p>
+          <button class="switch" type="button" role="switch" data-act="sw" aria-checked="true" aria-label="Sinkron otomatis"></button></div>
+      </div>
+      <div class="card">
+        <h2 style="margin-bottom:4px">Tampilan</h2>
+        <div class="row" style="margin-top:8px"><button class="chip" type="button" data-act="theme" data-t="auto">Otomatis</button><button class="chip" type="button" data-act="theme" data-t="light">Terang</button><button class="chip" type="button" data-act="theme" data-t="dark">Gelap</button></div>
+      </div>
+    </section>
+  </main>
+
+  <p class="status" id="status" aria-live="polite"></p>
+</div>
+
+<div class="toast" id="toast" role="status" hidden>
+  <span id="toastMsg"></span>
+  <button type="button" id="toastUndo" data-act="undo">Urungkan</button>
+</div>
+
+<script>
+(function () {
+  var KEY = 'langkah-kecil-v1';
+  var DAYS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  var MONTHS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  var CHECK_SVG = '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 4.8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  function uid() { return Math.random().toString(36).slice(2, 9); }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function todayKey() { var d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function $(s) { return document.querySelector(s); }
+
+  function defaults() {
+    function g(name, tasks) {
+      return { id: uid(), name: name, tasks: tasks.map(function (t) { return { id: uid(), name: t[0], core: !!t[1] }; }) };
+    }
+    function r(name, cost) { return { id: uid(), name: name, cost: cost }; }
+    return {
+      v: 1, lite: false, updatedAt: 0, earned: 0, spent: 0, claims: [], checks: {},
+      groups: [
+        g('Pagi', [['Minum segelas air', 1], ['Sarapan, yang sederhana pun cukup', 1], ['Cuci muka dulu, mandi menyusul', 0], ['Peregangan 3 menit', 0]]),
+        g('Siang', [['Buka 1 chat saja, balas 1 kalimat', 0], ['Kerjakan 1 hal selama 10 menit', 0], ['Makan siang', 1]]),
+        g('Malam', [['Gerak 5 menit (jalan kaki atau peregangan)', 0], ['Makan malam', 1], ['Mulai bersiap tidur di jam yang sama', 1]])
+      ],
+      rewards: [
+        r('Dengar playlist favorit 15 menit', 5),
+        r('Satu episode serial', 10),
+        r('Gambar bebas 30 menit, tanpa target', 15),
+        r('Camilan favorit', 20)
+      ]
+    };
+  }
+  function normalize(s) {
+    var d = defaults();
+    s = s && typeof s === 'object' ? s : {};
+    return {
+      v: 1,
+      lite: !!s.lite,
+      updatedAt: +s.updatedAt || 0,
+      earned: Math.max(0, +s.earned || 0),
+      spent: Math.max(0, +s.spent || 0),
+      claims: Array.isArray(s.claims) ? s.claims : [],
+      checks: s.checks && typeof s.checks === 'object' ? s.checks : {},
+      groups: Array.isArray(s.groups) ? s.groups : d.groups,
+      rewards: Array.isArray(s.rewards) ? s.rewards : d.rewards
+    };
+  }
+
+  var hadLocal = false;
+  function loadLocal() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (raw) { hadLocal = true; return normalize(JSON.parse(raw)); }
+    } catch (e) {}
+    return null;
+  }
+  function saveLocal() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+  var state = loadLocal() || normalize(defaults());
+  var editMode = false, tab = 'today', dayKey = todayKey();
+  var skipped = {};
+  var undoSnap = null, toastTimer = null;
+
+  /* ---------- Penyimpanan ---------- */
+  var dbDoc = null, saving = false, dirty = false, saveTimer = null, seeded = false, dbState = 'connecting';
+
+  function setStatus(kind) {
+    dbState = kind;
+    var map = {
+      connecting: 'Menyambungkan penyimpanan…',
+      saving: 'Menyimpan…',
+      saved: 'Tersimpan',
+      local: 'Tersimpan di perangkat ini',
+      slow: 'Belum tersambung ke penyimpanan akun. Perubahan tetap tersimpan di perangkat ini.',
+      error: 'Gagal menyimpan ke akun. Perubahan tetap tersimpan di perangkat ini.'
+    };
+    $('#status').textContent = map[kind] || '';
+  }
+  function touch() {
+    state.updatedAt = Date.now();
+    saveLocal();
+    if (!dbDoc) { setStatus(dbState === 'connecting' ? 'connecting' : 'local'); return; }
+    setStatus('saving');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(flush, 500);
+  }
+  function flush() {
+    if (!dbDoc) return;
+    if (saving) { dirty = true; return; }
+    saving = true;
+    dbDoc.set(JSON.parse(JSON.stringify(state))).then(function () {
+      setStatus('saved');
+    }).catch(function () {
+      setStatus('error');
+    }).then(function () {
+      saving = false;
+      if (dirty) { dirty = false; flush(); }
+    });
+  }
+  function initDb() {
+    if (!window.claude || !window.claude.use) { setStatus('local'); return; }
+    Promise.all([window.claude.use('db'), window.claude.use('user')]).then(function (res) {
+      var db = res[0], user = res[1];
+      if (!db || !user) { setStatus('local'); return; }
+      return user.id().then(function (id) {
+        if (!id) { setStatus('local'); return; }
+        dbDoc = db.collection('data/users/' + id).doc('state');
+        var slowTimer = setTimeout(function () { setStatus('slow'); }, 10000);
+        dbDoc.onSnapshot(function (snap) {
+          if (snap.metadata.hasPendingWrites) return;
+          if (!snap.metadata.fromCache) clearTimeout(slowTimer);
+          var remote = snap.exists ? snap.data() : null;
+          if (remote) {
+            var rt = +remote.updatedAt || 0;
+            if (rt > (state.updatedAt || 0)) {
+              var busy = document.activeElement && document.activeElement.tagName === 'INPUT' && document.activeElement.type !== 'checkbox';
+              if (!busy) {
+                state = normalize(JSON.parse(JSON.stringify(remote)));
+                saveLocal();
+                renderAll();
+              }
+              setStatus('saved');
+            } else if (rt < (state.updatedAt || 0) && !snap.metadata.fromCache) {
+              flush();
+            } else if (!snap.metadata.fromCache) {
+              setStatus('saved');
+            }
+          } else if (!snap.metadata.fromCache) {
+            if (hadLocal && !seeded) { seeded = true; flush(); }
+            else setStatus('saved');
+          }
+        }, function () { setStatus('local'); });
+      });
+    }).catch(function () { setStatus('local'); });
+  }
+
+  /* ---------- Data turunan ---------- */
+  function isDone(id) { return !!(state.checks[dayKey] && state.checks[dayKey][id]); }
+  function allTasks() {
+    var out = [];
+    state.groups.forEach(function (g) { g.tasks.forEach(function (t) { out.push(t); }); });
+    return out;
+  }
+  function countedTasks() { return allTasks().filter(function (t) { return !state.lite || t.core; }); }
+  function balance() { return Math.max(0, state.earned - state.spent); }
+  function nextTask() {
+    var list = countedTasks().filter(function (t) { return !isDone(t.id); });
+    if (!list.length) return null;
+    var fresh = list.filter(function (t) { return !skipped[t.id]; });
+    if (!fresh.length) { skipped = {}; fresh = list; }
+    return fresh[0];
+  }
+  function findTask(id) { return allTasks().filter(function (t) { return t.id === id; })[0]; }
+
+  /* ---------- Render ---------- */
+  function renderDate() {
+    var d = new Date();
+    $('#date').textContent = DAYS[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS[d.getMonth()];
+  }
+  function renderProgress() {
+    var list = countedTasks();
+    var total = list.length;
+    var done = list.filter(function (t) { return isDone(t.id); }).length;
+    var pct = total ? Math.round(done / total * 100) : 0;
+    var msg;
+    if (!total) msg = 'Belum ada langkah. Tekan Ubah untuk menambahkan.';
+    else if (done === total) msg = 'Semua selesai hari ini. Kamu boleh istirahat.';
+    else if (done === 0) msg = 'Belum mulai juga tidak apa-apa. Pilih satu yang paling kecil.';
+    else msg = 'Sudah ' + done + ' langkah hari ini. Lanjut kalau masih ada tenaga.';
+    $('#progressCard').innerHTML =
+      '<div class="progress-head"><div class="big">' + done + '<small> dari ' + total + ' langkah</small></div><div class="big">' + pct + '<small>%</small></div></div>' +
+      '<div class="bar" role="progressbar" aria-label="Progres hari ini" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '"><span style="width:' + pct + '%"></span></div>' +
+      '<p class="progress-msg">' + esc(msg) + '</p>' +
+      '<div class="switch-row"><p><strong>Hari berat</strong><br><span class="muted small">Tampilkan hanya langkah inti (★).</span></p>' +
+      '<button class="switch" type="button" role="switch" data-act="lite" aria-checked="' + (state.lite ? 'true' : 'false') + '" aria-label="Mode hari berat"></button></div>';
+  }
+  function renderFocus() {
+    var el = $('#focusCard');
+    var total = countedTasks().length;
+    if (editMode || !total) { el.hidden = true; return; }
+    el.hidden = false;
+    var t = nextTask();
+    if (!t) {
+      el.innerHTML = '<p class="eyebrow">Selesai</p><p class="focus-name">Semua langkah hari ini sudah beres.</p>' +
+        '<p class="hint">Cek tab Hadiah kalau mau mengambil sesuatu.</p>' +
+        '<div class="row"><button class="btn primary" type="button" data-act="tab" data-tab="rewards">Lihat hadiah</button></div>';
+      return;
+    }
+    el.innerHTML = '<p class="eyebrow">Mulai dari sini</p><p class="focus-name" id="focusName">' + esc(t.name || 'Langkah tanpa nama') + '</p>' +
+      '<p class="hint">Cukup yang ini dulu. Yang lain boleh menunggu.</p>' +
+      '<div class="row"><button class="btn primary" type="button" data-act="focus-done" data-id="' + t.id + '">Sudah selesai</button>' +
+      '<button class="btn" type="button" data-act="focus-skip" data-id="' + t.id + '">Lewati dulu</button></div>';
+  }
+  function groupCounts(g) {
+    var list = g.tasks.filter(function (t) { return !state.lite || t.core; });
+    var done = list.filter(function (t) { return isDone(t.id); }).length;
+    return done + '/' + list.length;
+  }
+  function renderList() {
+    var html = '';
+    if (!state.groups.length) {
+      html = '<div class="card"><p class="muted" style="margin:0">Belum ada kelompok. Tekan Ubah, lalu tambah kelompok.</p></div>';
+    }
+    state.groups.forEach(function (g) {
+      var visible = g.tasks.filter(function (t) { return editMode || !state.lite || t.core; });
+      if (!editMode && !visible.length) return;
+      html += '<section class="card" aria-label="' + esc(g.name) + '">';
+      if (editMode) {
+        html += '<div class="group-edit"><input class="text-in" type="text" id="g-' + g.id + '" data-f="gname" data-id="' + g.id + '" value="' + esc(g.name) + '" placeholder="Nama kelompok" aria-label="Nama kelompok">' +
+          '<button class="icon-btn" type="button" data-act="del-group" data-id="' + g.id + '" aria-label="Hapus kelompok">×</button></div>';
+      } else {
+        html += '<div class="group-head"><h2>' + esc(g.name || 'Tanpa nama') + '</h2><span class="count" data-gcount="' + g.id + '">' + groupCounts(g) + '</span></div>';
+      }
+      html += '<ul class="tasks">';
+      visible.forEach(function (t) {
+        if (editMode) {
+          html += '<li class="erow"><button class="icon-btn" type="button" data-act="core" data-id="' + t.id + '" aria-pressed="' + (t.core ? 'true' : 'false') + '" aria-label="Tandai langkah inti">' + (t.core ? '★' : '☆') + '</button>' +
+            '<input class="text-in" type="text" id="t-' + t.id + '" data-f="tname" data-id="' + t.id + '" value="' + esc(t.name) + '" placeholder="Nama langkah" aria-label="Nama langkah">' +
+            '<button class="icon-btn" type="button" data-act="del-task" data-id="' + t.id + '" aria-label="Hapus langkah">×</button></li>';
+        } else {
+          var done = isDone(t.id);
+          html += '<li class="task' + (done ? ' done' : '') + '" data-row="' + t.id + '"><label class="check"><input type="checkbox" data-task="' + t.id + '"' + (done ? ' checked' : '') + '>' +
+            '<span class="box">' + CHECK_SVG + '</span><span class="name">' + esc(t.name || 'Langkah tanpa nama') + (t.core && !state.lite ? '<span class="star-tag">★ inti</span>' : '') + '</span></label></li>';
+        }
+      });
+      html += '</ul>';
+      if (editMode) html += '<button class="btn dashed" type="button" data-act="add-task" data-id="' + g.id + '">+ Tambah langkah</button>';
+      html += '</section>';
+    });
+    if (editMode) html += '<button class="btn dashed" type="button" data-act="add-group">+ Tambah kelompok</button>';
+    $('#groups').innerHTML = html;
+  }
+  function syncChecks() {
+    document.querySelectorAll('[data-row]').forEach(function (row) {
+      var id = row.getAttribute('data-row');
+      row.classList.toggle('done', isDone(id));
+    });
+    document.querySelectorAll('[data-gcount]').forEach(function (el) {
+      var g = state.groups.filter(function (x) { return x.id === el.getAttribute('data-gcount'); })[0];
+      if (g) el.textContent = groupCounts(g);
+    });
+  }
+  function fmtDate(key) {
+    var p = String(key || '').split('-');
+    if (p.length < 3) return '';
+    return (+p[2]) + ' ' + MONTHS[(+p[1]) - 1].slice(0, 3);
+  }
+  function renderRewards() {
+    var bal = balance();
+    $('#balanceCard').innerHTML =
+      '<p class="eyebrow">Poin kamu</p><div class="points">' + bal + '<small> poin</small></div>' +
+      '<p class="muted small" style="margin:8px 0 0">Setiap langkah yang dicentang menambah 1 poin. Hari yang terlewat tidak mengurangi poin.</p>';
+    var html = '';
+    if (!state.rewards.length) {
+      html = '<div class="card"><p class="muted" style="margin:0">Belum ada hadiah. Tekan Ubah, lalu tambah hadiah.</p></div>';
+    }
+    state.rewards.forEach(function (r) {
+      if (editMode) {
+        html += '<div class="card"><div class="erow"><input class="text-in" type="text" id="r-' + r.id + '" data-f="rname" data-id="' + r.id + '" value="' + esc(r.name) + '" placeholder="Nama hadiah" aria-label="Nama hadiah">' +
+          '<input class="text-in num-in" type="number" inputmode="numeric" min="1" max="999" data-f="rcost" data-id="' + r.id + '" value="' + r.cost + '" aria-label="Biaya dalam poin">' +
+          '<button class="icon-btn" type="button" data-act="del-reward" data-id="' + r.id + '" aria-label="Hapus hadiah">×</button></div></div>';
+      } else {
+        var cost = Math.max(1, +r.cost || 1);
+        var can = bal >= cost;
+        var pct = Math.min(100, Math.round(bal / cost * 100));
+        html += '<div class="card"><div class="reward-top"><div><p class="reward-name">' + esc(r.name || 'Hadiah tanpa nama') + '</p><p class="reward-cost">' + cost + ' poin</p></div>' +
+          '<button class="btn ' + (can ? 'gold' : '') + '" type="button" data-act="claim" data-id="' + r.id + '"' + (can ? '' : ' disabled') + '>' + (can ? 'Ambil' : 'Kurang ' + (cost - bal)) + '</button></div>' +
+          '<div class="bar gold" role="progressbar" aria-label="Menuju ' + esc(r.name) + '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '"><span style="width:' + pct + '%"></span></div></div>';
+      }
+    });
+    if (editMode) html += '<button class="btn dashed" type="button" data-act="add-reward">+ Tambah hadiah</button>';
+    $('#rewards').innerHTML = html;
+
+    var hc = $('#historyCard');
+    if (!editMode && state.claims.length) {
+      hc.hidden = false;
+      hc.innerHTML = '<h2>Sudah diambil</h2><ul class="history">' + state.claims.slice(0, 8).map(function (c) {
+        return '<li><span>' + esc(c.name) + '</span><span>' + fmtDate(c.date) + '</span></li>';
+      }).join('') + '</ul>';
+    } else hc.hidden = true;
+  }
+  function renderChrome() {
+    var b = $('#editBtn');
+    b.setAttribute('aria-pressed', editMode ? 'true' : 'false');
+    b.textContent = editMode ? 'Selesai mengubah' : 'Ubah';
+    $('#editNote').hidden = !(editMode && tab === 'today');
+    ['today', 'rewards', 'settings'].forEach(function (t) {
+      var on = tab === t;
+      $('#tab' + t.charAt(0).toUpperCase() + t.slice(1)).setAttribute('aria-selected', on ? 'true' : 'false');
+      $('#pane' + t.charAt(0).toUpperCase() + t.slice(1)).hidden = !on;
+    });
+  }
+  function renderAll() { renderDate(); renderProgress(); renderFocus(); renderList(); renderRewards(); renderChrome(); }
+
+  /* ---------- Toast ---------- */
+  function showToast(msg, canUndo) {
+    $('#toastMsg').textContent = msg;
+    $('#toastUndo').hidden = !canUndo;
+    $('#toast').hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, 6000);
+  }
+  function hideToast() { $('#toast').hidden = true; }
+  function snapshot() { undoSnap = JSON.stringify(state); }
+  function undo() {
+    if (!undoSnap) return;
+    state = normalize(JSON.parse(undoSnap));
+    undoSnap = null;
+    touch(); renderAll(); hideToast();
+  }
+
+  /* ---------- Aksi ---------- */
+  function toggleTask(id, on) {
+    var map = state.checks[dayKey] || (state.checks[dayKey] = {});
+    var was = !!map[id];
+    if (on === was) return;
+    if (on) { map[id] = true; state.earned += 1; }
+    else { delete map[id]; state.earned = Math.max(0, state.earned - 1); }
+    var keys = Object.keys(state.checks).sort();
+    while (keys.length > 60) { delete state.checks[keys.shift()]; }
+    touch();
+    renderProgress(); renderFocus(); renderRewards(); syncChecks();
+  }
+  function focusInput(id) {
+    var el = document.getElementById(id);
+    if (el) { el.focus(); if (el.select) el.select(); }
+  }
+
+  document.addEventListener('change', function (e) {
+    var t = e.target;
+    if (t && t.matches && t.matches('input[data-task]')) toggleTask(t.getAttribute('data-task'), t.checked);
+  });
+
+  document.addEventListener('input', function (e) {
+    var t = e.target;
+    if (!t || !t.getAttribute) return;
+    var f = t.getAttribute('data-f');
+    if (!f) return;
+    var id = t.getAttribute('data-id');
+    if (f === 'tname') { var task = findTask(id); if (task) task.name = t.value; }
+    else if (f === 'gname') { state.groups.forEach(function (g) { if (g.id === id) g.name = t.value; }); }
+    else if (f === 'rname') { state.rewards.forEach(function (r) { if (r.id === id) r.name = t.value; }); }
+    else if (f === 'rcost') {
+      var n = parseInt(t.value, 10);
+      if (!isNaN(n) && n >= 1) state.rewards.forEach(function (r) { if (r.id === id) r.cost = Math.min(999, n); });
+    }
+    touch();
+  });
+
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('[data-act]') : null;
+    if (!b || b.disabled) return;
+    var act = b.getAttribute('data-act');
+    var id = b.getAttribute('data-id');
+    var g, r, t;
+    switch (act) {
+      case 'tab':
+        tab = b.getAttribute('data-tab'); renderChrome(); break;
+      case 'edit':
+        editMode = !editMode; renderAll(); break;
+      case 'lite':
+        state.lite = !state.lite; touch(); renderAll(); break;
+      case 'focus-done':
+        toggleTask(id, true); renderList(); break;
+      case 'focus-skip':
+        skipped[id] = true; renderFocus(); break;
+      case 'core':
+        t = findTask(id); if (t) { t.core = !t.core; touch(); renderAll(); } break;
+      case 'add-task':
+        g = state.groups.filter(function (x) { return x.id === id; })[0];
+        if (g) { var nt = { id: uid(), name: '', core: false }; g.tasks.push(nt); touch(); renderList(); focusInput('t-' + nt.id); }
+        break;
+      case 'del-task':
+        snapshot();
+        state.groups.forEach(function (x) { x.tasks = x.tasks.filter(function (k) { return k.id !== id; }); });
+        touch(); renderAll(); showToast('Langkah dihapus.', true); break;
+      case 'add-group':
+        var ng = { id: uid(), name: 'Kelompok baru', tasks: [] };
+        state.groups.push(ng); touch(); renderList(); focusInput('g-' + ng.id); break;
+      case 'del-group':
+        snapshot();
+        state.groups = state.groups.filter(function (x) { return x.id !== id; });
+        touch(); renderAll(); showToast('Kelompok dihapus.', true); break;
+      case 'add-reward':
+        var nr = { id: uid(), name: '', cost: 10 };
+        state.rewards.push(nr); touch(); renderRewards(); focusInput('r-' + nr.id); break;
+      case 'del-reward':
+        snapshot();
+        state.rewards = state.rewards.filter(function (x) { return x.id !== id; });
+        touch(); renderRewards(); showToast('Hadiah dihapus.', true); break;
+      case 'claim':
+        r = state.rewards.filter(function (x) { return x.id === id; })[0];
+        if (r && balance() >= r.cost) {
+          snapshot();
+          state.spent += r.cost;
+          state.claims.unshift({ id: uid(), name: r.name || 'Hadiah', cost: r.cost, date: todayKey() });
+          state.claims = state.claims.slice(0, 20);
+          touch(); renderRewards();
+          showToast('Diambil: ' + (r.name || 'Hadiah') + '. Nikmati tanpa rasa bersalah.', true);
+        }
+        break;
+      case 'sw':
+        b.setAttribute('aria-checked', b.getAttribute('aria-checked') === 'true' ? 'false' : 'true'); break;
+      case 'theme':
+        var tv = b.getAttribute('data-t'); if (tv === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', tv); break;
+      case 'undo':
+        undo(); break;
+    }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target && e.target.getAttribute && e.target.getAttribute('data-f')) e.target.blur();
+  });
+
+  function rollover() {
+    var k = todayKey();
+    if (k !== dayKey) { dayKey = k; skipped = {}; renderAll(); }
+  }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) rollover(); });
+  setInterval(rollover, 60000);
+
+  renderAll();
+  setStatus(hadLocal ? 'local' : 'connecting');
+  initDb();
+})();
+</script>
+
+</body></html>

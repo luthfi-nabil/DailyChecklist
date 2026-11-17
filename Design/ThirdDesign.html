@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Langkah Kecil — Milestone 3 (Jadwal &amp; Kalender Aktivitas)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=DM+Sans:wght@400;500;600&display=swap">
+<style>
+/* Milestone 3 Mockup: Jadwal Harian, Mingguan, Bulanan + Kalender di Checklist Aktivitas. */
+:root{--bg:#F2F5F7;--surface:#FFFFFF;--ink:#1B2730;--muted:#566772;--line:#D9E1E6;--box-line:#8FA1AC;--tab-bg:#E4EAEE;--accent:#1D7487;--accent-ink:#FFFFFF;--accent-soft:#DDEEF2;--gold:#D9A12F;--gold-ink:#7A4E0A;--gold-soft:#F7E9C8;--miss:#B4533F;--miss-soft:#F6E1DB;--side:#E9EEF1;--focus:#1D7487;--font-display:'Bricolage Grotesque',system-ui,sans-serif;--font-body:'DM Sans',system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12181D;--surface:#1A2229;--ink:#E6EDF2;--muted:#93A4B0;--line:#2A353E;--box-line:#6B7D89;--tab-bg:#1F2A32;--accent:#6CC6D8;--accent-ink:#0C1A1F;--accent-soft:#1C3A42;--gold:#E3B04B;--gold-ink:#F0C877;--gold-soft:#3A2F16;--miss:#E39A88;--miss-soft:#3A2420;--side:#0E1317;--focus:#6CC6D8;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12181D;--surface:#1A2229;--ink:#E6EDF2;--muted:#93A4B0;--line:#2A353E;--box-line:#6B7D89;--tab-bg:#1F2A32;--accent:#6CC6D8;--accent-ink:#0C1A1F;--accent-soft:#1C3A42;--gold:#E3B04B;--gold-ink:#F0C877;--gold-soft:#3A2F16;--miss:#E39A88;--miss-soft:#3A2420;--side:#0E1317;--focus:#6CC6D8;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--font-body)}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+button{font:inherit;color:inherit}
+h1,h2,h3{font-family:var(--font-display);margin:0}
+h1{font-size:1.625rem;line-height:1.15;letter-spacing:-.01em}
+h2{font-size:1.0625rem}
+.muted{color:var(--muted)}.small{font-size:.8125rem}.num{font-variant-numeric:tabular-nums}
+
+/* Bar pratinjau mockup */
+.preview-bar{background:var(--side);border-bottom:1px solid var(--line);padding:10px 20px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:30}
+.preview-bar b{font-family:var(--font-display);font-size:.9375rem}
+.seg{display:inline-grid;grid-auto-flow:column;gap:4px;padding:4px;background:var(--tab-bg);border-radius:12px}
+.seg button{min-height:36px;padding:0 14px;border:0;background:transparent;border-radius:9px;font-weight:600;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+
+/* Kontainer utama adaptif Desktop / Mobile */
+.stage{max-width:1140px;margin:20px auto 56px;padding:0 20px}
+.stage.mobile{max-width:440px}
+.shell{display:grid;grid-template-columns:220px 1fr;gap:24px;align-items:start}
+.stage.mobile .shell{grid-template-columns:1fr;gap:16px}
+.stage.mobile aside{display:none}
+.stage.mobile .grid2{grid-template-columns:1fr}
+.stage.mobile .sticky{position:static}
+.stage.mobile .bottom-nav{display:grid}
+.bottom-nav{display:none;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:6px;margin-top:8px}
+.bn{min-height:52px;border:0;background:transparent;border-radius:10px;color:var(--muted);font-size:.75rem;font-weight:600;cursor:pointer}
+.bn[aria-current="page"]{color:var(--accent);background:var(--accent-soft)}
+
+/* Sidebar desktop */
+aside{background:var(--side);border:1px solid var(--line);border-radius:16px;padding:16px 10px;display:flex;flex-direction:column;gap:8px}
+.brand{display:flex;align-items:center;gap:10px;padding:0 8px 6px}
+.logo{width:30px;height:30px;border-radius:9px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-family:var(--font-display);font-weight:700}
+.nav{display:flex;align-items:center;gap:10px;min-height:40px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:var(--muted);font-weight:600;cursor:pointer;text-align:left;width:100%}
+.nav[aria-current="page"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.1)}
+.nav .badge{margin-left:auto;font-size:.75rem;color:var(--muted)}
+
+/* Header & komponen bersama */
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.date{margin:0 0 2px;color:var(--muted);font-size:.875rem;font-weight:500}
+.chip{min-height:42px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.sticky{position:sticky;top:72px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px}
+.head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.eyebrow{margin:0 0 4px;font-size:.75rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.btn{min-height:40px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-weight:600;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.dashed{border-style:dashed;background:transparent;color:var(--muted);width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.big{font-family:var(--font-display);font-size:2rem;font-weight:700;line-height:1}
+.big small{font-size:.9375rem;font-weight:600;color:var(--muted)}
+.progress{height:10px;border-radius:999px;background:var(--accent-soft);overflow:hidden}
+.progress>span{display:block;height:100%;background:var(--accent);border-radius:inherit;transition:width .35s ease}
+.focus{background:var(--accent-soft);border-color:transparent}
+.focus-name{font-family:var(--font-display);font-size:1.25rem;font-weight:600;margin:0 0 4px}
+.switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.switch-row p{margin:0}
+.switch{position:relative;width:48px;height:28px;flex:none;border-radius:999px;border:0;background:var(--box-line);cursor:pointer;padding:0}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .2s}
+.switch[aria-checked="true"]{background:var(--accent)}.switch[aria-checked="true"]::after{transform:translateX(20px)}
+
+/* Kalender Checklist */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.dow{text-align:center;font-size:.6875rem;font-weight:600;color:var(--muted);padding-bottom:4px}
+.cday{position:relative;min-height:42px;border:1px solid transparent;border-radius:10px;background:var(--bg);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:.875rem;font-weight:600;font-variant-numeric:tabular-nums;padding:2px}
+.cday:hover{border-color:var(--box-line)}
+.cday.today{border-color:var(--accent)}
+.cday[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.cday.other{opacity:.35;cursor:default}
+.dots{display:flex;gap:3px;height:5px;align-items:center}
+.dot{width:5px;height:5px;border-radius:50%}
+.dot.w{background:var(--accent)}.dot.m{background:var(--gold)}
+.cday[aria-pressed="true"] .dot.w{background:var(--accent-ink)}
+.cal-legend{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:10px;font-size:.75rem;color:var(--muted)}
+.cal-legend span{display:inline-flex;align-items:center;gap:5px}
+.future-banner{background:var(--gold-soft);border-radius:12px;padding:10px 14px;font-size:.875rem;display:flex;align-items:center;justify-content:space-between;gap:10px}
+
+/* Checklist & badge jadwal */
+.tasks{list-style:none;margin:0;padding:0}
+.task{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);min-height:50px;padding:6px 0}
+.task:first-child{border-top:0}
+.check{position:relative;display:flex;align-items:center;gap:12px;flex:1;min-width:0;cursor:pointer}
+.check input{position:absolute;left:0;width:26px;height:26px;margin:0;opacity:0;cursor:pointer}
+.box{width:26px;height:26px;flex:none;border-radius:8px;border:2px solid var(--box-line);display:grid;place-items:center;color:transparent;transition:background .15s}
+.check input:checked+.box{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.check input:disabled+.box{opacity:.45;cursor:not-allowed}
+.task.done .nm{color:var(--muted);text-decoration:line-through}
+.star{color:var(--gold-ink);font-size:.75rem;font-weight:600;margin-left:6px}
+.freq-tag{display:inline-flex;align-items:center;gap:4px;margin-left:6px;padding:2px 8px;border-radius:999px;font-size:.75rem;font-weight:600;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.freq-tag.monthly{background:var(--gold-soft);color:var(--gold-ink)}
+.freq-tag.offday{background:var(--tab-bg);color:var(--muted)}
+
+/* Mode Ubah + Tombol Jadwal */
+.erow{display:flex;flex-direction:column;gap:4px;padding:10px 0;border-top:1px solid var(--line)}
+.erow:first-child{border-top:0}
+.erow-top{display:flex;align-items:center;gap:6px}
+.erow-sub{padding-left:46px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.freq-pill{display:inline-flex;align-items:center;padding:3px 10px;border-radius:8px;font-size:.75rem;font-weight:600;background:var(--tab-bg);color:var(--ink)}
+.freq-pill.weekly{background:var(--accent-soft);color:var(--accent)}
+.freq-pill.monthly{background:var(--gold-soft);color:var(--gold-ink)}
+.text-in{flex:1;min-width:120px;min-height:42px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit}
+.icon-btn{min-width:40px;height:42px;border:0;background:transparent;border-radius:10px;cursor:pointer;color:var(--muted);font-size:1.125rem}
+.icon-btn.on{color:var(--gold)}
+.sched-btn{width:42px;height:42px;flex:none;padding:0;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:1.0625rem;cursor:pointer;display:inline-grid;place-items:center}
+.sched-btn:hover{border-color:var(--accent)}
+.sched-btn.weekly{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.sched-btn.monthly{background:var(--gold-soft);border-color:var(--gold);color:var(--gold-ink)}
+.edit-note{background:var(--gold-soft);border-radius:12px;padding:10px 14px;margin:0;font-size:.875rem}
+.other-note{background:var(--surface);border:1px dashed var(--line);border-radius:14px;padding:12px 16px;color:var(--muted);font-size:.875rem;display:flex;align-items:center;justify-content:space-between;gap:12px}
+
+/* Modal / Sheet Pengatur Jadwal */
+.backdrop{position:fixed;inset:0;z-index:40;background:rgba(12,20,26,.55);display:grid;place-items:center;padding:16px}
+.modal{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:20px;width:100%;max-width:420px;display:flex;flex-direction:column;gap:16px;box-shadow:0 16px 40px rgba(0,0,0,.25)}
+.dow-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.pill-pick{min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-weight:600;font-size:.8125rem;cursor:pointer}
+.pill-pick[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.dom-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.dom-pick{min-height:40px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-weight:600;font-size:.875rem;cursor:pointer;font-variant-numeric:tabular-nums}
+.dom-pick[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:#2A1B02}
+.summary-box{background:var(--accent-soft);border-radius:12px;padding:10px 14px;font-size:.875rem}
+
+.item{padding:10px 0;border-top:1px solid var(--line)}.item:first-of-type{border-top:0}
+.item-top{display:flex;justify-content:space-between;gap:12px;margin-bottom:6px;align-items:center}
+[hidden]{display:none!important}
+@media (max-width:860px){.shell{grid-template-columns:1fr}.grid2{grid-template-columns:1fr}.sticky{position:static}aside{display:none}}
+</style></head>
+<body>
+
+<div class="preview-bar">
+  <div class="row">
+    <b>Milestone 3 · Kalender &amp; Jadwal Aktivitas</b>
+    <span class="muted small">Pilih tanggal di kalender untuk melihat/ubah checklist</span>
+  </div>
+  <div class="row">
+    <div class="seg" id="layoutSeg" role="group" aria-label="Pratinjau perangkat">
+      <button type="button" aria-pressed="true" data-l="desktop">Desktop</button>
+      <button type="button" aria-pressed="false" data-l="mobile">Mobile</button>
+    </div>
+    <button class="chip" id="themeBtn" type="button" style="min-height:36px">Tema</button>
+  </div>
+</div>
+
+<div class="stage" id="stage">
+  <div class="shell">
+    <aside>
+      <div class="brand"><span class="logo">L</span><b>Langkah Kecil</b></div>
+      <button class="nav" data-v="today" aria-current="page">☀ Hari ini <span class="badge num" id="navCount">0/0</span></button>
+      <button class="nav" data-v="dash">▥ Dasbor</button>
+      <button class="nav" disabled>★ Hadiah</button>
+      <button class="nav" disabled>☰ Riwayat</button>
+      <button class="nav" disabled>⚙ Pengaturan</button>
+    </aside>
+
+    <main>
+      <header class="top">
+        <div>
+          <p class="date" id="selDateText">Selasa, 17 November 2026</p>
+          <h1 id="viewTitle">Hari ini</h1>
+        </div>
+        <div class="row">
+          <button class="chip" id="calToggleBtn" type="button" aria-pressed="true">📅 Kalender</button>
+          <button class="chip" id="editBtn" type="button" aria-pressed="false">Ubah</button>
+        </div>
+      </header>
+
+      <!-- HARI INI + KALENDER CHECKLIST -->
+      <section id="v-today">
+        <div class="grid2">
+          <div class="col">
+            <div class="future-banner" id="dateBanner" hidden>
+              <span id="dateBannerText"></span>
+              <button class="btn" type="button" id="backTodayBtn" style="min-height:34px">Kembali ke hari ini</button>
+            </div>
+            <p class="edit-note" id="editNote" hidden>
+              Mode ubah aktif. Semua aktivitas tampil (termasuk yang terjadwal di hari lain). Ketuk tombol jadwal untuk mengubah ke <b>Harian</b>, <b>Mingguan</b>, atau <b>Bulanan</b>.
+            </p>
+            <div class="col" id="groupsEl"></div>
+            <div class="other-note" id="otherDayNote" hidden>
+              <span id="otherDayText"></span>
+              <button class="btn" type="button" id="openEditFromNote" style="min-height:36px">Lihat / Ubah</button>
+            </div>
+          </div>
+
+          <!-- Kolom Kanan (Desktop) / Atas-Collapsible (Mobile) -->
+          <div class="col sticky">
+            <div class="card" id="calCard">
+              <div class="head">
+                <h2 id="calTitle">November 2026</h2>
+                <div class="row" style="gap:4px">
+                  <button class="btn" type="button" id="prevMonBtn" aria-label="Bulan sebelumnya" style="min-height:34px;padding:0 10px">‹</button>
+                  <button class="btn" type="button" id="nextMonBtn" aria-label="Bulan berikutnya" style="min-height:34px;padding:0 10px">›</button>
+                </div>
+              </div>
+              <div class="cal-grid" id="calGrid"></div>
+              <div class="cal-legend">
+                <span><i class="dot w"></i> Ada jadwal mingguan</span>
+                <span><i class="dot m"></i> Ada jadwal bulanan</span>
+              </div>
+            </div>
+
+            <div class="card" id="progressCard"></div>
+            <div class="card focus" id="focusCard"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- DASBOR -->
+      <section id="v-dash" hidden>
+        <div class="card">
+          <div class="head"><h2>Konsistensi per langkah (Minggu ini)</h2><span class="muted small">Dihitung dari hari terjadwal</span></div>
+          <div class="item">
+            <div class="item-top"><span>Minum segelas air <span class="freq-tag offday">Setiap hari</span></span><span class="num">6/7 hari (86%)</span></div>
+            <div class="progress"><span style="width:86%"></span></div>
+          </div>
+          <div class="item">
+            <div class="item-top"><span>Olahraga ringan 15 menit <span class="freq-tag">Mingguan · Sel, Jum</span></span><span class="num">2/2 jadwal (100%)</span></div>
+            <div class="progress"><span style="width:100%"></span></div>
+          </div>
+          <div class="item">
+            <div class="item-top"><span>Rapikan meja &amp; arsip <span class="freq-tag">Mingguan · Sab</span></span><span class="num">1/1 jadwal (100%)</span></div>
+            <div class="progress"><span style="width:100%"></span></div>
+          </div>
+          <div class="item">
+            <div class="item-top"><span>Cek anggaran &amp; tagihan bulanan <span class="freq-tag monthly">Bulanan · Tgl 1, 17</span></span><span class="num">1/1 jadwal (100%)</span></div>
+            <div class="progress"><span style="width:100%;background:var(--gold)"></span></div>
+          </div>
+          <p class="muted small" style="margin:12px 0 0">Hari yang tidak masuk jadwal aktivitas mingguan/bulanan tidak dihitung sebagai hari terlewat.</p>
+        </div>
+      </section>
+
+      <div class="bottom-nav">
+        <button class="bn" data-v="today" aria-current="page">☀<br>Hari ini</button>
+        <button class="bn" data-v="dash">▥<br>Jejak</button>
+        <button class="bn" disabled>★<br>Hadiah</button>
+        <button class="bn" disabled>⋯<br>Lainnya</button>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- MODAL PENGATUR JADWAL -->
+<div class="backdrop" id="schedModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="head" style="margin:0">
+      <div>
+        <p class="eyebrow">Atur Jadwal Aktivitas</p>
+        <h2 id="modalTitle">Nama Langkah</h2>
+      </div>
+      <button class="icon-btn" type="button" id="closeModalBtn" aria-label="Tutup">×</button>
+    </div>
+
+    <div class="seg" id="freqTypeSeg" role="group" aria-label="Frekuensi" style="display:grid;grid-template-columns:repeat(3,1fr)">
+      <button type="button" aria-pressed="true" data-f="daily">Harian</button>
+      <button type="button" aria-pressed="false" data-f="weekly">Mingguan</button>
+      <button type="button" aria-pressed="false" data-f="monthly">Bulanan</button>
+    </div>
+
+    <div id="panelWeekly" hidden>
+      <p class="muted small" style="margin:0 0 8px">Pilih hari apa saja aktivitas ini muncul:</p>
+      <div class="dow-grid" id="dowGrid"></div>
+    </div>
+
+    <div id="panelMonthly" hidden>
+      <p class="muted small" style="margin:0 0 8px">Pilih tanggal berapa saja setiap bulan:</p>
+      <div class="dom-grid" id="domGrid"></div>
+    </div>
+
+    <div class="summary-box" id="schedSummary">Muncul setiap hari.</div>
+
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn" type="button" id="cancelModalBtn">Batal</button>
+      <button class="btn primary" type="button" id="saveModalBtn">Simpan jadwal</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)},$$=function(s){return document.querySelectorAll(s)};
+  var DOW_SHORT=['','Sen','Sel','Rab','Kam','Jum','Sab','Min'];
+  var DOW_FULL=['','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
+  var MONTHS=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  var CK='<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 4.8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  var TODAY_STR='2026-11-17';
+  var selectedDate=TODAY_STR;
+  var calYear=2026, calMonth=11;
+  var showCal=true, editMode=false, liteMode=false, view='today';
+
+  // Checks stored per YYYY-MM-DD -> { taskId: true }
+  var checks={
+    '2026-11-17':{t1:true},
+    '2026-11-16':{t1:true,t3:true,t6:true}
+  };
+
+  var groups=[
+    {id:'g1',name:'Pagi',tasks:[
+      {id:'t1',name:'Minum segelas air',core:true,freq:'daily',days:[]},
+      {id:'t2',name:'Olahraga ringan 15 menit',core:false,freq:'weekly',days:[2,5]}
+    ]},
+    {id:'g2',name:'Siang',tasks:[
+      {id:'t3',name:'Makan siang tepat waktu',core:true,freq:'daily',days:[]},
+      {id:'t4',name:'Rapikan meja & arsip',core:false,freq:'weekly',days:[6]},
+      {id:'t5',name:'Cek anggaran & tagihan bulanan',core:true,freq:'monthly',days:[1,17]}
+    ]},
+    {id:'g3',name:'Malam',tasks:[
+      {id:'t6',name:'Siapkan baju untuk besok',core:false,freq:'weekly',days:[1,2,3,4,7]},
+      {id:'t7',name:'Ganti seprai kasur',core:false,freq:'monthly',days:[1,15]}
+    ]}
+  ];
+
+  function parseDay(str){var p=str.split('-').map(Number);return new Date(p[0],p[1]-1,p[2])}
+  function fmtDay(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+  function getIsoDow(d){var w=d.getDay();return w===0?7:w} // 1=Sen..7=Min
+
+  function isScheduledOn(t, dateStr){
+    var d=parseDay(dateStr), dow=getIsoDow(d), dom=d.getDate();
+    if(t.freq==='daily') return true;
+    if(t.freq==='weekly') return t.days.indexOf(dow)!==-1;
+    if(t.freq==='monthly') return t.days.indexOf(dom)!==-1;
+    return true;
+  }
+
+  function freqLabel(t){
+    if(t.freq==='daily') return 'Setiap hari';
+    if(t.freq==='weekly') return t.days.map(function(d){return DOW_FULL[d]}).join(', ');
+    if(t.freq==='monthly') return 'Tanggal '+t.days.join(', ');
+    return 'Setiap hari';
+  }
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  function isDoneOn(tid, dateStr){return !!(checks[dateStr]&&checks[dateStr][tid])}
+
+  function renderCalendar(){
+    $('#calCard').hidden=!showCal;
+    $('#calToggleBtn').setAttribute('aria-pressed',showCal);
+    if(!showCal) return;
+
+    $('#calTitle').textContent=MONTHS[calMonth-1]+' '+calYear;
+    var first=new Date(calYear,calMonth-1,1);
+    var offset=getIsoDow(first)-1;
+    var daysInMonth=new Date(calYear,calMonth,0).getDate();
+    var all=groups.flatMap(function(g){return g.tasks});
+
+    var h='';
+    ['Sen','Sel','Rab','Kam','Jum','Sab','Min'].forEach(function(d){h+='<div class="dow">'+d+'</div>'});
+    for(var i=0;i<offset;i++) h+='<div></div>';
+    for(var day=1;day<=daysInMonth;day++){
+      var dStr=calYear+'-'+String(calMonth).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+      var hasWeekly=all.some(function(t){return t.freq==='weekly'&&isScheduledOn(t,dStr)});
+      var hasMonthly=all.some(function(t){return t.freq==='monthly'&&isScheduledOn(t,dStr)});
+      var isToday=dStr===TODAY_STR;
+      var isSel=dStr===selectedDate;
+      h+='<button type="button" class="cday'+(isToday?' today':'')+'" data-cday="'+dStr+'" aria-pressed="'+isSel+'">'+
+        '<span>'+day+'</span>'+
+        '<span class="dots">'+(hasWeekly?'<i class="dot w"></i>':'')+(hasMonthly?'<i class="dot m"></i>':'')+'</span>'+
+        '</button>';
+    }
+    $('#calGrid').innerHTML=h;
+    $$('[data-cday]').forEach(function(b){b.onclick=function(){
+      selectedDate=b.dataset.cday;
+      render();
+    }});
+  }
+
+  function render(){
+    renderCalendar();
+
+    var dObj=parseDay(selectedDate);
+    var dow=getIsoDow(dObj);
+    $('#selDateText').textContent=DOW_FULL[dow]+', '+dObj.getDate()+' '+MONTHS[dObj.getMonth()]+' '+dObj.getFullYear();
+
+    var isFuture=selectedDate>TODAY_STR;
+    var isPast=selectedDate<TODAY_STR;
+    $('#dateBanner').hidden=selectedDate===TODAY_STR;
+    if(isFuture) $('#dateBannerText').textContent='Pratinjau jadwal mendatang (belum bisa dicentang).';
+    else if(isPast) $('#dateBannerText').textContent='Melihat catatan tanggal sebelumnya.';
+
+    var all=groups.flatMap(function(g){return g.tasks});
+    var dayTasks=all.filter(function(t){return isScheduledOn(t,selectedDate)&&(!liteMode||t.core)});
+    var offDayCount=all.filter(function(t){return !isScheduledOn(t,selectedDate)}).length;
+    var done=dayTasks.filter(function(t){return isDoneOn(t.id,selectedDate)}).length;
+    var tot=dayTasks.length;
+    var pct=tot?Math.round(done/tot*100):0;
+
+    $('#navCount').textContent=done+'/'+tot;
+    $('#progressCard').innerHTML=
+      '<div class="row" style="justify-content:space-between;align-items:baseline;margin-bottom:10px">'+
+      '<div class="big num">'+done+'<small> dari '+tot+' langkah</small></div><div class="big num">'+pct+'<small>%</small></div></div>'+
+      '<div class="progress"><span style="width:'+pct+'%"></span></div>'+
+      '<p class="muted small" style="margin:10px 0 0">'+(isFuture?'Jadwal yang direncanakan pada tanggal ini.':done===tot?'Semua langkah terjadwal selesai.':'Menampilkan aktivitas harian + jadwal tanggal dipilih.')+'</p>'+
+      '<div class="switch-row"><p><b>Hari berat</b><br><span class="muted small">Tampilkan hanya langkah inti (★).</span></p>'+
+      '<button class="switch" id="liteSw" aria-checked="'+liteMode+'"></button></div>';
+    $('#liteSw').onclick=function(){liteMode=!liteMode;render()};
+
+    var fc=$('#focusCard');
+    var next=dayTasks.find(function(t){return !isDoneOn(t.id,selectedDate)});
+    fc.hidden=editMode||isFuture||!tot;
+    if(!fc.hidden){
+      fc.innerHTML=next?'<p class="eyebrow">Mulai dari sini</p><p class="focus-name">'+esc(next.name)+'</p>'+
+        '<p class="muted small" style="margin:0 0 12px">'+esc(freqLabel(next))+'</p>'+
+        '<button class="btn primary" id="fDone">Sudah selesai</button>'
+        :'<p class="eyebrow">Selesai</p><p class="focus-name">Semua langkah terjadwal tanggal ini beres.</p>';
+      if(next) $('#fDone').onclick=function(){
+        checks[selectedDate]=checks[selectedDate]||{};checks[selectedDate][next.id]=true;render();
+      };
+    }
+
+    $('#editNote').hidden=!editMode;
+    $('#otherDayNote').hidden=editMode||offDayCount===0;
+    $('#otherDayText').textContent=offDayCount+' aktivitas mingguan/bulanan dijadwalkan di tanggal lain.';
+
+    var html='';
+    groups.forEach(function(g){
+      var vis=g.tasks.filter(function(t){return editMode||(isScheduledOn(t,selectedDate)&&(!liteMode||t.core))});
+      if(!editMode&&!vis.length) return;
+      var gDone=vis.filter(function(t){return isDoneOn(t.id,selectedDate)}).length;
+      html+='<section class="card"><div class="head"><h2>'+esc(g.name)+'</h2>'+
+        (editMode?'':'<span class="count num muted small">'+gDone+'/'+vis.length+'</span>')+'</div>';
+
+      if(editMode){
+        html+='<div>';
+        vis.forEach(function(t){
+          var cls=t.freq==='weekly'?'weekly':(t.freq==='monthly'?'monthly':'');
+          var label=freqLabel(t);
+          var dueNote=!isScheduledOn(t,selectedDate)?'<span class="freq-tag offday">Bukan tanggal ini</span>':'';
+          html+='<div class="erow">'+
+            '<div class="erow-top">'+
+              '<button class="icon-btn'+(t.core?' on':'')+'" data-core="'+t.id+'" aria-label="Tandai langkah inti">'+(t.core?'★':'☆')+'</button>'+
+              '<input class="text-in" value="'+esc(t.name)+'" data-tn="'+t.id+'" aria-label="Nama langkah">'+
+              '<button class="sched-btn '+cls+'" data-sched="'+t.id+'" title="'+esc(label)+'" aria-label="Jadwal: '+esc(label)+'">📅</button>'+
+            '</div>'+
+            '<div class="erow-sub"><span class="freq-pill '+cls+'">'+esc(label)+'</span>'+dueNote+'</div>'+
+            '</div>';
+        });
+        html+='</div>';
+      } else {
+        html+='<ul class="tasks">';
+        vis.forEach(function(t){
+          var isDone=isDoneOn(t.id,selectedDate);
+          var badge=t.freq!=='daily'?'<span class="freq-tag '+(t.freq==='monthly'?'monthly':'')+'">'+esc(freqLabel(t))+'</span>':'';
+          html+='<li class="task'+(isDone?' done':'')+'"><label class="check">'+
+            '<input type="checkbox" data-chk="'+t.id+'"'+(isDone?' checked':'')+(isFuture?' disabled':'')+'><span class="box">'+CK+'</span>'+
+            '<span class="nm">'+esc(t.name)+(t.core&&!liteMode?'<span class="star">★ inti</span>':'')+badge+'</span></label></li>';
+        });
+        html+='</ul>';
+      }
+      html+='</section>';
+    });
+    $('#groupsEl').innerHTML=html;
+
+    $$('[data-chk]').forEach(function(c){c.onchange=function(){
+      checks[selectedDate]=checks[selectedDate]||{};
+      checks[selectedDate][c.dataset.chk]=c.checked;
+      render();
+    }});
+    $$('[data-core]').forEach(function(b){b.onclick=function(){
+      var t=all.find(function(x){return x.id===b.dataset.core});if(t){t.core=!t.core;render()}
+    }});
+    $$('[data-tn]').forEach(function(i){i.oninput=function(){
+      var t=all.find(function(x){return x.id===i.dataset.tn});if(t) t.name=i.value;
+    }});
+    $$('[data-sched]').forEach(function(b){b.onclick=function(){openModal(b.dataset.sched)}});
+  }
+
+  // Modal Pengatur Jadwal
+  var editingTask=null, draftFreq='daily', draftDays=[];
+  function openModal(tid){
+    editingTask=groups.flatMap(function(g){return g.tasks}).find(function(t){return t.id===tid});
+    if(!editingTask) return;
+    var dObj=parseDay(selectedDate);
+    draftFreq=editingTask.freq;
+    draftDays=editingTask.days.slice();
+    if(draftFreq==='weekly'&&!draftDays.length) draftDays=[getIsoDow(dObj)];
+    if(draftFreq==='monthly'&&!draftDays.length) draftDays=[dObj.getDate()];
+    $('#modalTitle').textContent=editingTask.name||'Langkah';
+    renderModal();
+    $('#schedModal').hidden=false;
+  }
+
+  function renderModal(){
+    $$('#freqTypeSeg button').forEach(function(b){b.setAttribute('aria-pressed',b.dataset.f===draftFreq)});
+    $('#panelWeekly').hidden=draftFreq!=='weekly';
+    $('#panelMonthly').hidden=draftFreq!=='monthly';
+
+    if(draftFreq==='weekly'){
+      var wh='';
+      for(var d=1;d<=7;d++){
+        wh+='<button type="button" class="pill-pick" data-dow="'+d+'" aria-pressed="'+(draftDays.indexOf(d)!==-1)+'">'+DOW_SHORT[d]+'</button>';
+      }
+      $('#dowGrid').innerHTML=wh;
+      $$('[data-dow]').forEach(function(b){b.onclick=function(){
+        var v=+b.dataset.dow, idx=draftDays.indexOf(v);
+        if(idx===-1) draftDays.push(v);
+        else if(draftDays.length>1) draftDays.splice(idx,1);
+        draftDays.sort(function(a,b){return a-b});
+        renderModal();
+      }});
+      $('#schedSummary').textContent='Muncul setiap: '+draftDays.map(function(x){return DOW_FULL[x]}).join(', ')+'.';
+    } else if(draftFreq==='monthly'){
+      var mh='';
+      for(var m=1;m<=31;m++){
+        mh+='<button type="button" class="dom-pick" data-dom="'+m+'" aria-pressed="'+(draftDays.indexOf(m)!==-1)+'">'+m+'</button>';
+      }
+      $('#domGrid').innerHTML=mh;
+      $$('[data-dom]').forEach(function(b){b.onclick=function(){
+        var v=+b.dataset.dom, idx=draftDays.indexOf(v);
+        if(idx===-1) draftDays.push(v);
+        else if(draftDays.length>1) draftDays.splice(idx,1);
+        draftDays.sort(function(a,b){return a-b});
+        renderModal();
+      }});
+      $('#schedSummary').textContent='Muncul setiap bulan pada tanggal: '+draftDays.join(', ')+'.';
+    } else {
+      $('#schedSummary').textContent='Muncul setiap hari (Harian).';
+    }
+  }
+
+  $$('#freqTypeSeg button').forEach(function(b){b.onclick=function(){
+    var dObj=parseDay(selectedDate);
+    draftFreq=b.dataset.f;
+    if(draftFreq==='weekly'&&(!draftDays.length||draftDays.some(function(x){return x>7}))) draftDays=[getIsoDow(dObj)];
+    if(draftFreq==='monthly'&&!draftDays.length) draftDays=[dObj.getDate()];
+    renderModal();
+  }});
+
+  $('#closeModalBtn').onclick=$('#cancelModalBtn').onclick=function(){$('#schedModal').hidden=true};
+  $('#saveModalBtn').onclick=function(){
+    if(editingTask){
+      editingTask.freq=draftFreq;
+      editingTask.days=draftFreq==='daily'?[]:draftDays.slice();
+    }
+    $('#schedModal').hidden=true;
+    render();
+  };
+
+  $('#prevMonBtn').onclick=function(){calMonth--;if(calMonth<1){calMonth=12;calYear--}renderCalendar()};
+  $('#nextMonBtn').onclick=function(){calMonth++;if(calMonth>12){calMonth=1;calYear++}renderCalendar()};
+  $('#calToggleBtn').onclick=function(){showCal=!showCal;renderCalendar()};
+  $('#backTodayBtn').onclick=function(){
+    selectedDate=TODAY_STR;
+    calYear=2026; calMonth=11;
+    render();
+  };
+
+  $('#editBtn').onclick=function(){
+    editMode=!editMode;
+    $('#editBtn').setAttribute('aria-pressed',editMode);
+    $('#editBtn').textContent=editMode?'Selesai mengubah':'Ubah';
+    render();
+  };
+  $('#openEditFromNote').onclick=function(){$('#editBtn').click()};
+
+  $$('[data-v]').forEach(function(b){b.onclick=function(){
+    view=b.dataset.v;
+    $$('[data-v]').forEach(function(x){if(x.dataset.v===view)x.setAttribute('aria-current','page');else x.removeAttribute('aria-current')});
+    $('#v-today').hidden=view!=='today';
+    $('#v-dash').hidden=view!=='dash';
+    $('#editBtn').hidden=view!=='today';
+    $('#calToggleBtn').hidden=view!=='today';
+    $('#viewTitle').textContent=view==='today'?'Hari ini':'Dasbor aktivitas';
+  }});
+
+  $$('#layoutSeg button').forEach(function(b){b.onclick=function(){
+    $$('#layoutSeg button').forEach(function(x){x.setAttribute('aria-pressed',x===b)});
+    $('#stage').classList.toggle('mobile',b.dataset.l==='mobile');
+  }});
+
+  var th=0;$('#themeBtn').onclick=function(){
+    th=(th+1)%3;var r=document.documentElement;
+    if(th===0)r.removeAttribute('data-theme');else r.setAttribute('data-theme',th===1?'light':'dark');
+    this.textContent=['Tema: otomatis','Tema: terang','Tema: gelap'][th];
+  };
+
+  render();
+})();
+</script>
+</body></html>

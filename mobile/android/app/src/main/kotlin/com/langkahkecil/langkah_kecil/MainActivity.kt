@@ -1,0 +1,5 @@
+package com.langkahkecil.langkah_kecil
+
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity : FlutterActivity()

@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Langkah Kecil — Mobile</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=DM+Sans:wght@400;500;600&display=swap">
+<style>
+/* Mobile (Flutter) — Milestone 1 + 2 digabung. Satu kolom, navigasi bawah: Hari ini · Hadiah · Jejak (Dasbor/Riwayat) · Lainnya (Nonaktif/Pengaturan). */
+:root{--bg:#F2F5F7;--surface:#FFFFFF;--ink:#1B2730;--muted:#566772;--line:#D9E1E6;--box-line:#8FA1AC;--tab-bg:#E4EAEE;--accent:#1D7487;--accent-ink:#FFFFFF;--accent-soft:#DDEEF2;--gold:#D9A12F;--gold-ink:#7A4E0A;--gold-soft:#F7E9C8;--miss:#B4533F;--miss-soft:#F6E1DB;--focus:#1D7487;--font-display:'Bricolage Grotesque',system-ui,sans-serif;--font-body:'DM Sans',system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12181D;--surface:#1A2229;--ink:#E6EDF2;--muted:#93A4B0;--line:#2A353E;--box-line:#6B7D89;--tab-bg:#1F2A32;--accent:#6CC6D8;--accent-ink:#0C1A1F;--accent-soft:#1C3A42;--gold:#E3B04B;--gold-ink:#F0C877;--gold-soft:#3A2F16;--miss:#E39A88;--miss-soft:#3A2420;--focus:#6CC6D8;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12181D;--surface:#1A2229;--ink:#E6EDF2;--muted:#93A4B0;--line:#2A353E;--box-line:#6B7D89;--tab-bg:#1F2A32;--accent:#6CC6D8;--accent-ink:#0C1A1F;--accent-soft:#1C3A42;--gold:#E3B04B;--gold-ink:#F0C877;--gold-soft:#3A2F16;--miss:#E39A88;--miss-soft:#3A2420;--focus:#6CC6D8;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.5;padding-top:max(20px,env(safe-area-inset-top));padding-bottom:calc(88px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+.app{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+button{font:inherit;color:inherit}
+h1,h2{font-family:var(--font-display);margin:0;text-wrap:balance}
+h1{font-size:1.75rem;line-height:1.1;letter-spacing:-.01em}
+h2{font-size:1.0625rem}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+.date{margin:0 0 4px;color:var(--muted);font-size:.875rem;font-weight:500}
+.chip{min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-weight:600;cursor:pointer;flex:none}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.syncline{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:.8125rem;margin:0}
+.dot{width:8px;height:8px;border-radius:50%;background:#3FA672;flex:none}
+.view{display:none;flex-direction:column;gap:16px}.view.on{display:flex}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px}
+.muted{color:var(--muted)}.small{font-size:.875rem}
+.num{font-variant-numeric:tabular-nums}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-weight:600;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.gold{background:var(--gold);border-color:var(--gold);color:#2A1B02}
+.btn.dashed{border-style:dashed;width:100%;background:transparent;color:var(--muted)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.big{font-family:var(--font-display);font-size:2rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.big small{font-size:1rem;font-weight:600;color:var(--muted)}
+.bar{height:12px;border-radius:999px;background:var(--accent-soft);overflow:hidden}
+.bar>span{display:block;height:100%;background:var(--accent);border-radius:inherit;transition:width .4s ease}
+.bar.gold{background:var(--gold-soft)}.bar.gold>span{background:var(--gold)}
+.bar.thin{height:10px}
+.eyebrow{margin:0 0 4px;font-size:.75rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.switch-row p{margin:0;min-width:0}
+.switch{position:relative;width:52px;height:32px;flex:none;border-radius:999px;border:0;background:var(--box-line);cursor:pointer;padding:0}
+.switch::after{content:"";position:absolute;top:4px;left:4px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .2s}
+.switch[aria-checked="true"]{background:var(--accent)}.switch[aria-checked="true"]::after{transform:translateX(20px)}
+.focus{background:var(--accent-soft);border-color:transparent}
+.focus-name{font-family:var(--font-display);font-size:1.375rem;line-height:1.25;font-weight:600;margin:0 0 4px;overflow-wrap:anywhere}
+.hint{margin:0 0 14px;color:var(--muted);font-size:.9375rem}
+.head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px}
+.count{color:var(--muted);font-size:.875rem;font-variant-numeric:tabular-nums}
+.tasks{list-style:none;margin:0;padding:0}
+.task{border-top:1px solid var(--line)}.task:first-child{border-top:0}
+.check{position:relative;display:flex;align-items:center;gap:14px;min-height:52px;padding:6px 0;cursor:pointer}
+.check input{position:absolute;left:0;top:50%;width:28px;height:28px;margin:-14px 0 0;opacity:0;cursor:pointer}
+.box{width:28px;height:28px;flex:none;border-radius:8px;border:2px solid var(--box-line);display:grid;place-items:center;color:transparent;transition:background .15s}
+.check input:checked+.box{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.check input:focus-visible+.box{outline:3px solid var(--focus);outline-offset:2px}
+.nm{min-width:0;overflow-wrap:anywhere}
+.task.done .nm{color:var(--muted);text-decoration:line-through}
+.star{color:var(--gold-ink);font-size:.75rem;font-weight:600;margin-left:6px;white-space:nowrap}
+.tag{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;font-size:.6875rem;font-weight:600;background:var(--tab-bg);color:var(--muted);white-space:nowrap}
+/* edit */
+.erow{display:flex;align-items:center;gap:6px;padding:5px 0}
+.text-in{flex:1;min-width:0;min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit}
+.num-in{flex:none;width:76px;text-align:center}
+.icon-btn{min-width:44px;height:44px;flex:none;border:0;background:transparent;border-radius:10px;cursor:pointer;font-size:1.25rem;color:var(--muted)}
+.icon-btn.on{color:var(--gold)}
+.icon-btn.txt{font-size:.8125rem;font-weight:600;padding:0 8px;border:1px solid var(--line)}
+.group-edit{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.group-edit .text-in{font-family:var(--font-display);font-weight:600}
+.edit-note{margin:0;font-size:.875rem;background:var(--gold-soft);border-radius:12px;padding:10px 14px}
+/* hadiah */
+.balance{background:var(--gold-soft);border-color:transparent}
+.points{font-family:var(--font-display);font-size:2.75rem;font-weight:700;line-height:1;color:var(--gold-ink);font-variant-numeric:tabular-nums}
+.points small{font-size:1rem;font-weight:600}
+.reward-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.reward-top p{margin:0}
+.list{list-style:none;margin:8px 0 0;padding:0}
+.list li{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--line);font-size:.9375rem}
+.list li span:last-child{color:var(--muted);flex:none}
+/* jejak */
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;padding:4px;background:var(--tab-bg);border-radius:12px}
+.seg button{min-height:40px;border:0;background:transparent;border-radius:9px;font-weight:600;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.hero{background:var(--accent-soft);border-color:transparent}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.metric{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px}
+.metric .big{font-size:1.5rem}
+.metric p{margin:4px 0 0;color:var(--muted);font-size:.8125rem}
+.metric.gold{background:var(--gold-soft);border-color:transparent}.metric.gold .big{color:var(--gold-ink)}
+.chart{display:flex;align-items:flex-end;gap:8px;height:120px;margin-top:12px}
+.bc{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
+.bc i{display:block;width:100%;max-width:36px;border-radius:8px 8px 4px 4px;background:var(--accent);min-height:4px}
+.bc i.today{background:var(--gold)}
+.bc span{font-size:.75rem;color:var(--muted)}
+.item{padding:10px 0;border-top:1px solid var(--line)}.item:first-of-type{border-top:0}
+.item-top{display:flex;justify-content:space-between;gap:12px;margin-bottom:6px}
+.item-top span:first-child{min-width:0;overflow-wrap:anywhere}
+.item-top span:last-child{color:var(--muted);font-size:.875rem;flex:none;font-variant-numeric:tabular-nums}
+.strip{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.dow{text-align:center;font-size:.6875rem;color:var(--muted);font-weight:600}
+.day{aspect-ratio:1;min-height:40px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer;font-weight:600;font-size:.875rem;color:var(--ink);font-variant-numeric:tabular-nums}
+.day:disabled{opacity:.35;cursor:default}
+.day.l1{background:var(--accent-soft)}.day.l2{background:color-mix(in srgb,var(--accent) 45%,var(--surface))}.day.l3{background:var(--accent);color:var(--accent-ink)}
+.day[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--ink)}
+.logs{list-style:none;margin:0;padding:0}
+.logs li{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}.logs li:first-child{border-top:0}
+.ico{width:28px;height:28px;flex:none;border-radius:8px;display:grid;place-items:center;font-size:.875rem;font-weight:700}
+.ico.ok{background:var(--accent);color:var(--accent-ink)}.ico.no{background:var(--miss-soft);color:var(--miss)}
+.logs .nm{flex:1}.logs time{color:var(--muted);font-size:.8125rem;flex:none;font-variant-numeric:tabular-nums}
+/* lainnya */
+.off{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--line)}.off:first-of-type{border-top:0}
+.off>div{min-width:0}.off p{margin:0;overflow-wrap:anywhere}
+.pill{font-size:.75rem;font-weight:600;padding:2px 10px;border-radius:999px;background:var(--accent-soft)}
+.status{text-align:center;color:var(--muted);font-size:.8125rem;margin:0}
+/* bottom nav */
+.bottom{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--surface);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left))}
+.bottom nav{max-width:640px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.bn{min-height:56px;border:0;background:transparent;border-radius:12px;color:var(--muted);font-size:.75rem;font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;position:relative}
+.bn .ic{font-size:1.25rem;line-height:1}
+.bn[aria-current="page"]{color:var(--accent);background:var(--accent-soft)}
+.bn .b{position:absolute;top:4px;right:calc(50% - 22px);min-width:18px;height:18px;border-radius:9px;background:var(--gold);color:#2A1B02;font-size:.6875rem;display:grid;place-items:center;padding:0 4px}
+.toast{position:fixed;z-index:20;left:max(16px,env(safe-area-inset-left));right:max(16px,env(safe-area-inset-right));bottom:calc(80px + env(safe-area-inset-bottom,0px));max-width:420px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:12px;background:var(--ink);color:var(--bg);box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.toast button{min-height:44px;padding:0 8px;border:0;background:transparent;color:var(--bg);font-weight:700;text-decoration:underline;cursor:pointer}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:380px){.num-in{width:64px}.icon-btn.txt{font-size:.75rem}}
+</style></head>
+<body>
+<div class="app">
+  <header class="top">
+    <div><p class="date" id="date"></p><h1 id="title">Hari ini</h1></div>
+    <button class="chip" id="editBtn" type="button" aria-pressed="false">Ubah</button>
+  </header>
+
+  <main>
+  <!-- HARI INI -->
+  <section class="view on" id="v-today">
+    <div class="card" id="progress"></div>
+    <div class="card focus" id="focus"></div>
+    <p class="edit-note" id="editNote" hidden>Mode ubah aktif. Bintang menandai langkah inti. <b>Nonaktifkan</b> menyembunyikan langkah, riwayatnya tetap tersimpan.</p>
+    <div class="view on" id="groups" style="gap:16px"></div>
+  </section>
+
+  <!-- HADIAH -->
+  <section class="view" id="v-rewards">
+    <div class="card balance"><p class="eyebrow">Poin kamu</p><div class="points"><span id="pts">0</span><small> poin</small></div>
+      <p class="muted small" style="margin:8px 0 0">Setiap langkah yang dicentang menambah 1 poin. Hari yang terlewat tidak mengurangi poin.</p></div>
+    <div class="view on" id="rewards" style="gap:16px"></div>
+    <div class="card" id="claimCard"><h2>Sudah diambil</h2><ul class="list" id="claims"></ul></div>
+  </section>
+
+  <!-- JEJAK -->
+  <section class="view" id="v-trail">
+    <div class="seg" id="trailSeg" role="group" aria-label="Jejak"><button aria-pressed="true" data-t="dash">Dasbor</button><button aria-pressed="false" data-t="log">Riwayat</button></div>
+
+    <div class="view on" id="t-dash" style="gap:16px">
+      <div class="seg" id="period" role="group" aria-label="Periode"><button aria-pressed="true" data-p="week">Minggu ini</button><button aria-pressed="false" data-p="month">Bulan ini</button><button aria-pressed="false" data-p="all">Semua</button></div>
+      <div class="card hero"><p class="eyebrow" id="pLabel">7 hari terakhir</p>
+        <div class="row" style="justify-content:space-between;align-items:baseline;margin-bottom:10px"><div class="big"><span id="mRate">78</span><small>% selesai</small></div><span class="small muted" id="pNote">naik 6% dari minggu lalu</span></div>
+        <div class="bar" role="progressbar" aria-label="Tingkat selesai" aria-valuemin="0" aria-valuemax="100" aria-valuenow="78" id="rateBar"><span style="width:78%"></span></div>
+        <p class="small muted" style="margin:10px 0 0">Hari yang terlewat tidak apa-apa. Yang dihitung hanya langkah yang kamu ambil.</p></div>
+      <div class="metrics">
+        <div class="metric"><div class="big" id="mDone">38</div><p>langkah selesai</p></div>
+        <div class="metric"><div class="big" id="mDays">6<small>/7</small></div><p>hari aktif</p></div>
+        <div class="metric"><div class="big" id="mStreak">4<small> hari</small></div><p>beruntun saat ini</p></div>
+        <div class="metric gold"><div class="big" id="mPts">+38</div><p>poin didapat</p></div>
+      </div>
+      <div class="card"><div class="head"><h2>Langkah per hari</h2><span class="count">maks 11</span></div>
+        <div class="chart" role="img" aria-label="Grafik langkah selesai per hari"><div class="bc"><i style="height:64%"></i><span>Rab</span></div><div class="bc"><i style="height:82%"></i><span>Kam</span></div><div class="bc"><i style="height:45%"></i><span>Jum</span></div><div class="bc"><i style="height:0"></i><span>Sab</span></div><div class="bc"><i style="height:55%"></i><span>Min</span></div><div class="bc"><i style="height:100%"></i><span>Sen</span></div><div class="bc"><i class="today" style="height:36%"></i><span>Hari ini</span></div></div></div>
+      <div class="card"><div class="head"><h2>Per kelompok</h2></div>
+        <div class="item"><div class="item-top"><span>Pagi</span><span>86%</span></div><div class="bar thin"><span style="width:86%"></span></div></div>
+        <div class="item"><div class="item-top"><span>Siang</span><span>71%</span></div><div class="bar thin"><span style="width:71%"></span></div></div>
+        <div class="item"><div class="item-top"><span>Malam</span><span>64%</span></div><div class="bar thin"><span style="width:64%"></span></div></div></div>
+      <div class="card"><div class="head"><h2>Per langkah</h2><span class="count">paling sering dulu</span></div>
+        <div class="item"><div class="item-top"><span>Minum segelas air</span><span>7/7</span></div><div class="bar thin"><span style="width:100%"></span></div></div>
+        <div class="item"><div class="item-top"><span>Makan siang</span><span>6/7</span></div><div class="bar thin"><span style="width:86%"></span></div></div>
+        <div class="item"><div class="item-top"><span>Peregangan 3 menit</span><span>4/7</span></div><div class="bar thin"><span style="width:57%"></span></div></div>
+        <div class="item"><div class="item-top"><span>Baca 10 halaman <span class="tag">Nonaktif sejak 9 Nov</span></span><span>2/3</span></div><div class="bar thin"><span style="width:67%;background:var(--box-line)"></span></div></div></div>
+      <p class="status">Langkah nonaktif tetap dihitung pada hari ketika masih aktif, supaya tren tidak berubah.</p>
+    </div>
+
+    <div class="view" id="t-log" style="gap:16px">
+      <div class="card"><div class="head"><h2>November 2026</h2><div class="row" style="gap:4px"><button class="btn" aria-label="Bulan sebelumnya" style="padding:0 14px">‹</button><button class="btn" aria-label="Bulan berikutnya" style="padding:0 14px" disabled>›</button></div></div>
+        <div class="strip" id="cal"></div></div>
+      <div class="card"><p class="eyebrow" id="dayLabel">Senin, 16 November</p>
+        <div class="row" style="justify-content:space-between;align-items:baseline;margin-bottom:10px"><div class="big">11<small> dari 12 langkah</small></div><span class="small muted">+11 poin</span></div>
+        <div class="bar" aria-hidden="true"><span style="width:92%"></span></div></div>
+      <div class="card"><div class="head"><h2>Pagi</h2><span class="count">4/4</span></div><ul class="logs">
+        <li><span class="ico ok">✓</span><span class="nm">Minum segelas air</span><time>06:41</time></li>
+        <li><span class="ico ok">✓</span><span class="nm">Sarapan, yang sederhana pun cukup</span><time>07:10</time></li>
+        <li><span class="ico ok">✓</span><span class="nm">Cuci muka dulu, mandi menyusul</span><time>07:32</time></li>
+        <li><span class="ico ok">✓</span><span class="nm">Peregangan 3 menit</span><time>07:35</time></li></ul></div>
+      <div class="card"><div class="head"><h2>Siang</h2><span class="count">3/4</span></div><ul class="logs">
+        <li><span class="ico ok">✓</span><span class="nm">Kerjakan 1 hal selama 10 menit</span><time>10:20</time></li>
+        <li><span class="ico ok">✓</span><span class="nm">Makan siang</span><time>12:48</time></li>
+        <li><span class="ico ok">✓</span><span class="nm">Buka 1 chat saja, balas 1 kalimat</span><time>14:05</time></li>
+        <li><span class="ico no" aria-label="Terlewat">–</span><span class="nm muted">Baca 10 halaman <span class="tag">Nonaktif sejak 9 Nov</span></span><time>terlewat</time></li></ul></div>
+      <div class="card"><div class="head"><h2>Malam</h2><span class="count">4/4</span></div><ul class="logs">
+        <li><span class="ico ok">✓</span><span class="nm">Gerak 5 menit</span><time>18:30</time></li>
+        <li><span class="ico ok">✓</span><span class="nm">Makan malam</span><time>19:15</time></li>
+        <li><span class="ico ok">✓</span><span class="nm">Mulai bersiap tidur di jam yang sama</span><time>21:50</time></li>
+        <li><span class="ico ok">✓</span><span class="nm">Tulis 1 hal yang disyukuri</span><time>22:05</time></li></ul></div>
+    </div>
+  </section>
+
+  <!-- LAINNYA -->
+  <section class="view" id="v-more">
+    <div class="card"><div class="head"><h2>Sinkronisasi</h2><span class="pill">Tersambung</span></div>
+      <p class="muted small" style="margin:0 0 8px">Ponsel menemukan aplikasi desktop di jaringan Wi-Fi yang sama secara otomatis. Tidak perlu mengisi IP.</p>
+      <ul class="list"><li><span>Desktop Luthfi</span><span>Ditemukan otomatis</span></li><li><span>Terakhir sinkron</span><span>2 menit lalu</span></li></ul>
+      <div class="row" style="margin-top:12px"><button class="btn primary" data-toast="Sinkronisasi selesai.">Sinkronkan sekarang</button></div>
+      <div class="switch-row"><p><b>Sinkron otomatis</b><br><span class="muted small">Dua arah, saat di jaringan yang sama.</span></p><button class="switch" role="switch" aria-checked="true" aria-label="Sinkron otomatis"></button></div></div>
+
+    <div class="card"><div class="head"><h2>Langkah nonaktif</h2><span class="count" id="offCount"></span></div>
+      <p class="muted small" style="margin:0 0 4px">Menghapus langkah atau kelompok hanya menonaktifkannya. Riwayat dan poin tetap aman.</p>
+      <div id="offList"></div>
+      <div class="off"><div><p>Kelompok Sore</p><p class="muted small">3 langkah · dinonaktifkan 2 Nov</p></div><button class="btn" data-toast="Kelompok Sore diaktifkan lagi.">Aktifkan lagi</button></div></div>
+
+    <div class="card"><h2>Tampilan</h2><div class="seg" id="theme" style="margin-top:10px"><button aria-pressed="true" data-t="auto">Otomatis</button><button aria-pressed="false" data-t="light">Terang</button><button aria-pressed="false" data-t="dark">Gelap</button></div></div>
+  </section>
+  </main>
+  <p class="status">Tersimpan di perangkat ini</p>
+</div>
+
+<div class="bottom"><nav aria-label="Navigasi utama">
+  <button class="bn" data-view="today" aria-current="page"><span class="ic">☀</span>Hari ini</button>
+  <button class="bn" data-view="rewards"><span class="ic">★</span>Hadiah<span class="b num" id="navPts">0</span></button>
+  <button class="bn" data-view="trail"><span class="ic">▥</span>Jejak</button>
+  <button class="bn" data-view="more"><span class="ic">⋯</span>Lainnya<span class="b num" id="navOff" style="background:var(--tab-bg);color:var(--ink)">0</span></button>
+</nav></div>
+<div class="toast" id="toast" role="status" hidden><span id="toastMsg"></span><button type="button" id="toastUndo">Urungkan</button></div>
+
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)},$$=function(s){return document.querySelectorAll(s)};
+  var DAYS=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'],MON=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  var d=new Date();$('#date').textContent=DAYS[d.getDay()]+', '+d.getDate()+' '+MON[d.getMonth()];
+  var S={lite:false,edit:false,view:'today',earned:12,spent:0,skipped:{},undo:null,
+    groups:[{n:'Pagi',t:[['Minum segelas air',1,1],['Sarapan, yang sederhana pun cukup',1,1],['Cuci muka dulu, mandi menyusul',0,0],['Peregangan 3 menit',0,0]]},
+            {n:'Siang',t:[['Buka 1 chat saja, balas 1 kalimat',0,0],['Kerjakan 1 hal selama 10 menit',0,0],['Makan siang',1,0]]},
+            {n:'Malam',t:[['Gerak 5 menit (jalan kaki atau peregangan)',0,0],['Makan malam',1,0],['Mulai bersiap tidur di jam yang sama',1,0]]}],
+    off:[{n:'Baca 10 halaman',g:'Siang',d:'9 Nov',c:38},{n:'Jalan kaki sore',g:'Malam',d:'28 Okt',c:21}],
+    rewards:[['Dengar playlist favorit 15 menit',5],['Satu episode serial',10],['Gambar bebas 30 menit, tanpa target',15],['Camilan favorit',20]],
+    claims:[['Camilan favorit','12 Nov']]};
+  S.groups.forEach(function(g,gi){g.t=g.t.map(function(t,i){return{n:t[0],core:!!t[1],done:!!t[2],id:gi+'-'+i}})});
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  var CK='<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 4.8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  function all(){var o=[];S.groups.forEach(function(g){g.t.forEach(function(t){o.push(t)})});return o}
+  function counted(){return all().filter(function(t){return !S.lite||t.core})}
+  function bal(){return Math.max(0,S.earned-S.spent)}
+  function find(id){return all().filter(function(t){return t.id===id})[0]}
+  function snap(){S.undo=JSON.stringify([S.groups,S.off,S.earned,S.spent,S.claims])}
+
+  function renderProgress(){
+    var l=counted(),tot=l.length,done=l.filter(function(t){return t.done}).length,pct=tot?Math.round(done/tot*100):0;
+    var msg=!tot?'Belum ada langkah. Tekan Ubah untuk menambahkan.':done===tot?'Semua selesai hari ini. Kamu boleh istirahat.':done===0?'Belum mulai juga tidak apa-apa. Pilih satu yang paling kecil.':'Sudah '+done+' langkah hari ini. Lanjut kalau masih ada tenaga.';
+    $('#progress').innerHTML='<div class="row" style="justify-content:space-between;align-items:baseline;margin-bottom:10px"><div class="big">'+done+'<small> dari '+tot+' langkah</small></div><div class="big">'+pct+'<small>%</small></div></div><div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+pct+'" aria-label="Progres hari ini"><span style="width:'+pct+'%"></span></div><p class="muted" style="margin:10px 0 0;font-size:.9375rem">'+esc(msg)+'</p>'+
+      '<div class="switch-row"><p><b>Hari berat</b><br><span class="muted small">Tampilkan hanya langkah inti (★).</span></p><button class="switch" role="switch" data-a="lite" aria-checked="'+S.lite+'" aria-label="Mode hari berat"></button></div>';
+  }
+  function next(){var l=counted().filter(function(t){return !t.done});if(!l.length)return null;var f=l.filter(function(t){return !S.skipped[t.id]});if(!f.length){S.skipped={};f=l}return f[0]}
+  function renderFocus(){
+    var el=$('#focus');if(S.edit||!counted().length){el.hidden=true;return}el.hidden=false;var t=next();
+    el.innerHTML=t?'<p class="eyebrow">Mulai dari sini</p><p class="focus-name">'+esc(t.n)+'</p><p class="hint">Cukup yang ini dulu. Yang lain boleh menunggu.</p><div class="row"><button class="btn primary" data-a="fdone" data-id="'+t.id+'">Sudah selesai</button><button class="btn" data-a="fskip" data-id="'+t.id+'">Lewati dulu</button></div>'
+      :'<p class="eyebrow">Selesai</p><p class="focus-name">Semua langkah hari ini sudah beres.</p><p class="hint">Cek tab Hadiah kalau mau mengambil sesuatu.</p><button class="btn primary" data-a="go" data-v="rewards">Lihat hadiah</button>';
+  }
+  function renderGroups(){
+    var h='';
+    S.groups.forEach(function(g,gi){
+      var vis=g.t.filter(function(t){return S.edit||!S.lite||t.core});
+      if(!S.edit&&!vis.length)return;
+      var dn=vis.filter(function(t){return t.done}).length;
+      h+='<section class="card" aria-label="'+esc(g.n)+'">';
+      h+=S.edit?'<div class="group-edit"><input class="text-in" value="'+esc(g.n)+'" aria-label="Nama kelompok" data-a="gname" data-gi="'+gi+'"><button class="icon-btn txt" data-a="offgroup" data-gi="'+gi+'" aria-label="Nonaktifkan kelompok">Nonaktifkan</button></div>'
+        :'<div class="head"><h2>'+esc(g.n)+'</h2><span class="count">'+dn+'/'+vis.length+'</span></div>';
+      h+='<ul class="tasks">';
+      vis.forEach(function(t){
+        if(S.edit)h+='<li class="erow"><button class="icon-btn'+(t.core?' on':'')+'" data-a="core" data-id="'+t.id+'" aria-pressed="'+t.core+'" aria-label="Tandai langkah inti">'+(t.core?'★':'☆')+'</button><input class="text-in" value="'+esc(t.n)+'" aria-label="Nama langkah" data-a="tname" data-id="'+t.id+'"><button class="icon-btn txt" data-a="offtask" data-id="'+t.id+'" aria-label="Nonaktifkan langkah">Nonaktifkan</button></li>';
+        else h+='<li class="task'+(t.done?' done':'')+'"><label class="check"><input type="checkbox" data-a="chk" data-id="'+t.id+'"'+(t.done?' checked':'')+'><span class="box">'+CK+'</span><span class="nm">'+esc(t.n)+(t.core&&!S.lite?'<span class="star">★ inti</span>':'')+'</span></label></li>';
+      });
+      h+='</ul>';
+      if(S.edit)h+='<button class="btn dashed" data-a="addtask" data-gi="'+gi+'">+ Tambah langkah</button>';
+      h+='</section>';
+    });
+    if(S.edit)h+='<button class="btn dashed" data-a="addgroup">+ Tambah kelompok</button>';
+    $('#groups').innerHTML=h;
+  }
+  function renderRewards(){
+    var b=bal(),h='';
+    S.rewards.forEach(function(r,i){var can=b>=r[1],pct=Math.min(100,Math.round(b/r[1]*100));
+      h+=S.edit?'<div class="card"><div class="erow"><input class="text-in" value="'+esc(r[0])+'" aria-label="Nama hadiah" data-a="rname" data-i="'+i+'"><input class="text-in num-in" type="number" inputmode="numeric" min="1" max="999" value="'+r[1]+'" aria-label="Biaya poin" data-a="rcost" data-i="'+i+'"><button class="icon-btn" data-a="delr" data-i="'+i+'" aria-label="Hapus hadiah">×</button></div></div>'
+      :'<div class="card"><div class="reward-top"><div><p style="font-weight:600;overflow-wrap:anywhere">'+esc(r[0])+'</p><p class="muted small num">'+r[1]+' poin</p></div><button class="btn '+(can?'gold':'')+'" data-a="claim" data-i="'+i+'"'+(can?'':' disabled')+'>'+(can?'Ambil':'Kurang '+(r[1]-b))+'</button></div><div class="bar gold" role="progressbar" aria-label="Menuju '+esc(r[0])+'" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+pct+'"><span style="width:'+pct+'%"></span></div></div>'});
+    if(S.edit)h+='<button class="btn dashed" data-a="addr">+ Tambah hadiah</button>';
+    $('#rewards').innerHTML=h;$('#pts').textContent=b;$('#navPts').textContent=b;
+    $('#claimCard').hidden=S.edit||!S.claims.length;
+    $('#claims').innerHTML=S.claims.map(function(c){return'<li><span>'+esc(c[0])+'</span><span>'+c[1]+'</span></li>'}).join('');
+  }
+  function renderOff(){
+    $('#navOff').textContent=S.off.length;$('#offCount').textContent=S.off.length;
+    $('#offList').innerHTML=S.off.map(function(o,i){return'<div class="off"><div><p>'+esc(o.n)+'</p><p class="muted small">'+o.g+' · '+o.d+' · '+o.c+' kali selesai</p></div><button class="btn" data-a="react" data-i="'+i+'">Aktifkan lagi</button></div>'}).join('')||'<p class="muted" style="margin:8px 0 0">Tidak ada langkah nonaktif.</p>';
+  }
+  function chrome(){
+    var T={today:'Hari ini',rewards:'Hadiah',trail:'Jejak',more:'Lainnya'};
+    $$('main > .view').forEach(function(v){v.classList.toggle('on',v.id==='v-'+S.view)});
+    $$('.bn').forEach(function(n){if(n.dataset.view===S.view)n.setAttribute('aria-current','page');else n.removeAttribute('aria-current')});
+    $('#title').textContent=T[S.view];
+    var ce=S.view==='today'||S.view==='rewards';$('#editBtn').hidden=!ce;
+    $('#editBtn').setAttribute('aria-pressed',S.edit);$('#editBtn').textContent=S.edit?'Selesai mengubah':'Ubah';$('#editNote').hidden=!(S.edit&&S.view==='today');
+  }
+  function render(){renderProgress();renderFocus();renderGroups();renderRewards();renderOff();chrome()}
+  var tt;function toast(m,u){$('#toastMsg').textContent=m;$('#toastUndo').hidden=!u;$('#toast').hidden=false;clearTimeout(tt);tt=setTimeout(function(){$('#toast').hidden=true},6000)}
+
+  document.addEventListener('click',function(e){
+    var nv=e.target.closest('.bn');if(nv){S.view=nv.dataset.view;if(!(S.view==='today'||S.view==='rewards'))S.edit=false;render();window.scrollTo(0,0);return}
+    if(e.target.id==='editBtn'){S.edit=!S.edit;render();return}
+    if(e.target.id==='toastUndo'){if(S.undo){var u=JSON.parse(S.undo);S.groups=u[0];S.off=u[1];S.earned=u[2];S.spent=u[3];S.claims=u[4];S.undo=null}$('#toast').hidden=true;render();return}
+    var sw=e.target.closest('.switch');if(sw&&!sw.dataset.a){sw.setAttribute('aria-checked',sw.getAttribute('aria-checked')!=='true');return}
+    var tb=e.target.closest('[data-toast]');if(tb){toast(tb.dataset.toast,false);if(tb.textContent==='Aktifkan lagi')tb.closest('.off').remove();return}
+    var b=e.target.closest('[data-a]');if(!b||b.disabled)return;var a=b.dataset.a,id=b.dataset.id,t;
+    switch(a){
+      case'lite':S.lite=!S.lite;render();break;
+      case'go':S.view=b.dataset.v;render();break;
+      case'fdone':t=find(id);if(t&&!t.done){t.done=true;S.earned++}render();break;
+      case'fskip':S.skipped[id]=true;renderFocus();break;
+      case'core':t=find(id);t.core=!t.core;render();break;
+      case'addtask':S.groups[+b.dataset.gi].t.push({n:'',core:false,done:false,id:'n'+Date.now()});render();break;
+      case'addgroup':S.groups.push({n:'Kelompok baru',t:[]});render();break;
+      case'offtask':snap();S.groups.forEach(function(g){g.t=g.t.filter(function(x){if(x.id===id){S.off.unshift({n:x.n||'Langkah tanpa nama',g:g.n,d:'hari ini',c:0});return false}return true})});render();toast('Langkah dinonaktifkan. Riwayat tetap tersimpan.',true);break;
+      case'offgroup':snap();var g=S.groups.splice(+b.dataset.gi,1)[0];g.t.forEach(function(x){S.off.unshift({n:x.n,g:g.n,d:'hari ini',c:0})});render();toast('Kelompok dinonaktifkan. Riwayat tetap tersimpan.',true);break;
+      case'react':var o=S.off.splice(+b.dataset.i,1)[0];var tg=S.groups.filter(function(x){return x.n===o.g})[0]||S.groups[0];if(!tg){tg={n:o.g,t:[]};S.groups.push(tg)}tg.t.push({n:o.n,core:false,done:false,id:'r'+Date.now()});render();toast('Diaktifkan lagi. Muncul di daftar hari ini.',false);break;
+      case'claim':var r=S.rewards[+b.dataset.i];if(bal()>=r[1]){snap();S.spent+=r[1];S.claims.unshift([r[0],'hari ini']);render();toast('Diambil: '+r[0]+'. Nikmati tanpa rasa bersalah.',true)}break;
+      case'addr':S.rewards.push(['',10]);render();break;
+      case'delr':snap();S.rewards.splice(+b.dataset.i,1);render();break;
+    }
+  });
+  document.addEventListener('change',function(e){var c=e.target;if(c.dataset&&c.dataset.a==='chk'){var t=find(c.dataset.id);t.done=c.checked;S.earned=Math.max(0,S.earned+(c.checked?1:-1));renderProgress();renderFocus();renderRewards();c.closest('.task').classList.toggle('done',c.checked)}});
+  document.addEventListener('input',function(e){var c=e.target,a=c.dataset&&c.dataset.a;if(a==='tname')find(c.dataset.id).n=c.value;else if(a==='gname')S.groups[+c.dataset.gi].n=c.value;else if(a==='rname')S.rewards[+c.dataset.i][0]=c.value;else if(a==='rcost'){var n=parseInt(c.value,10);if(n>=1)S.rewards[+c.dataset.i][1]=Math.min(999,n)}});
+  // jejak
+  $$('#trailSeg button').forEach(function(b){b.onclick=function(){$$('#trailSeg button').forEach(function(x){x.setAttribute('aria-pressed',x===b)});$('#t-dash').classList.toggle('on',b.dataset.t==='dash');$('#t-log').classList.toggle('on',b.dataset.t==='log')}});
+  var P={week:['7 hari terakhir','naik 6% dari minggu lalu',78,38,'6<small>/7</small>','4<small> hari</small>','+38'],month:['1–17 November','turun 3% dari Oktober',71,121,'14<small>/17</small>','4<small> hari</small>','+121'],all:['Sejak 12 September','66 hari tercatat',68,402,'52<small>/66</small>','terbaik 11','+402']};
+  $$('#period button').forEach(function(b){b.onclick=function(){$$('#period button').forEach(function(x){x.setAttribute('aria-pressed',x===b)});var p=P[b.dataset.p];$('#pLabel').textContent=p[0];$('#pNote').textContent=p[1];$('#mRate').textContent=p[2];$('#rateBar').firstElementChild.style.width=p[2]+'%';$('#rateBar').setAttribute('aria-valuenow',p[2]);$('#mDone').textContent=p[3];$('#mDays').innerHTML=p[4];$('#mStreak').innerHTML=p[5];$('#mPts').textContent=p[6]}});
+  var lv=[3,2,3,2,0,1,3,3,2,3,3,2,3,3,1,3,2],ch='';
+  ['Sen','Sel','Rab','Kam','Jum','Sab','Min'].forEach(function(x){ch+='<div class="dow">'+x+'</div>'});
+  ch+='<div></div><div></div><div></div><div></div><div></div><div></div>';
+  for(var i=1;i<=30;i++)ch+='<button class="day'+(i<=17&&lv[i-1]?' l'+lv[i-1]:'')+'" data-day="'+i+'" aria-pressed="'+(i===16)+'"'+(i>17?' disabled':'')+' aria-label="'+i+' November">'+i+'</button>';
+  $('#cal').innerHTML=ch;
+  $$('.day').forEach(function(b){b.onclick=function(){$$('.day').forEach(function(x){x.setAttribute('aria-pressed',x===b)});var n=+b.dataset.day;$('#dayLabel').textContent=DAYS[n%7]+', '+n+' November'}});
+  $$('#theme button').forEach(function(b){b.onclick=function(){$$('#theme button').forEach(function(x){x.setAttribute('aria-pressed',x===b)});var r=document.documentElement;if(b.dataset.t==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',b.dataset.t)}});
+  render();
+})();
+</script>
+</body></html>

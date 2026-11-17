@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Langkah Kecil — Riwayat & Dasbor</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=DM+Sans:wght@400;500;600&display=swap">
+<style>
+/* Milestone 2 mockup: Riwayat (log) + Dasbor aktivitas + Nonaktif (soft delete). Tokens identik dengan FirstDesign.html */
+:root{--bg:#F2F5F7;--surface:#FFFFFF;--ink:#1B2730;--muted:#566772;--line:#D9E1E6;--box-line:#8FA1AC;--tab-bg:#E4EAEE;--accent:#1D7487;--accent-ink:#FFFFFF;--accent-soft:#DDEEF2;--gold:#D9A12F;--gold-ink:#7A4E0A;--gold-soft:#F7E9C8;--focus:#1D7487;--miss:#B4533F;--miss-soft:#F6E1DB;--font-display:'Bricolage Grotesque',system-ui,sans-serif;--font-body:'DM Sans',system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12181D;--surface:#1A2229;--ink:#E6EDF2;--muted:#93A4B0;--line:#2A353E;--box-line:#6B7D89;--tab-bg:#1F2A32;--accent:#6CC6D8;--accent-ink:#0C1A1F;--accent-soft:#1C3A42;--gold:#E3B04B;--gold-ink:#F0C877;--gold-soft:#3A2F16;--focus:#6CC6D8;--miss:#E39A88;--miss-soft:#3A2420;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12181D;--surface:#1A2229;--ink:#E6EDF2;--muted:#93A4B0;--line:#2A353E;--box-line:#6B7D89;--tab-bg:#1F2A32;--accent:#6CC6D8;--accent-ink:#0C1A1F;--accent-soft:#1C3A42;--gold:#E3B04B;--gold-ink:#F0C877;--gold-soft:#3A2F16;--focus:#6CC6D8;--miss:#E39A88;--miss-soft:#3A2420;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.5;padding-block:20px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.app{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+button{font:inherit;color:inherit}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+.date{margin:0 0 4px;color:var(--muted);font-size:.875rem;font-weight:500}
+h1{font-family:var(--font-display);font-size:1.75rem;line-height:1.1;margin:0;letter-spacing:-.01em}
+h2{font-family:var(--font-display);font-size:1.0625rem;margin:0}
+.chip{min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-weight:600;cursor:pointer;flex:none}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;background:var(--tab-bg);border-radius:14px}
+.tab{min-height:44px;border:0;background:transparent;border-radius:10px;font-weight:600;color:var(--muted);cursor:pointer}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px}
+.stack{display:flex;flex-direction:column;gap:16px}
+.muted{color:var(--muted)}.small{font-size:.875rem}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-weight:600;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;padding:4px;background:var(--tab-bg);border-radius:12px}
+.seg button{min-height:40px;border:0;background:transparent;border-radius:9px;font-weight:600;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.big{font-family:var(--font-display);font-size:2rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.big small{font-size:1rem;font-weight:600;color:var(--muted)}
+.eyebrow{margin:0 0 4px;font-size:.75rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.bar{height:10px;border-radius:999px;background:var(--accent-soft);overflow:hidden}
+.bar>span{display:block;height:100%;background:var(--accent);border-radius:inherit}
+.bar.gold{background:var(--gold-soft)}.bar.gold>span{background:var(--gold)}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.metric{background:var(--bg);border-radius:12px;padding:12px}
+.metric .big{font-size:1.5rem}
+.metric p{margin:4px 0 0;color:var(--muted);font-size:.8125rem}
+.metric.gold{background:var(--gold-soft)}.metric.gold .big{color:var(--gold-ink)}
+.hero{background:var(--accent-soft);border-color:transparent}
+.group-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.count{color:var(--muted);font-size:.875rem;font-variant-numeric:tabular-nums}
+/* grafik batang */
+.chart{display:flex;align-items:flex-end;gap:8px;height:120px;margin-top:12px}
+.col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
+.col i{display:block;width:100%;max-width:36px;border-radius:8px 8px 4px 4px;background:var(--accent);min-height:4px}
+.col i.today{background:var(--gold)}
+.col span{font-size:.75rem;color:var(--muted)}
+/* breakdown */
+.item{padding:10px 0;border-top:1px solid var(--line)}
+.item:first-of-type{border-top:0}
+.item-top{display:flex;justify-content:space-between;gap:12px;margin-bottom:6px}
+.item-top span:first-child{min-width:0;overflow-wrap:anywhere}
+.item-top span:last-child{color:var(--muted);font-variant-numeric:tabular-nums;flex:none;font-size:.875rem}
+.tag{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;font-size:.6875rem;font-weight:600;background:var(--tab-bg);color:var(--muted);white-space:nowrap;vertical-align:1px}
+/* riwayat */
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.day{min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:.75rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.day b{font-size:.9375rem;color:var(--ink)}
+.day[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}
+.day.l1{background:var(--accent-soft)}.day.l2{background:color-mix(in srgb,var(--accent) 45%,var(--surface))}.day.l3{background:var(--accent);color:var(--accent-ink)}.day.l3 b{color:var(--accent-ink)}
+.legend{display:flex;gap:6px;align-items:center;font-size:.75rem;color:var(--muted);margin-top:10px}
+.legend i{width:14px;height:14px;border-radius:4px;display:inline-block;border:1px solid var(--line)}
+.log{list-style:none;margin:0;padding:0}
+.log li{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.log li:first-child{border-top:0}
+.ico{width:28px;height:28px;flex:none;border-radius:8px;display:grid;place-items:center;font-size:.875rem;font-weight:700}
+.ico.ok{background:var(--accent);color:var(--accent-ink)}
+.ico.no{background:var(--miss-soft);color:var(--miss)}
+.log .nm{flex:1;min-width:0;overflow-wrap:anywhere}
+.log .nm.no{color:var(--muted)}
+.log time{color:var(--muted);font-size:.8125rem;font-variant-numeric:tabular-nums;flex:none}
+.sub{margin:0;color:var(--muted);font-size:.8125rem}
+/* nonaktif */
+.inactive{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.inactive:first-of-type{border-top:0}
+.inactive>div{min-width:0}.inactive p{margin:0;overflow-wrap:anywhere}
+.note{display:flex;gap:10px;background:var(--gold-soft);border-color:transparent;color:var(--ink)}
+.note p{margin:0;font-size:.9375rem}
+.status{text-align:center;color:var(--muted);font-size:.8125rem;margin:0}
+.toast{position:fixed;z-index:20;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));max-width:420px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:12px;background:var(--ink);color:var(--bg);box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.toast button{min-height:44px;padding:0 8px;border:0;background:transparent;color:var(--bg);font-weight:700;text-decoration:underline;cursor:pointer}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:380px){.metrics{grid-template-columns:1fr 1fr;gap:8px}}
+</style></head>
+<body>
+<div class="app">
+  <header class="top">
+    <div><p class="date">Selasa, 17 November</p><h1>Jejak Langkah</h1></div>
+    <button class="chip" id="themeBtn" type="button" aria-label="Ganti tema">Tema</button>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Bagian jejak">
+    <button class="tab" role="tab" type="button" data-tab="dash" aria-selected="true">Dasbor</button>
+    <button class="tab" role="tab" type="button" data-tab="log" aria-selected="false">Riwayat</button>
+    <button class="tab" role="tab" type="button" data-tab="off" aria-selected="false">Nonaktif</button>
+  </div>
+
+  <main>
+  <!-- ================= DASBOR ================= -->
+  <section id="pane-dash" class="stack" role="tabpanel">
+    <div class="seg" role="group" aria-label="Periode" id="period">
+      <button type="button" aria-pressed="true" data-p="week">Minggu ini</button>
+      <button type="button" aria-pressed="false" data-p="month">Bulan ini</button>
+      <button type="button" aria-pressed="false" data-p="all">Semua</button>
+    </div>
+
+    <div class="card hero">
+      <p class="eyebrow" id="pLabel">7 hari terakhir</p>
+      <div class="row" style="justify-content:space-between;align-items:baseline;margin-bottom:10px">
+        <div class="big"><span id="rate">78</span><small>% selesai</small></div>
+        <span class="small muted" id="rateNote">naik 6% dari minggu lalu</span>
+      </div>
+      <div class="bar" role="progressbar" aria-label="Tingkat penyelesaian" aria-valuemin="0" aria-valuemax="100" aria-valuenow="78" id="rateBar"><span style="width:78%"></span></div>
+      <p class="sub" style="margin-top:10px">Hari yang terlewat tidak apa-apa. Yang dihitung hanya langkah yang kamu ambil.</p>
+    </div>
+
+    <div class="metrics">
+      <div class="metric"><div class="big" id="mDone">38</div><p>langkah selesai</p></div>
+      <div class="metric"><div class="big" id="mDays">6<small>/7</small></div><p>hari aktif</p></div>
+      <div class="metric"><div class="big" id="mStreak">4<small> hari</small></div><p>beruntun saat ini</p></div>
+      <div class="metric gold"><div class="big" id="mPts">+38</div><p>poin didapat</p></div>
+    </div>
+
+    <div class="card">
+      <div class="group-head"><h2>Langkah per hari</h2><span class="count">maks 11</span></div>
+      <div class="chart" role="img" aria-label="Grafik langkah selesai per hari: Rabu 7, Kamis 9, Jumat 5, Sabtu 0, Minggu 6, Senin 11, Selasa 4 sejauh ini">
+        <div class="col"><i style="height:64%"></i><span>Rab</span></div>
+        <div class="col"><i style="height:82%"></i><span>Kam</span></div>
+        <div class="col"><i style="height:45%"></i><span>Jum</span></div>
+        <div class="col"><i style="height:0"></i><span>Sab</span></div>
+        <div class="col"><i style="height:55%"></i><span>Min</span></div>
+        <div class="col"><i style="height:100%"></i><span>Sen</span></div>
+        <div class="col"><i class="today" style="height:36%"></i><span>Hari ini</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="group-head"><h2>Per kelompok</h2></div>
+      <div class="item"><div class="item-top"><span>Pagi</span><span>86%</span></div><div class="bar" role="progressbar" aria-label="Pagi" aria-valuemin="0" aria-valuemax="100" aria-valuenow="86"><span style="width:86%"></span></div></div>
+      <div class="item"><div class="item-top"><span>Siang</span><span>71%</span></div><div class="bar" role="progressbar" aria-label="Siang" aria-valuemin="0" aria-valuemax="100" aria-valuenow="71"><span style="width:71%"></span></div></div>
+      <div class="item"><div class="item-top"><span>Malam</span><span>64%</span></div><div class="bar" role="progressbar" aria-label="Malam" aria-valuemin="0" aria-valuemax="100" aria-valuenow="64"><span style="width:64%"></span></div></div>
+    </div>
+
+    <div class="card">
+      <div class="group-head"><h2>Per langkah</h2><span class="count">paling sering dulu</span></div>
+      <div class="item"><div class="item-top"><span>Minum segelas air</span><span>7/7</span></div><div class="bar" aria-hidden="true"><span style="width:100%"></span></div></div>
+      <div class="item"><div class="item-top"><span>Makan siang</span><span>6/7</span></div><div class="bar" aria-hidden="true"><span style="width:86%"></span></div></div>
+      <div class="item"><div class="item-top"><span>Peregangan 3 menit</span><span>4/7</span></div><div class="bar" aria-hidden="true"><span style="width:57%"></span></div></div>
+      <div class="item"><div class="item-top"><span>Baca 10 halaman <span class="tag">Nonaktif sejak 9 Nov</span></span><span>2/3</span></div><div class="bar" aria-hidden="true"><span style="width:67%;background:var(--box-line)"></span></div></div>
+      <div class="item"><div class="item-top"><span>Mulai bersiap tidur di jam yang sama</span><span>2/7</span></div><div class="bar" aria-hidden="true"><span style="width:29%"></span></div></div>
+    </div>
+    <p class="status">Langkah nonaktif tetap dihitung pada hari ketika masih aktif, supaya tren tidak berubah.</p>
+  </section>
+
+  <!-- ================= RIWAYAT ================= -->
+  <section id="pane-log" class="stack" role="tabpanel" hidden>
+    <div class="card">
+      <div class="group-head"><h2>November 2026</h2>
+        <div class="row" style="gap:4px"><button class="btn" type="button" aria-label="Bulan sebelumnya" style="padding:0 14px">‹</button><button class="btn" type="button" aria-label="Bulan berikutnya" style="padding:0 14px" disabled>›</button></div></div>
+      <div class="days" id="days" role="group" aria-label="Pilih tanggal"></div>
+      <div class="legend"><span>Sedikit</span><i style="background:var(--surface)"></i><i style="background:var(--accent-soft)"></i><i style="background:color-mix(in srgb,var(--accent) 45%,var(--surface))"></i><i style="background:var(--accent)"></i><span>Banyak</span></div>
+    </div>
+
+    <div class="card" id="dayCard">
+      <p class="eyebrow" id="dayLabel">Senin, 16 November</p>
+      <div class="row" style="justify-content:space-between;align-items:baseline;margin-bottom:10px">
+        <div class="big">11<small> dari 12 langkah</small></div><span class="small muted" style="font-variant-numeric:tabular-nums">+11 poin</span>
+      </div>
+      <div class="bar" aria-hidden="true"><span style="width:92%"></span></div>
+    </div>
+
+    <div class="card">
+      <div class="group-head"><h2>Pagi</h2><span class="count">4/4</span></div>
+      <ul class="log">
+        <li><span class="ico ok" aria-hidden="true">✓</span><span class="nm">Minum segelas air</span><time>06:41</time></li>
+        <li><span class="ico ok" aria-hidden="true">✓</span><span class="nm">Sarapan, yang sederhana pun cukup</span><time>07:10</time></li>
+        <li><span class="ico ok" aria-hidden="true">✓</span><span class="nm">Cuci muka dulu, mandi menyusul</span><time>07:32</time></li>
+        <li><span class="ico ok" aria-hidden="true">✓</span><span class="nm">Peregangan 3 menit</span><time>07:35</time></li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="group-head"><h2>Siang</h2><span class="count">3/4</span></div>
+      <ul class="log">
+        <li><span class="ico ok" aria-hidden="true">✓</span><span class="nm">Kerjakan 1 hal selama 10 menit</span><time>10:20</time></li>
+        <li><span class="ico ok" aria-hidden="true">✓</span><span class="nm">Makan siang</span><time>12:48</time></li>
+        <li><span class="ico ok" aria-hidden="true">✓</span><span class="nm">Buka 1 chat saja, balas 1 kalimat</span><time>14:05</time></li>
+        <li><span class="ico no" aria-label="Terlewat">–</span><span class="nm no">Baca 10 halaman <span class="tag">Nonaktif sejak 9 Nov</span> <span class="sub" style="display:block">Aktif pada hari ini, belum dicentang</span></span><time>terlewat</time></li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="group-head"><h2>Malam</h2><span class="count">4/4</span></div>
+      <ul class="log">
+        <li><span class="ico ok" aria-hidden="true">✓</span><span class="nm">Gerak 5 menit</span><time>18:30</time></li>
+        <li><span class="ico ok" aria-hidden="true">✓</span><span class="nm">Makan malam</span><time>19:15</time></li>
+        <li><span class="ico ok" aria-hidden="true">✓</span><span class="nm">Mulai bersiap tidur di jam yang sama</span><time>21:50</time></li>
+        <li><span class="ico ok" aria-hidden="true">✓</span><span class="nm">Tulis 1 hal yang disyukuri</span><time>22:05</time></li>
+      </ul>
+    </div>
+    <p class="status">Tersimpan di perangkat ini · Sinkron 2 menit lalu</p>
+  </section>
+
+  <!-- ================= NONAKTIF ================= -->
+  <section id="pane-off" class="stack" role="tabpanel" hidden>
+    <div class="card note"><span aria-hidden="true">ℹ️</span><p>Menghapus langkah atau kelompok di mode <b>Ubah</b> hanya <b>menonaktifkannya</b>. Riwayat dan poin lama tetap aman. Kamu bisa mengaktifkannya lagi kapan saja.</p></div>
+
+    <div class="card">
+      <div class="group-head"><h2>Langkah nonaktif</h2><span class="count" id="offCount">2</span></div>
+      <div class="inactive" data-off><div><p>Baca 10 halaman</p><p class="sub">Siang · dinonaktifkan 9 Nov · 38 kali selesai</p></div><button class="btn" type="button" data-react>Aktifkan lagi</button></div>
+      <div class="inactive" data-off><div><p>Jalan kaki sore</p><p class="sub">Malam · dinonaktifkan 28 Okt · 21 kali selesai</p></div><button class="btn" type="button" data-react>Aktifkan lagi</button></div>
+    </div>
+    <div class="card">
+      <div class="group-head"><h2>Kelompok nonaktif</h2><span class="count">1</span></div>
+      <div class="inactive"><div><p>Sore</p><p class="sub">3 langkah · dinonaktifkan 2 Nov</p></div><button class="btn" type="button" data-react>Aktifkan lagi</button></div>
+    </div>
+
+    <div class="card">
+      <p class="eyebrow">Pratinjau mode Ubah</p>
+      <div class="row" style="flex-wrap:nowrap;gap:6px;padding:5px 0">
+        <button class="chip" type="button" style="min-height:44px;width:44px;padding:0;color:var(--gold)" aria-label="Langkah inti">★</button>
+        <input type="text" value="Baca 10 halaman" aria-label="Nama langkah" style="flex:1;min-width:0;min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit">
+        <button class="chip" id="deact" type="button" style="width:auto" aria-label="Nonaktifkan langkah">Nonaktifkan</button>
+      </div>
+      <p class="sub">Tombol × di FirstDesign menjadi “Nonaktifkan”. Ketuk untuk melihat umpan balik.</p>
+    </div>
+  </section>
+  </main>
+</div>
+<div class="toast" id="toast" role="status" hidden><span id="toastMsg"></span><button type="button" id="toastUndo">Urungkan</button></div>
+
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)},$$=function(s){return document.querySelectorAll(s)};
+  // tab
+  $$('.tab').forEach(function(t){t.addEventListener('click',function(){
+    $$('.tab').forEach(function(x){x.setAttribute('aria-selected',x===t?'true':'false')});
+    ['dash','log','off'].forEach(function(k){$('#pane-'+k).hidden=(k!==t.dataset.tab)});
+  })});
+  // periode
+  var P={week:{l:'7 hari terakhir',r:78,n:'naik 6% dari minggu lalu',d:38,a:'6<small>/7</small>',s:'4<small> hari</small>',p:'+38'},
+         month:{l:'1–17 November',r:71,n:'turun 3% dari Oktober',d:121,a:'14<small>/17</small>',s:'4<small> hari</small>',p:'+121'},
+         all:{l:'Sejak 12 September',r:68,n:'66 hari tercatat',d:402,a:'52<small>/66</small>',s:'terbaik 11 hari',p:'+402'}};
+  $$('#period button').forEach(function(b){b.addEventListener('click',function(){
+    $$('#period button').forEach(function(x){x.setAttribute('aria-pressed',x===b?'true':'false')});
+    var d=P[b.dataset.p];
+    $('#pLabel').textContent=d.l;$('#rate').textContent=d.r;$('#rateNote').textContent=d.n;
+    $('#rateBar').firstElementChild.style.width=d.r+'%';$('#rateBar').setAttribute('aria-valuenow',d.r);
+    $('#mDone').textContent=d.d;$('#mDays').innerHTML=d.a;$('#mStreak').innerHTML=d.s;$('#mPts').textContent=d.p;
+  })});
+  // kalender (contoh data)
+  var lv=[3,2,3,2,0,1,3,3,2,3,3,2,3,3,1,3,2];  // 1..17 Nov
+  var wk=['Sen','Sel','Rab','Kam','Jum','Sab','Min'];
+  var html='';
+  for(var i=0;i<17;i++){var n=i+1;var dow=wk[(n-1+6)%7]; // 1 Nov 2026 = Minggu
+    html+='<button class="day'+(lv[i]?' l'+lv[i]:'')+'" type="button" aria-pressed="'+(n===16)+'" data-n="'+n+'" aria-label="'+n+' November"><span>'+dow+'</span><b>'+n+'</b></button>';}
+  $('#days').innerHTML=html;
+  $$('.day').forEach(function(d){d.addEventListener('click',function(){
+    $$('.day').forEach(function(x){x.setAttribute('aria-pressed',x===d?'true':'false')});
+    $('#dayLabel').textContent=wk[(+d.dataset.n+5)%7]+', '+d.dataset.n+' November';
+  })});
+  // toast
+  var tt;function toast(m,u){$('#toastMsg').textContent=m;$('#toastUndo').hidden=!u;$('#toast').hidden=false;clearTimeout(tt);tt=setTimeout(function(){$('#toast').hidden=true},6000)}
+  $('#toastUndo').addEventListener('click',function(){$('#toast').hidden=true});
+  $('#deact').addEventListener('click',function(){toast('Langkah dinonaktifkan. Riwayat tetap tersimpan.',true)});
+  $$('[data-react]').forEach(function(b){b.addEventListener('click',function(){
+    var row=b.closest('.inactive');row.remove();toast('Diaktifkan lagi. Muncul di daftar hari ini.',false);
+  })});
+  // tema
+  var th=0;$('#themeBtn').addEventListener('click',function(){th=(th+1)%3;var r=document.documentElement;
+    if(th===0)r.removeAttribute('data-theme');else r.setAttribute('data-theme',th===1?'light':'dark');
+    this.textContent=['Tema: otomatis','Tema: terang','Tema: gelap'][th]});
+})();
+</script>
+</body></html>
