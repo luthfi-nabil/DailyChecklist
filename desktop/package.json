@@ -1,6 +1,6 @@
 {
   "name": "langkah-kecil-desktop",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Langkah Kecil - Desktop Daily Checklist & Habit Tracking",
   "author": "Langkah Kecil",
   "main": "src/main/main.js",

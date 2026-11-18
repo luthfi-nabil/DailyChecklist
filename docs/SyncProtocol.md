@@ -26,11 +26,33 @@ CREATE TABLE checks   (task_id TEXT NOT NULL, day TEXT NOT NULL, checked INTEGER
                        PRIMARY KEY (task_id, day));            -- unchecking sets checked=0 (row kept); updated_at = time of last toggle (the "completed at" shown in the log)
 CREATE TABLE claims   (id TEXT PRIMARY KEY, reward_id TEXT, name TEXT NOT NULL, cost INTEGER NOT NULL, day TEXT NOT NULL,
                        claimed_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);   -- append-only (see undo semantics below)
-CREATE TABLE meta     (key TEXT PRIMARY KEY, value TEXT);      -- device_id, device_name, last_sync_cursor, paired_token, etc.
+CREATE TABLE projects (id TEXT PRIMARY KEY, name TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active',
+                       progress INTEGER NOT NULL DEFAULT 0, is_active INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL);
+CREATE TABLE focus_sessions (id TEXT PRIMARY KEY, task_id TEXT, project_id TEXT, day TEXT NOT NULL,
+                             minutes INTEGER NOT NULL, note TEXT, updated_at INTEGER NOT NULL);
+CREATE TABLE finance_envelopes (id TEXT PRIMARY KEY, name TEXT NOT NULL, monthly_budget INTEGER NOT NULL DEFAULT 0,
+                                is_active INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL);
+CREATE TABLE finance_entries (id TEXT PRIMARY KEY, day TEXT NOT NULL, type TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'general',
+                              amount INTEGER NOT NULL, envelope_id TEXT, note TEXT, is_active INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL);
+CREATE TABLE health_entries  (id TEXT PRIMARY KEY, day TEXT NOT NULL, kind TEXT NOT NULL, name TEXT,
+                              value_num REAL NOT NULL, value_num2 REAL, unit TEXT, note TEXT,
+                              is_active INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL);
+CREATE TABLE wellness_entries (id TEXT PRIMARY KEY, day TEXT NOT NULL, mood TEXT NOT NULL, mood_score INTEGER NOT NULL,
+                               energy INTEGER NOT NULL, stress INTEGER NOT NULL, sleep_hours REAL NOT NULL,
+                               triggers_text TEXT, note TEXT, is_active INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL);
+CREATE TABLE menstrual_entries (id TEXT PRIMARY KEY, day TEXT NOT NULL, phase TEXT NOT NULL, cycle_day INTEGER NOT NULL DEFAULT 1,
+                                flow TEXT, symptoms_json TEXT, is_period_start INTEGER NOT NULL DEFAULT 0,
+                                cycle_length INTEGER, note TEXT, is_active INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL);
+CREATE TABLE notes    (id TEXT PRIMARY KEY, day TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL,
+                       tags_json TEXT, is_active INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL);
+CREATE TABLE audit_logs (id TEXT PRIMARY KEY, created_at INTEGER NOT NULL, day TEXT NOT NULL, source TEXT NOT NULL,
+                         category TEXT NOT NULL, level TEXT NOT NULL, endpoint TEXT NOT NULL, status_code INTEGER,
+                         error_code TEXT, message TEXT NOT NULL, details_json TEXT); -- local-only per device, never synced
+CREATE TABLE meta     (key TEXT PRIMARY KEY, value TEXT);      -- device_id, device_name, last_sync_cursor, paired_token, dashboard_layout_v1, etc.
 ```
 Extra local-only bookkeeping columns are allowed (e.g. `dirty INTEGER` on mobile, `seq INTEGER` on desktop) but are NOT part of the wire format.
 
-Local-only UI state (NOT synced): Lite mode ("Hari berat"), theme, skipped focus items.
+Local-only UI state (NOT synced): Lite mode ("Hari berat"), theme, skipped focus items, `dashboard_layout_v1` (device-specific widget sizing/order), and `audit_logs` (API/sync error history per device).
 
 Seed data on first run (only when DB is empty and nothing has been synced): groups Pagi/Siang/Malam, tasks and rewards exactly as in `Design/DesktopDesign.html` / `Design/MobileDesign.html`. If the first sync finds the server already has data, the client should adopt it and **not** double-seed (mobile: if never synced, it may keep its seed rows; to avoid duplicate default groups, seed rows use **deterministic IDs**: `seed-group-pagi`, `seed-task-p1`, `seed-reward-1`, etc., and a fixed initial timestamp `updated_at = 1` so any real edit/deactivation on either device always wins regardless of install order).
 
@@ -43,8 +65,16 @@ Entity shapes = the table columns above (no bookkeeping columns):
 - `reward`: `{id,name,cost,sort,is_active,deactivated_at,updated_at}`
 - `check`: `{task_id,day,checked,updated_at}`
 - `claim`: `{id,reward_id,name,cost,day,claimed_at,updated_at}`
+- `project`: `{id,name,status,progress,is_active,updated_at}`
+- `focus_session`: `{id,task_id,project_id,day,minutes,note,updated_at}`
+- `finance_envelope`: `{id,name,monthly_budget,is_active,updated_at}`
+- `finance_entry`: `{id,day,type,category,amount,envelope_id,note,is_active,updated_at}`
+- `health_entry`: `{id,day,kind,name,value_num,value_num2,unit,note,is_active,updated_at}` (`kind`: `'food'|'weight'|'water'|'workout'|'measurement'`)
+- `wellness_entry`: `{id,day,mood,mood_score,energy,stress,sleep_hours,triggers_text,note,is_active,updated_at}`
+- `menstrual_entry`: `{id,day,phase,cycle_day,flow,symptoms_json,is_period_start,cycle_length,note,is_active,updated_at}`
+- `note`: `{id,day,title,body,tags_json,is_active,updated_at}`
 
-`Changes` object: `{ "groups":[...], "tasks":[...], "rewards":[...], "checks":[...], "claims":[...] }` (any key may be omitted/empty).
+`Changes` object: `{ "groups":[...], "tasks":[...], "rewards":[...], "checks":[...], "claims":[...], "projects":[...], "focus_sessions":[...], "finance_envelopes":[...], "finance_entries":[...], "health_entries":[...], "wellness_entries":[...], "menstrual_entries":[...], "notes":[...] }` (any key may be omitted/empty).
 
 ## 4. HTTP API (desktop server, default port **47800**, plain HTTP, JSON, UTF-8)
 Server binds `0.0.0.0`. If 47800 is busy it tries 47801…47809 and advertises the real port.

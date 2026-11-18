@@ -433,5 +433,99 @@ void main() {
 
       await db.close();
     });
+
+    test('Personal Life OS persists layout, computes module reports from actual data, and redacts audit logs', () async {
+      final db = await createInMemoryDb();
+      final repo = ChecklistRepository(dbHelper: DatabaseHelper(customDb: db));
+      const today = '2026-11-18';
+
+      // Default layout has all 7 modules
+      final def = await repo.getDashboardLayout();
+      expect(def.length, 7);
+
+      // Custom layout persists and resets
+      await repo.saveDashboardLayout([
+        const DashboardWidgetConfig(id: 'w-fin', visible: true, size: 'l'),
+        const DashboardWidgetConfig(id: 'w-prod', visible: false, size: 's'),
+      ]);
+      final savedLayout = await repo.getDashboardLayout();
+      expect(savedLayout.length, 2);
+      expect(savedLayout[0].id, 'w-fin');
+      expect(savedLayout[1].visible, false);
+
+      await repo.resetDashboardLayout();
+      expect((await repo.getDashboardLayout()).length, 7);
+
+      // Empty report returns zeros without fake data
+      final emptyFin = await repo.getModuleReport(
+        module: 'finance',
+        range: 'week',
+        todayStr: today,
+      );
+      expect(emptyFin.metrics['income'], 0);
+      expect(emptyFin.entries.isEmpty, true);
+
+      // Quick Add entries populate reports & dirty sync changes
+      await repo.quickAdd('envelope', {'id': 'env-1', 'name': 'Makan', 'monthly_budget': 500000});
+      await repo.quickAdd('finance', {'day': today, 'type': 'income', 'category': 'general', 'amount': 1200000});
+      await repo.quickAdd('finance', {'day': today, 'type': 'expense', 'category': 'general', 'amount': 150000, 'envelope_id': 'env-1'});
+      await repo.quickAdd('finance', {'day': today, 'type': 'expense', 'category': 'savings', 'amount': 300000});
+      await repo.quickAdd('weight', {'day': today, 'value_num': 61.5});
+      await repo.quickAdd('water', {'day': today, 'value_num': 600});
+      await repo.quickAdd('mood', {'day': today, 'mood': 'Tenang', 'mood_score': 4, 'triggers_text': 'jalan pagi'});
+      await repo.quickAdd('menstrual', {'day': today, 'phase': 'Menstruasi', 'cycle_day': 1, 'symptoms': ['Kram'], 'is_period_start': true, 'cycle_length': 28});
+      await repo.quickAdd('note', {'day': today, 'title': 'Catatan Harian', 'body': 'Tiga kata saja', 'tags': ['jurnal']});
+      await repo.quickAdd('project', {'id': 'proj-1', 'name': 'Life OS', 'progress': 70});
+      await repo.quickAdd('focus', {'day': today, 'project_id': 'proj-1', 'minutes': 40});
+
+      final finRep = await repo.getModuleReport(module: 'finance', range: 'week', todayStr: today);
+      expect(finRep.metrics['income'], 1200000);
+      expect(finRep.metrics['expense'], 450000);
+      expect(finRep.metrics['savings'], 300000);
+      expect(finRep.breakdown.first['used'], 150000);
+
+      final healthRep = await repo.getModuleReport(module: 'health', range: 'week', todayStr: today);
+      expect(healthRep.metrics['latestWeight'], 61.5);
+      expect(healthRep.metrics['totalWaterMl'], 600);
+
+      final wellRep = await repo.getModuleReport(module: 'wellness', range: 'week', todayStr: today);
+      expect(wellRep.metrics['avgMood'], 4.0);
+      expect(wellRep.tagsOrTriggers.first.name, 'jalan pagi');
+
+      final mensRep = await repo.getModuleReport(module: 'menstrual', range: 'week', todayStr: today);
+      expect(mensRep.metrics['avgCycleDuration'], 28);
+      expect(mensRep.tagsOrTriggers.first.name, 'Kram');
+
+      final noteRep = await repo.getModuleReport(module: 'notes', range: 'week', todayStr: today);
+      expect(noteRep.metrics['count'], 1);
+      expect(noteRep.metrics['totalWords'], 3);
+      expect(noteRep.tagsOrTriggers.first.name, 'jurnal');
+
+      final prodRep = await repo.getModuleReport(module: 'productivity', range: 'week', todayStr: today);
+      expect(prodRep.metrics['focusMinutes'], 40);
+      expect(prodRep.metrics['projectsCount'], 1);
+
+      // Sync dirty export includes Life OS tables and never audit_logs
+      final dirty = await repo.getDirtyChanges();
+      expect((dirty['finance_entries'] as List).length, 3);
+      expect((dirty['notes'] as List).length, 1);
+      expect(dirty.containsKey('audit_logs'), false);
+
+      // Audit Log redacts bearer secrets and logs cleanly
+      await repo.logAudit(
+        endpoint: 'POST /api/v1/sync',
+        statusCode: 401,
+        errorCode: 'unauthorized',
+        message: 'Failed auth with Bearer mysecrettoken999',
+        details: {'token': 'secret-val', 'host': '192.168.1.9'},
+      );
+      final logs = await repo.getAuditLogs(todayStr: today);
+      expect(logs.length, 1);
+      expect(logs.first.message.contains('mysecrettoken999'), false);
+      expect(logs.first.details?['token'], '[REDACTED]');
+      expect(logs.first.details?['host'], '192.168.1.9');
+
+      await db.close();
+    });
   });
 }

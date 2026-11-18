@@ -1,3 +1,13 @@
+import {
+  lifeState,
+  loadLifeOsDashboard,
+  openWidgetCatalogModal,
+  loadModuleReportsView,
+  loadAuditView,
+  openQuickAddMenu,
+  refreshAuditBadge,
+} from './lifeos.js';
+
 const api = window.electronAPI;
 
 const DAYS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -618,6 +628,14 @@ async function loadRewards() {
 let currentPeriod = 'week';
 
 async function loadDashboard() {
+  await loadLifeOsDashboard({
+    todayStr: currentDay,
+    onOpenReport: (mod) => {
+      lifeState.reportModule = mod;
+      switchView('reports');
+    },
+    showToast,
+  });
   const stats = await api.getDashboard({ period: currentPeriod, day: currentDay });
 
   document.getElementById('periodNote').textContent = `${stats.label} · ${stats.rate}% selesai`;
@@ -937,9 +955,11 @@ document.querySelectorAll('#themeSeg button').forEach(btn => {
 const viewTitles = {
   today: 'Hari ini',
   rewards: 'Hadiah',
-  dash: 'Dasbor aktivitas',
+  dash: 'Dasbor Personal Life OS',
+  reports: 'Laporan Modul',
   log: 'Riwayat',
   off: 'Nonaktif',
+  audit: 'Audit Log · API & Sync',
   settings: 'Pengaturan'
 };
 
@@ -951,13 +971,17 @@ function switchView(viewName) {
   if (viewName !== 'today' && viewName !== 'rewards') {
     editMode = false;
   }
+  if (viewName !== 'dash') {
+    lifeState.customizeMode = false;
+  }
 
   document.querySelectorAll('.view').forEach(v => {
     v.classList.toggle('on', v.id === `v-${viewName}`);
   });
 
-  document.querySelectorAll('.nav').forEach(n => {
-    if (n.dataset.view === viewName) n.setAttribute('aria-current', 'page');
+  document.querySelectorAll('.nav[data-view]').forEach(n => {
+    const isMatch = n.dataset.view === viewName && (viewName !== 'reports' || !n.dataset.mod || n.dataset.mod === lifeState.reportModule);
+    if (isMatch) n.setAttribute('aria-current', 'page');
     else n.removeAttribute('aria-current');
   });
 
@@ -969,6 +993,13 @@ function switchView(viewName) {
   editBtn.setAttribute('aria-pressed', editMode ? 'true' : 'false');
   editBtn.textContent = editMode ? 'Selesai mengubah' : 'Ubah';
   document.getElementById('calToggleBtn').hidden = viewName !== 'today';
+  document.getElementById('dashCustomizeBtn').hidden = viewName !== 'dash';
+  document.getElementById('dashCustomizeBtn').setAttribute('aria-pressed', lifeState.customizeMode ? 'true' : 'false');
+  document.getElementById('dashCustomizeBtn').textContent = lifeState.customizeMode ? '✓ Selesai atur' : '⊞ Atur Widget';
+  document.getElementById('dashCatalogBtn').hidden = !(viewName === 'dash' && lifeState.customizeMode);
+  document.getElementById('dashResetBtn').hidden = !(viewName === 'dash' && lifeState.customizeMode);
+  document.getElementById('auditClearBtn').hidden = viewName !== 'audit';
+
   if (viewName !== 'today') {
     document.getElementById('currentDate').textContent = formatDisplayDate(currentDay);
   }
@@ -978,14 +1009,57 @@ function switchView(viewName) {
   if (viewName === 'today') loadTodayData();
   else if (viewName === 'rewards') loadRewards();
   else if (viewName === 'dash') loadDashboard();
+  else if (viewName === 'reports') loadModuleReportsView({ todayStr: currentDay, showToast });
   else if (viewName === 'log') loadLogView();
   else if (viewName === 'off') loadInactiveView();
+  else if (viewName === 'audit') loadAuditView({ todayStr: currentDay, showToast });
   else if (viewName === 'settings') loadSettingsView();
 }
 
-document.querySelectorAll('.nav').forEach(btn => {
-  btn.onclick = () => switchView(btn.dataset.view);
+document.querySelectorAll('.nav[data-view]').forEach(btn => {
+  btn.onclick = () => {
+    if (btn.dataset.mod) lifeState.reportModule = btn.dataset.mod;
+    switchView(btn.dataset.view);
+  };
 });
+
+document.getElementById('collapseSidebarBtn').onclick = () => {
+  document.getElementById('appShell').classList.toggle('collapsed');
+};
+
+document.getElementById('dashCustomizeBtn').onclick = () => {
+  lifeState.customizeMode = !lifeState.customizeMode;
+  switchView('dash');
+};
+document.getElementById('dashCatalogBtn').onclick = () => openWidgetCatalogModal({
+  todayStr: currentDay,
+  onOpenReport: (mod) => { lifeState.reportModule = mod; switchView('reports'); },
+  showToast,
+});
+document.getElementById('dashResetBtn').onclick = async () => {
+  await api.resetDashboardLayout();
+  showToast('Tata letak dasbor dikembalikan ke bawaan.');
+  loadDashboard();
+};
+document.getElementById('auditClearBtn').onclick = async () => {
+  await api.clearAuditLogs();
+  await refreshAuditBadge(currentDay);
+  showToast('Audit Log dibersihkan.');
+  loadAuditView({ todayStr: currentDay, showToast });
+};
+
+const handleQuickAddSaved = async () => {
+  await loadTodayData();
+  await refreshAuditBadge(currentDay);
+  if (currentView === 'dash') await loadDashboard();
+  else if (currentView === 'reports') await loadModuleReportsView({ todayStr: currentDay, showToast });
+  else if (currentView === 'audit') await loadAuditView({ todayStr: currentDay, showToast });
+};
+document.getElementById('globalQuickAddBtn').onclick = () => openQuickAddMenu({ todayStr: currentDay, showToast, onSaved: handleQuickAddSaved });
+document.getElementById('sidebarQuickAdd').onclick = () => openQuickAddMenu({ todayStr: currentDay, showToast, onSaved: handleQuickAddSaved });
+document.getElementById('lifeosModal').onclick = e => {
+  if (e.target.id === 'lifeosModal') document.getElementById('lifeosModal').hidden = true;
+};
 
 document.getElementById('editBtn').onclick = () => {
   if (document.activeElement && document.activeElement.tagName === 'INPUT') {
@@ -1014,10 +1088,13 @@ document.getElementById('currentDate').textContent = formatDisplayDate(currentDa
 api.onSyncUpdated(async () => {
   await loadTodayData();
   await refreshInactiveCount();
+  await refreshAuditBadge(currentDay);
   const s = await api.getSettings();
   updateSidebarSync(s);
   if (currentView === 'rewards') loadRewards();
   if (currentView === 'dash') loadDashboard();
+  if (currentView === 'reports') loadModuleReportsView({ todayStr: currentDay, showToast });
+  if (currentView === 'audit') loadAuditView({ todayStr: currentDay, showToast });
   if (currentView === 'log') loadLogView();
   if (currentView === 'settings') loadSettingsView();
 });
@@ -1048,6 +1125,7 @@ setInterval(checkRollover, 60000);
 
 loadTodayData();
 refreshInactiveCount();
+refreshAuditBadge(currentDay);
 api.getSettings().then(updateSidebarSync);
 
 document.getElementById('sidebarQuitBtn').onclick = () => api.quitApp();

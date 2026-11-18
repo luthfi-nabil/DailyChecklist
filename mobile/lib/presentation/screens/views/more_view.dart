@@ -132,10 +132,19 @@ class MoreView extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(desktopName),
-                    Text(
-                      sync.currentServer != null ? 'Ditemukan otomatis' : 'Belum ditemukan',
-                      style: TextStyle(color: AppColors.muted(context)),
+                    Flexible(
+                      child: Text(
+                        desktopName,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        sync.currentServer != null ? 'Ditemukan otomatis' : 'Belum ditemukan',
+                        textAlign: TextAlign.end,
+                        style: TextStyle(color: AppColors.muted(context)),
+                      ),
                     ),
                   ],
                 ),
@@ -147,9 +156,13 @@ class MoreView extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text('Terakhir sinkron'),
-                    Text(
-                      _fmtClock(sync.lastSyncTime),
-                      style: TextStyle(color: AppColors.muted(context)),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        _fmtClock(sync.lastSyncTime),
+                        textAlign: TextAlign.end,
+                        style: TextStyle(color: AppColors.muted(context)),
+                      ),
                     ),
                   ],
                 ),
@@ -162,9 +175,13 @@ class MoreView extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('Token berlaku hingga'),
-                      Text(
-                        _fmtMs(sync.tokenExpiresAt),
-                        style: TextStyle(color: AppColors.muted(context)),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          _fmtMs(sync.tokenExpiresAt),
+                          textAlign: TextAlign.end,
+                          style: TextStyle(color: AppColors.muted(context)),
+                        ),
                       ),
                     ],
                   ),

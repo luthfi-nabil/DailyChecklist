@@ -115,6 +115,16 @@ class SyncServer extends EventEmitter {
         const now = Date.now();
         this.failedPairAttempts = this.failedPairAttempts.filter(t => now - t < 60000);
         if (this.failedPairAttempts.length >= 5) {
+          this.repository.logAudit({
+            source: 'Desktop',
+            category: 'auth',
+            level: 'warn',
+            endpoint: 'POST /api/v1/pair',
+            statusCode: 429,
+            errorCode: 'too_many_attempts',
+            message: 'Terlalu banyak percobaan kode pairing gagal (dibatasi 5/menit).',
+            details: { remoteAddress: req.socket?.remoteAddress || null }
+          });
           this.sendJson(res, 429, { error: 'too_many_attempts' });
           return;
         }
@@ -124,6 +134,16 @@ class SyncServer extends EventEmitter {
 
         if (!body.code || String(body.code).trim() !== String(pairingCode).trim()) {
           this.failedPairAttempts.push(now);
+          this.repository.logAudit({
+            source: 'Desktop',
+            category: 'auth',
+            level: 'warn',
+            endpoint: 'POST /api/v1/pair',
+            statusCode: 403,
+            errorCode: 'bad_code',
+            message: 'Kode pairing tidak cocok.',
+            details: { device_id: body.device_id || null, device_name: body.device_name || null }
+          });
           this.sendJson(res, 403, { error: 'bad_code' });
           return;
         }
@@ -155,6 +175,15 @@ class SyncServer extends EventEmitter {
       if (req.method === 'POST' && url.pathname === '/api/v1/sync') {
         const auth = req.headers['authorization'];
         if (!auth || !auth.startsWith('Bearer ')) {
+          this.repository.logAudit({
+            source: 'Desktop',
+            category: 'auth',
+            level: 'warn',
+            endpoint: 'POST /api/v1/sync',
+            statusCode: 401,
+            errorCode: 'unauthorized',
+            message: 'Header Authorization Bearer tidak ditemukan pada permintaan sinkronisasi.'
+          });
           this.sendJson(res, 401, { error: 'unauthorized' });
           return;
         }
@@ -163,6 +192,15 @@ class SyncServer extends EventEmitter {
         const pairedDevices = JSON.parse(this.db.getMeta('paired_devices') || '[]');
         const matched = pairedDevices.find(d => d.token === token);
         if (!matched) {
+          this.repository.logAudit({
+            source: 'Desktop',
+            category: 'auth',
+            level: 'warn',
+            endpoint: 'POST /api/v1/sync',
+            statusCode: 401,
+            errorCode: 'unauthorized',
+            message: 'Token sinkronisasi tidak dikenal atau sudah dicabut.'
+          });
           this.sendJson(res, 401, { error: 'unauthorized' });
           return;
         }
@@ -172,6 +210,16 @@ class SyncServer extends EventEmitter {
         if (Date.now() > expiresAt) {
           const remaining = pairedDevices.filter(d => d.token !== token);
           this.db.setMeta('paired_devices', JSON.stringify(remaining));
+          this.repository.logAudit({
+            source: 'Desktop',
+            category: 'auth',
+            level: 'warn',
+            endpoint: 'POST /api/v1/sync',
+            statusCode: 401,
+            errorCode: 'token_expired',
+            message: `Token untuk perangkat ${matched.device_name || matched.device_id} kedaluwarsa.`,
+            details: { device_id: matched.device_id, expires_at: expiresAt }
+          });
           this.sendJson(res, 401, { error: 'token_expired' });
           return;
         }
@@ -212,6 +260,16 @@ class SyncServer extends EventEmitter {
       this.sendJson(res, 404, { error: 'not_found' });
     } catch (err) {
       console.error('SyncServer error:', err);
+      this.repository.logAudit({
+        source: 'Desktop',
+        category: 'api',
+        level: 'error',
+        endpoint: `${req.method} ${url.pathname}`,
+        statusCode: 500,
+        errorCode: err.code || 'internal_error',
+        message: err.message || 'Internal server error',
+        details: { stack: String(err.stack || '').slice(0, 600) }
+      });
       this.sendJson(res, 500, { error: 'internal_error' });
     }
   }

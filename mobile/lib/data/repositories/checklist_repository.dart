@@ -17,6 +17,53 @@ DateTime parseLocalDay(String dayStr) {
   return DateTime(parts[0], parts[1], parts[2]);
 }
 
+int countScheduledDaysInRange(TaskItem task, String startStr, String endStr) {
+  final start = parseLocalDay(startStr);
+  final end = parseLocalDay(endStr);
+  if (task.freq == 'daily') {
+    return max(1, end.difference(start).inDays + 1);
+  }
+  int c = 0;
+  DateTime d = start;
+  while (!d.isAfter(end)) {
+    if (task.isScheduledOnDate(d)) c++;
+    d = d.add(const Duration(days: 1));
+  }
+  return c;
+}
+
+const _lifeOsSyncTables = [
+  'projects',
+  'focus_sessions',
+  'finance_envelopes',
+  'finance_entries',
+  'health_entries',
+  'wellness_entries',
+  'menstrual_entries',
+  'notes',
+];
+
+final _sensitiveAuditKeyRe =
+    RegExp(r'^(authorization|token|paired_token|code|pairing_code|secret)$', caseSensitive: false);
+final _bearerRe = RegExp(r'Bearer\s+[A-Za-z0-9._-]+', caseSensitive: false);
+
+dynamic _sanitizeAuditValue(dynamic value) {
+  if (value == null) return null;
+  if (value is List) return value.map(_sanitizeAuditValue).toList();
+  if (value is Map) {
+    final out = <String, dynamic>{};
+    value.forEach((k, v) {
+      final keyStr = k.toString();
+      out[keyStr] = _sensitiveAuditKeyRe.hasMatch(keyStr) ? '[REDACTED]' : _sanitizeAuditValue(v);
+    });
+    return out;
+  }
+  if (value is String) {
+    return value.replaceAll(_bearerRe, 'Bearer [REDACTED]');
+  }
+  return value;
+}
+
 class ChecklistRepository {
   final DatabaseHelper dbHelper;
 
@@ -532,18 +579,8 @@ class ChecklistRepository {
       }
     }
 
-    int countScheduledDays(TaskItem task, String startStr, String endStr) {
-      if (task.freq == 'daily') return daysCount;
-      final start = parseLocalDay(startStr);
-      final end = parseLocalDay(endStr);
-      int c = 0;
-      DateTime d = start;
-      while (!d.isAfter(end)) {
-        if (task.isScheduledOnDate(d)) c++;
-        d = d.add(const Duration(days: 1));
-      }
-      return c;
-    }
+    int countScheduledDays(TaskItem task, String startStr, String endStr) =>
+        countScheduledDaysInRange(task, startStr, endStr);
 
     final activeTasks = await getTasks(includeInactive: false);
     final maxPossible = activeTasks.fold<int>(0, (sum, t) => sum + countScheduledDays(t, startDateStr, today));
@@ -733,13 +770,18 @@ class ChecklistRepository {
     final checks = await db.query('checks', where: 'dirty = 1');
     final claims = await db.query('claims', where: 'dirty = 1');
 
-    return {
+    final out = <String, dynamic>{
       'groups': groups.map((r) => Map<String, dynamic>.from(r)..remove('dirty')).toList(),
       'tasks': tasks.map((r) => Map<String, dynamic>.from(r)..remove('dirty')).toList(),
       'rewards': rewards.map((r) => Map<String, dynamic>.from(r)..remove('dirty')).toList(),
       'checks': checks.map((r) => Map<String, dynamic>.from(r)..remove('dirty')).toList(),
       'claims': claims.map((r) => Map<String, dynamic>.from(r)..remove('dirty')).toList(),
     };
+    for (final tbl in _lifeOsSyncTables) {
+      final rows = await db.query(tbl, where: 'dirty = 1');
+      out[tbl] = rows.map((r) => Map<String, dynamic>.from(r)..remove('dirty')).toList();
+    }
+    return out;
   }
 
   Future<void> clearDirtyFlags(Map<String, dynamic> sentChanges) async {
@@ -760,6 +802,11 @@ class ChecklistRepository {
     }
     for (final cl in sentChanges['claims'] ?? []) {
       batch.update('claims', {'dirty': 0}, where: 'id = ? AND updated_at <= ?', whereArgs: [cl['id'], cl['updated_at']]);
+    }
+    for (final tbl in _lifeOsSyncTables) {
+      for (final row in sentChanges[tbl] ?? []) {
+        batch.update(tbl, {'dirty': 0}, where: 'id = ? AND updated_at <= ?', whereArgs: [row['id'], row['updated_at']]);
+      }
     }
 
     await batch.commit(noResult: true);
@@ -860,6 +907,552 @@ class ChecklistRepository {
         }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
     }
+
+    for (final tbl in _lifeOsSyncTables) {
+      for (final row in (changes[tbl] as List? ?? [])) {
+        final m = Map<String, dynamic>.from(row as Map);
+        final id = m['id'] as String?;
+        if (id == null) continue;
+        final existing = await db.query(tbl, where: 'id = ?', whereArgs: [id]);
+        if (existing.isEmpty ||
+            shouldOverwrite((m['updated_at'] as num).toInt(), (existing.first['updated_at'] as num).toInt())) {
+          m['dirty'] = 0;
+          await db.insert(tbl, m, conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+      }
+    }
+  }
+
+  // --- PERSONAL LIFE OS: LAYOUT, QUICK ADD, REPORTS & AUDIT LOG ---
+  Future<List<DashboardWidgetConfig>> getDashboardLayout() async {
+    final raw = await getMeta('dashboard_layout_v1');
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = json.decode(raw) as List;
+        if (decoded.isNotEmpty) {
+          return decoded.map((e) => DashboardWidgetConfig.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+        }
+      } catch (_) {}
+    }
+    return List<DashboardWidgetConfig>.from(defaultDashboardLayout);
+  }
+
+  Future<List<DashboardWidgetConfig>> saveDashboardLayout(List<DashboardWidgetConfig> layout) async {
+    await setMeta('dashboard_layout_v1', json.encode(layout.map((w) => w.toJson()).toList()));
+    return layout;
+  }
+
+  Future<List<DashboardWidgetConfig>> resetDashboardLayout() async {
+    final def = List<DashboardWidgetConfig>.from(defaultDashboardLayout);
+    await saveDashboardLayout(def);
+    return def;
+  }
+
+  Future<List<Map<String, dynamic>>> getProjects() async {
+    final db = await _db;
+    return db.query('projects', where: 'is_active = 1', orderBy: 'updated_at DESC');
+  }
+
+  Future<List<Map<String, dynamic>>> getEnvelopes() async {
+    final db = await _db;
+    return db.query('finance_envelopes', where: 'is_active = 1', orderBy: 'name ASC');
+  }
+
+  Future<void> quickAdd(String kind, Map<String, dynamic> data) async {
+    final db = await _db;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final day = (data['day'] as String?) ?? formatLocalDay(DateTime.now());
+    final id = (data['id'] as String?) ?? const Uuid().v4();
+
+    if (kind == 'task') {
+      final groups = await getGroups();
+      final gid = (data['group_id'] as String?) ?? (groups.isNotEmpty ? groups.first.id : 'seed-group-pagi');
+      await saveTask(TaskItem(
+        id: '',
+        groupId: gid,
+        name: (data['name'] as String?)?.trim().isNotEmpty == true ? (data['name'] as String).trim() : 'Langkah baru',
+        core: data['core'] == true,
+        sort: 99,
+        updatedAt: now,
+      ));
+      return;
+    }
+
+    if (kind == 'project') {
+      final progress = ((data['progress'] as num?)?.toInt() ?? 0).clamp(0, 100);
+      await db.insert('projects', {
+        'id': id,
+        'name': (data['name'] as String?) ?? 'Proyek',
+        'status': progress >= 100 ? 'done' : 'active',
+        'progress': progress,
+        'is_active': 1,
+        'updated_at': now,
+        'dirty': 1,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      return;
+    }
+
+    if (kind == 'focus') {
+      await db.insert('focus_sessions', {
+        'id': id,
+        'task_id': data['task_id'],
+        'project_id': data['project_id'],
+        'day': day,
+        'minutes': ((data['minutes'] as num?)?.toInt() ?? 25).clamp(1, 600),
+        'note': data['note'],
+        'updated_at': now,
+        'dirty': 1,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      return;
+    }
+
+    if (kind == 'envelope') {
+      await db.insert('finance_envelopes', {
+        'id': id,
+        'name': (data['name'] as String?) ?? 'Amplop',
+        'monthly_budget': (data['monthly_budget'] as num?)?.toInt() ?? 0,
+        'is_active': 1,
+        'updated_at': now,
+        'dirty': 1,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      return;
+    }
+
+    if (kind == 'finance') {
+      final type = data['type'] == 'income' ? 'income' : 'expense';
+      final cat = ['general', 'savings', 'debt'].contains(data['category']) ? data['category'] : 'general';
+      await db.insert('finance_entries', {
+        'id': id,
+        'day': day,
+        'type': type,
+        'category': cat,
+        'amount': ((data['amount'] as num?)?.round() ?? 0).clamp(0, 1000000000),
+        'envelope_id': data['envelope_id'],
+        'note': data['note'],
+        'is_active': 1,
+        'updated_at': now,
+        'dirty': 1,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      return;
+    }
+
+    if (['food', 'weight', 'water', 'workout', 'measurement'].contains(kind)) {
+      await db.insert('health_entries', {
+        'id': id,
+        'day': day,
+        'kind': kind,
+        'name': data['name'],
+        'value_num': (data['value_num'] as num?)?.toDouble() ?? 0.0,
+        'value_num2': (data['value_num2'] as num?)?.toDouble(),
+        'unit': data['unit'],
+        'note': data['note'],
+        'is_active': 1,
+        'updated_at': now,
+        'dirty': 1,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      return;
+    }
+
+    if (kind == 'mood') {
+      await db.insert('wellness_entries', {
+        'id': id,
+        'day': day,
+        'mood': (data['mood'] as String?) ?? 'Tenang',
+        'mood_score': ((data['mood_score'] as num?)?.toInt() ?? 4).clamp(1, 5),
+        'energy': ((data['energy'] as num?)?.toInt() ?? 3).clamp(1, 5),
+        'stress': ((data['stress'] as num?)?.toInt() ?? 2).clamp(1, 5),
+        'sleep_hours': (data['sleep_hours'] as num?)?.toDouble() ?? 7.0,
+        'triggers_text': data['triggers_text'],
+        'note': data['note'],
+        'is_active': 1,
+        'updated_at': now,
+        'dirty': 1,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      return;
+    }
+
+    if (kind == 'menstrual') {
+      final syms = data['symptoms'] is List ? json.encode(data['symptoms']) : (data['symptoms_json'] ?? '[]');
+      await db.insert('menstrual_entries', {
+        'id': id,
+        'day': day,
+        'phase': (data['phase'] as String?) ?? 'Menstruasi',
+        'cycle_day': ((data['cycle_day'] as num?)?.toInt() ?? 1).clamp(1, 90),
+        'flow': data['flow'],
+        'symptoms_json': syms,
+        'is_period_start': data['is_period_start'] == true || data['is_period_start'] == 1 ? 1 : 0,
+        'cycle_length': (data['cycle_length'] as num?)?.toInt(),
+        'note': data['note'],
+        'is_active': 1,
+        'updated_at': now,
+        'dirty': 1,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      return;
+    }
+
+    if (kind == 'note') {
+      String tagsJson = '[]';
+      if (data['tags'] is List) {
+        tagsJson = json.encode((data['tags'] as List).map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList());
+      } else if (data['tags_text'] is String) {
+        tagsJson = json.encode((data['tags_text'] as String).split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList());
+      }
+      await db.insert('notes', {
+        'id': id,
+        'day': day,
+        'title': (data['title'] as String?)?.trim().isNotEmpty == true ? (data['title'] as String).trim() : 'Catatan cepat',
+        'body': (data['body'] as String?) ?? '',
+        'tags_json': tagsJson,
+        'is_active': 1,
+        'updated_at': now,
+        'dirty': 1,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    }
+  }
+
+  ({String start, String end}) _resolveRangeBounds(
+    String range,
+    String? customStart,
+    String? customEnd,
+    String todayStr,
+  ) {
+    final end = (range == 'custom' && customEnd != null && customEnd.isNotEmpty) ? customEnd : todayStr;
+    if (range == 'custom') {
+      final s = (customStart != null && customStart.isNotEmpty && customStart.compareTo(end) <= 0)
+          ? customStart
+          : end;
+      return (start: s, end: end);
+    }
+    final dt = parseLocalDay(todayStr);
+    final back = range == 'month' ? 29 : (range == 'year' ? 364 : 6);
+    return (start: formatLocalDay(dt.subtract(Duration(days: back))), end: end);
+  }
+
+  Future<LifeOsSummary> getLifeOsSummary(String dayStr) async {
+    final db = await _db;
+    final layout = await getDashboardLayout();
+    final groups = await getTodayData(dayStr);
+    final scheduled = groups.expand((g) => g.tasks).where((t) => t.scheduled).toList();
+    final prodDone = scheduled.where((t) => t.done).length;
+    final focusRow = await db.rawQuery('SELECT COALESCE(SUM(minutes), 0) as m FROM focus_sessions WHERE day = ?', [dayStr]);
+    final focusMin = (focusRow.first['m'] as num).toInt();
+
+    final incRow = await db.rawQuery("SELECT COALESCE(SUM(amount), 0) as s FROM finance_entries WHERE is_active = 1 AND type = 'income'");
+    final expRow = await db.rawQuery("SELECT COALESCE(SUM(amount), 0) as s FROM finance_entries WHERE is_active = 1 AND type = 'expense'");
+    final cntRow = await db.rawQuery('SELECT COUNT(*) as c FROM finance_entries WHERE is_active = 1');
+    final finInc = (incRow.first['s'] as num).toInt();
+    final finExp = (expRow.first['s'] as num).toInt();
+    final finCount = (cntRow.first['c'] as num).toInt();
+
+    final weightRows = await db.query('health_entries', where: "is_active = 1 AND kind = 'weight'", orderBy: 'day DESC, updated_at DESC', limit: 1);
+    final waterRow = await db.rawQuery("SELECT COALESCE(SUM(value_num), 0) as s FROM health_entries WHERE is_active = 1 AND kind = 'water' AND day = ?", [dayStr]);
+    final kcalRow = await db.rawQuery("SELECT COALESCE(SUM(value_num), 0) as s FROM health_entries WHERE is_active = 1 AND kind = 'food' AND day = ?", [dayStr]);
+
+    final wellRows = await db.query('wellness_entries', where: 'is_active = 1', orderBy: 'day DESC, updated_at DESC', limit: 1);
+    final mensRows = await db.query('menstrual_entries', where: 'is_active = 1', orderBy: 'day DESC, updated_at DESC', limit: 1);
+    final notesCntRow = await db.rawQuery('SELECT COUNT(*) as c FROM notes WHERE is_active = 1');
+    final noteLatest = await db.query('notes', where: 'is_active = 1', orderBy: 'day DESC, updated_at DESC', limit: 1);
+    final rewCntRow = await db.rawQuery('SELECT COUNT(*) as c FROM rewards WHERE is_active = 1');
+    final audCntRow = await db.rawQuery("SELECT COUNT(*) as c FROM audit_logs WHERE level IN ('error', 'warn')");
+
+    List<String> syms = [];
+    if (mensRows.isNotEmpty && mensRows.first['symptoms_json'] != null) {
+      try {
+        syms = (json.decode(mensRows.first['symptoms_json'] as String) as List).map((e) => e.toString()).toList();
+      } catch (_) {}
+    }
+
+    return LifeOsSummary(
+      layout: layout,
+      prodDone: prodDone,
+      prodTotal: scheduled.length,
+      focusMinutesToday: focusMin,
+      financeIncome: finInc,
+      financeExpense: finExp,
+      financeBalance: finInc - finExp,
+      financeCount: finCount,
+      latestWeight: weightRows.isNotEmpty ? (weightRows.first['value_num'] as num).toDouble() : null,
+      waterTodayMl: (waterRow.first['s'] as num).toDouble(),
+      kcalToday: (kcalRow.first['s'] as num).toDouble(),
+      latestMood: wellRows.isNotEmpty ? wellRows.first['mood'] as String : null,
+      latestEnergy: wellRows.isNotEmpty ? (wellRows.first['energy'] as num).toInt() : null,
+      latestStress: wellRows.isNotEmpty ? (wellRows.first['stress'] as num).toInt() : null,
+      latestSleepHours: wellRows.isNotEmpty ? (wellRows.first['sleep_hours'] as num).toDouble() : null,
+      latestMenstrualPhase: mensRows.isNotEmpty ? mensRows.first['phase'] as String : null,
+      latestCycleDay: mensRows.isNotEmpty ? (mensRows.first['cycle_day'] as num).toInt() : null,
+      latestSymptoms: syms,
+      notesCount: (notesCntRow.first['c'] as num).toInt(),
+      latestNoteTitle: noteLatest.isNotEmpty ? noteLatest.first['title'] as String : null,
+      rewardsBalance: await getPointsBalance(),
+      activeRewardsCount: (rewCntRow.first['c'] as num).toInt(),
+      errorAuditCount: (audCntRow.first['c'] as num).toInt(),
+    );
+  }
+
+  Future<ModuleReportData> getModuleReport({
+    required String module,
+    required String range,
+    String? customStart,
+    String? customEnd,
+    required String todayStr,
+  }) async {
+    final db = await _db;
+    final b = _resolveRangeBounds(range, customStart, customEnd, todayStr);
+
+    if (module == 'productivity') {
+      final tasks = await getTasks();
+      final checks = await db.query('checks', where: 'checked = 1 AND day >= ? AND day <= ?', whereArgs: [b.start, b.end]);
+      final checkedSet = checks.map((c) => '${c['task_id']}|${c['day']}').toSet();
+      final daysCount = parseLocalDay(b.end).difference(parseLocalDay(b.start)).inDays + 1;
+      int schedSlots = 0;
+      int doneSlots = 0;
+      for (final t in tasks) {
+        schedSlots += countScheduledDaysInRange(t, b.start, b.end);
+        for (int i = 0; i < daysCount; i++) {
+          final ds = formatLocalDay(parseLocalDay(b.start).add(Duration(days: i)));
+          if (checkedSet.contains('${t.id}|$ds')) doneSlots++;
+        }
+      }
+      final rate = schedSlots > 0 ? ((doneSlots / schedSlots) * 100).round() : 0;
+      final focusRows = await db.query('focus_sessions', where: 'day >= ? AND day <= ?', whereArgs: [b.start, b.end], orderBy: 'day DESC, updated_at DESC');
+      final focusMin = focusRows.fold<int>(0, (sum, r) => sum + (r['minutes'] as num).toInt());
+      final projects = await getProjects();
+      return ModuleReportData(
+        module: module,
+        start: b.start,
+        end: b.end,
+        metrics: {
+          'completionRate': rate,
+          'doneCount': doneSlots,
+          'scheduledCount': schedSlots,
+          'focusMinutes': focusMin,
+          'projectsCount': projects.length,
+        },
+        breakdown: projects,
+        entries: focusRows,
+      );
+    }
+
+    if (module == 'finance') {
+      final entries = await db.query('finance_entries', where: 'is_active = 1 AND day >= ? AND day <= ?', whereArgs: [b.start, b.end], orderBy: 'day DESC, updated_at DESC');
+      final envs = await getEnvelopes();
+      int inc = 0, exp = 0, sav = 0, debt = 0;
+      for (final e in entries) {
+        final amt = (e['amount'] as num).toInt();
+        if (e['type'] == 'income') {
+          inc += amt;
+        } else {
+          exp += amt;
+        }
+        if (e['category'] == 'savings') sav += amt;
+        if (e['category'] == 'debt') debt += amt;
+      }
+      final envUsage = envs.map((env) {
+        final used = entries.where((e) => e['type'] == 'expense' && e['envelope_id'] == env['id']).fold<int>(0, (s, e) => s + (e['amount'] as num).toInt());
+        final bud = (env['monthly_budget'] as num).toInt();
+        final pct = bud > 0 ? ((used / bud) * 100).round().clamp(0, 100) : 0;
+        return {'name': env['name'], 'used': used, 'budget': bud, 'pct': pct};
+      }).toList();
+      return ModuleReportData(
+        module: module,
+        start: b.start,
+        end: b.end,
+        metrics: {'income': inc, 'expense': exp, 'savings': sav, 'debt': debt},
+        breakdown: envUsage,
+        entries: entries,
+      );
+    }
+
+    if (module == 'health') {
+      final rows = await db.query('health_entries', where: 'is_active = 1 AND day >= ? AND day <= ?', whereArgs: [b.start, b.end], orderBy: 'day DESC, updated_at DESC');
+      final weights = rows.where((r) => r['kind'] == 'weight').toList();
+      final kcal = rows.where((r) => r['kind'] == 'food').fold<double>(0, (s, r) => s + (r['value_num'] as num).toDouble()).round();
+      final water = rows.where((r) => r['kind'] == 'water').fold<double>(0, (s, r) => s + (r['value_num'] as num).toDouble()).round();
+      final woMin = rows.where((r) => r['kind'] == 'workout').fold<double>(0, (s, r) => s + (r['value_num'] as num).toDouble()).round();
+      return ModuleReportData(
+        module: module,
+        start: b.start,
+        end: b.end,
+        metrics: {
+          'latestWeight': weights.isNotEmpty ? (weights.first['value_num'] as num).toDouble() : null,
+          'totalCalories': kcal,
+          'totalWaterMl': water,
+          'totalWorkoutMin': woMin,
+        },
+        breakdown: weights,
+        entries: rows,
+      );
+    }
+
+    if (module == 'wellness') {
+      final rows = await db.query('wellness_entries', where: 'is_active = 1 AND day >= ? AND day <= ?', whereArgs: [b.start, b.end], orderBy: 'day DESC, updated_at DESC');
+      double avg(String k) => rows.isEmpty ? 0 : double.parse((rows.fold<double>(0, (s, r) => s + (r[k] as num).toDouble()) / rows.length).toStringAsFixed(1));
+      final trigMap = <String, int>{};
+      for (final r in rows) {
+        final raw = r['triggers_text'] as String?;
+        if (raw == null || raw.isEmpty) continue;
+        for (final t in raw.split(',')) {
+          final k = t.trim();
+          if (k.isNotEmpty) trigMap[k] = (trigMap[k] ?? 0) + 1;
+        }
+      }
+      final trigs = trigMap.entries.map((e) => (name: e.key, count: e.value)).toList()..sort((a, b) => b.count.compareTo(a.count));
+      return ModuleReportData(
+        module: module,
+        start: b.start,
+        end: b.end,
+        metrics: {
+          'count': rows.length,
+          'avgMood': avg('mood_score'),
+          'avgEnergy': avg('energy'),
+          'avgStress': avg('stress'),
+          'avgSleep': avg('sleep_hours'),
+        },
+        entries: rows,
+        tagsOrTriggers: trigs,
+      );
+    }
+
+    if (module == 'menstrual') {
+      final rows = await db.query('menstrual_entries', where: 'is_active = 1 AND day >= ? AND day <= ?', whereArgs: [b.start, b.end], orderBy: 'day DESC, updated_at DESC');
+      final periods = rows.where((r) => r['is_period_start'] == 1).length;
+      final lens = rows.map((r) => r['cycle_length']).whereType<num>().where((n) => n > 0).map((n) => n.toInt()).toList();
+      final avgDur = lens.isEmpty ? null : (lens.reduce((a, b) => a + b) / lens.length).round();
+      final symMap = <String, int>{};
+      for (final r in rows) {
+        final raw = r['symptoms_json'] as String?;
+        if (raw == null) continue;
+        try {
+          for (final s in (json.decode(raw) as List)) {
+            final k = s.toString().trim();
+            if (k.isNotEmpty) symMap[k] = (symMap[k] ?? 0) + 1;
+          }
+        } catch (_) {}
+      }
+      final syms = symMap.entries.map((e) => (name: e.key, count: e.value)).toList()..sort((a, b) => b.count.compareTo(a.count));
+      return ModuleReportData(
+        module: module,
+        start: b.start,
+        end: b.end,
+        metrics: {
+          'count': rows.length,
+          'avgCycleDuration': avgDur,
+          'periodCount': periods,
+          'latestPhase': rows.isNotEmpty ? rows.first['phase'] : null,
+        },
+        entries: rows,
+        tagsOrTriggers: syms,
+      );
+    }
+
+    // notes
+    final rows = await db.query('notes', where: 'is_active = 1 AND day >= ? AND day <= ?', whereArgs: [b.start, b.end], orderBy: 'day DESC, updated_at DESC');
+    int words = 0;
+    final tagMap = <String, int>{};
+    for (final r in rows) {
+      final body = (r['body'] as String? ?? '').trim();
+      if (body.isNotEmpty) words += body.split(RegExp(r'\s+')).length;
+      final raw = r['tags_json'] as String?;
+      if (raw != null) {
+        try {
+          for (final t in (json.decode(raw) as List)) {
+            final k = t.toString().trim();
+            if (k.isNotEmpty) tagMap[k] = (tagMap[k] ?? 0) + 1;
+          }
+        } catch (_) {}
+      }
+    }
+    final tags = tagMap.entries.map((e) => (name: e.key, count: e.value)).toList()..sort((a, b) => b.count.compareTo(a.count));
+    return ModuleReportData(
+      module: 'notes',
+      start: b.start,
+      end: b.end,
+      metrics: {'count': rows.length, 'totalWords': words, 'uniqueTags': tags.length},
+      entries: rows,
+      tagsOrTriggers: tags,
+    );
+  }
+
+  Future<void> logAudit({
+    String source = 'Mobile',
+    String category = 'sync',
+    String level = 'error',
+    required String endpoint,
+    int? statusCode,
+    String? errorCode,
+    required String message,
+    Map<String, dynamic>? details,
+  }) async {
+    final db = await _db;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final day = formatLocalDay(DateTime.fromMillisecondsSinceEpoch(now));
+    final safeDetails = details != null ? json.encode(_sanitizeAuditValue(details)) : null;
+    final safeMsg = _sanitizeAuditValue(message).toString();
+
+    await db.insert('audit_logs', {
+      'id': const Uuid().v4(),
+      'created_at': now,
+      'day': day,
+      'source': source,
+      'category': category,
+      'level': level,
+      'endpoint': endpoint,
+      'status_code': statusCode,
+      'error_code': errorCode,
+      'message': safeMsg,
+      'details_json': safeDetails,
+    });
+
+    final cutoff = now - 30 * 24 * 60 * 60 * 1000;
+    await db.delete('audit_logs', where: 'created_at < ?', whereArgs: [cutoff]);
+    await db.execute('DELETE FROM audit_logs WHERE id NOT IN (SELECT id FROM audit_logs ORDER BY created_at DESC LIMIT 500)');
+  }
+
+  Future<List<AuditLogEntry>> getAuditLogs({
+    String category = 'all',
+    String range = 'week',
+    String? todayStr,
+  }) async {
+    final db = await _db;
+    final today = todayStr ?? formatLocalDay(DateTime.now());
+    final b = _resolveRangeBounds(range, null, null, today);
+    final rows = await db.query('audit_logs', where: 'day >= ? AND day <= ?', whereArgs: [b.start, b.end], orderBy: 'created_at DESC');
+
+    final list = <AuditLogEntry>[];
+    for (final r in rows) {
+      final cat = r['category'] as String;
+      final lv = r['level'] as String;
+      final sc = (r['status_code'] as num?)?.toInt();
+      if (category == 'sync' && !((cat == 'sync' || cat == 'discovery') && lv == 'error')) continue;
+      if (category == 'auth' && !(cat == 'auth' || sc == 401)) continue;
+      if (category == 'info' && lv != 'info') continue;
+
+      Map<String, dynamic>? details;
+      if (r['details_json'] != null) {
+        try {
+          details = Map<String, dynamic>.from(json.decode(r['details_json'] as String) as Map);
+        } catch (_) {}
+      }
+      list.add(AuditLogEntry(
+        id: r['id'] as String,
+        createdAt: (r['created_at'] as num).toInt(),
+        day: r['day'] as String,
+        source: r['source'] as String,
+        category: cat,
+        level: lv,
+        endpoint: r['endpoint'] as String,
+        statusCode: sc,
+        errorCode: r['error_code'] as String?,
+        message: r['message'] as String,
+        details: details,
+      ));
+    }
+    return list;
+  }
+
+  Future<void> clearAuditLogs() async {
+    final db = await _db;
+    await db.delete('audit_logs');
   }
 
   // --- META ---

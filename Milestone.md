@@ -113,3 +113,70 @@
 - [v] Users can browse an interactive Calendar inside the activity checklist to inspect or check activities for any selected date, with indicator dots for weekly/monthly schedules.
 - [v] Today's checklist, Focus Card, Dashboard completion rates, and historical Day Logs accurately respect each task's schedule.
 - [v] Schedule fields (`freq`, `freq_days`) migrate cleanly on existing databases and synchronize between Desktop and Mobile.
+
+---
+
+## Milestone 4+: Personal Life OS (Implemented)
+**Status:** Design approved and implemented across Sync Protocol, Desktop (Electron), and Mobile (Flutter).  
+**Mockup:** [Design/PersonalLifeOS.html](Design/PersonalLifeOS.html) (interactive Desktop + Mobile, Light + Dark, Simulated vs Empty `0`-data state).
+
+### 1. Design Direction: Soft Pastel Minimalist
+- **Design System Tokens (Light & Dark):** Warm porcelain canvas (`#F8F7F4` light / `#15171A` dark), elevated cards with `20px` radius and subtle `1px` borders, `Bricolage Grotesque` display headings + `Plus Jakarta Sans` UI body (`tabular-nums`), and accessible muted pastel accents per domain:
+  - **Productivity:** Sage (`#DCECE4` / `#235340`)
+  - **Finance & Rewards:** Butter (`#F6ECD2` / `#6D5214`)
+  - **Health:** Sky (`#DCEBF5` / `#22536F`)
+  - **Wellness:** Lavender (`#EAE3F6` / `#4A396B`)
+  - **Menstrual Cycle:** Blush (`#F6DFE4` / `#723140`)
+  - **Notes & Journal:** Peach (`#F7E5DA` / `#713F26`)
+
+### 2. Responsive Navigation Architecture
+- **Desktop:** Collapsible sidebar (`248px` labeled ↔ `74px` icon rail) grouping Core (`Dasbor`, `Laporan`, `Ceklis Harian`), Workspace Modules (`Productivity`, `Finance`, `Health`, `Wellness`, `Menstrual`, `Notes & Journal`, `Rewards`), and persistent `+ Quick Add` trigger.
+- **Mobile:** 4-tab Bottom Navigation (`Dasbor`, `Tugas`, `Laporan`, `Workspace`) with touch-friendly `50px+` targets; `Workspace` opens a clean 2-column grid menu giving 1-tap access to all 7 modules and their reports; floating `+` Quick Add button sits cleanly above the bottom bar (`bottom: 78px`) with scroll clearance (`padding-bottom: 148px`).
+
+### 3. Fully Customizable Dashboard (`Dasbor`)
+- Dynamic widget grid backed by persisted layout preferences (JSON in local DB/meta synced or per-device preference):
+  - **Widgets across all 7 modules:** Productivity, Finance, Health, Wellness, Menstrual Cycle, Notes & Journal, Rewards.
+  - **Capabilities:** Add/remove widgets via Catalog modal, HTML5 drag-and-drop + accessible `↑` / `↓` reorder controls, per-widget visibility toggle, widget resizing (`S` 1/3 col, `M` 1/2 col, `L` full-width on Desktop; full-width stacked on Mobile), persistent layout saving, and one-click **Reset to default layout**.
+  - **Live Computed Values:** Widgets compute strictly from stored user records (no hardcoded dummy values).
+
+### 4. Individual Module Reports (`Laporan`)
+- Dedicated Report view per module with **Weekly (`Mingguan`)**, **Monthly (`Bulanan`)**, **Yearly (`Tahunan`)**, and **Custom Date Range (`Rentang Kustom`)** filters:
+  - **Productivity:** Task completion rate, completed vs total, focus minutes logged, project progress bars.
+  - **Finance:** Income, expenses, envelope budget usage, savings, debt payments.
+  - **Health:** Weight history, calorie intake, water intake (`ml`), workouts, body measurements.
+  - **Wellness:** Mood average, energy, stress, sleep duration, emotional triggers log.
+  - **Menstrual Cycle:** Cycle history, average cycle duration, symptoms, period history.
+  - **Notes & Journal:** Writing activity count, unique tags breakdown, entry history.
+- Every KPI, bar, and log list is computed strictly from stored rows in the selected range, showing an honest empty state when zero records exist.
+
+### 5. Global Quick Add (`+`)
+- Floating Action Button (`+`) present across all main views on both Desktop and Mobile, opening 9 contextual inline forms without navigating away:
+  1. `Add task`
+  2. `Add income/expense`
+  3. `Add food entry`
+  4. `Add weight entry`
+  5. `Add water intake`
+  6. `Add workout`
+  7. `Mood check-in`
+  8. `Menstrual symptom entry`
+  9. `Create quick note`
+
+### 6. Audit Log (API & Sync Error Diagnostics)
+- **Purpose:** Record API errors, local discovery timeouts, auth/pairing rejections (`401 token_expired`), and failed-to-sync events locally on Desktop and Mobile so sync issues can be diagnosed without guessing.
+- **Proposed Local Schema (`audit_logs`, per-device SQLite — not synced to prevent sync-failure loops):**
+  - `id TEXT PRIMARY KEY`, `created_at INTEGER`, `day TEXT`, `source TEXT` (`'desktop'|'mobile'`), `category TEXT` (`'sync'|'api'|'auth'|'discovery'`), `level TEXT` (`'error'|'warn'|'info'`), `endpoint TEXT`, `status_code INTEGER`, `error_code TEXT`, `message TEXT`, `details_json TEXT`.
+- **Privacy & Retention:** Strip bearer tokens and pairing secrets before persistence; auto-prune rows older than 30 days (or cap at 500 recent rows); allow user-initiated clear or export.
+- **Navigation Placement:** Accessible from **Sistem → Audit Log** in Desktop's collapsible sidebar (with active error badge) and from the **Workspace** menu on Mobile.
+
+### 7. Proposed Incremental Rollout (Upon Approval)
+- **Milestone 4A — Life OS Shell, Quick Add, Audit Log & Customizable Dashboard Foundation:** Soft Pastel Minimalist theme tokens, Desktop collapsible sidebar + Mobile Workspace menu, `dashboard_layouts` persistence + widget customization engine, `audit_logs` API/sync error capture + viewer, and Global Quick Add launcher wired to existing Tasks + initial log tables.
+- **Milestone 4B — Finance, Health & Wellness Modules + Reports + LAN Sync:** Local SQLite schema extensions (`finance_entries`, `envelopes`, `food_logs`, `body_logs`, `water_logs`, `workout_logs`, `wellness_logs`), `/api/v1/sync` table extensions, and per-module Reports with Weekly/Monthly/Yearly/Custom filters.
+- **Milestone 4C — Menstrual Cycle, Notes & Journal, Focus Timer & Project Progress:** `menstrual_logs`, `notes`, `focus_sessions`, `projects` SQLite tables + sync + remaining module Reports & Dashboard widgets.
+
+### 8. Acceptance Criteria
+- [v] Review and approve [Design/PersonalLifeOS.html](Design/PersonalLifeOS.html) (Desktop & Mobile, Light & Dark).
+- [v] Approve proposed `Milestone 4A–4C` split and SQLite/sync scope before database/code changes begin.
+- [v] Implement Soft Pastel Minimalist theme tokens, collapsible Desktop sidebar, Mobile Bottom Nav + Workspace menu, and Global Quick Add (`+`) with 9 inline forms.
+- [v] Implement Customizable Dashboard (`Dasbor`) with add/remove, drag-and-drop, reorder, visibility, resize (Desktop `S/M/L`), persistence, and reset across all 7 modules.
+- [v] Implement Individual Module Reports (Productivity, Finance, Health, Wellness, Menstrual, Notes & Journal) with Weekly/Monthly/Yearly/Custom filters computed strictly from stored rows.
+- [v] Implement per-device Audit Log (`audit_logs`) with token redaction and automatic API/sync error capture.

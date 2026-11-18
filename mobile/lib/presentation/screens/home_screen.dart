@@ -4,9 +4,13 @@ import '../../core/constants/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../providers/checklist_provider.dart';
 import 'views/today_view.dart';
+import 'views/lifeos_dashboard_view.dart';
+import 'views/reports_view.dart';
 import 'views/rewards_view.dart';
 import 'views/trail_view.dart';
 import 'views/more_view.dart';
+import 'views/audit_log_view.dart';
+import 'views/quick_add_sheet.dart';
 
 const _daysId = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 const _monthsId = [
@@ -52,9 +56,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ChecklistProvider>();
-    final titles = ['Hari ini', 'Hadiah', 'Jejak', 'Lainnya'];
-    final canEdit = _selectedIndex == 0 || _selectedIndex == 1;
+    final titles = [
+      'Hari ini',
+      'Dasbor',
+      'Laporan',
+      'Hadiah',
+      'Jejak',
+      'Lainnya',
+      'Audit Log',
+    ];
+    final canEdit = _selectedIndex == 0 || _selectedIndex == 3;
     final inactiveTotal = provider.inactiveTasks.length + provider.inactiveGroups.length;
+    final auditErrCount = provider.lifeOsSummary?.errorAuditCount ?? 0;
 
     return Scaffold(
       body: SafeArea(
@@ -164,11 +177,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     children: [
                       TodayView(onGoRewards: () {
                         provider.setEditMode(false);
-                        setState(() => _selectedIndex = 1);
+                        setState(() => _selectedIndex = 3);
                       }),
+                      LifeOsDashboardView(
+                        onOpenReport: (mod) {
+                          provider.setReportFilter(module: mod);
+                          setState(() => _selectedIndex = 2);
+                        },
+                      ),
+                      const ReportsView(),
                       const RewardsView(),
                       const TrailView(),
                       const MoreView(),
+                      const AuditLogView(),
                     ],
                   ),
                 ),
@@ -176,6 +197,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ),
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        key: const Key('global_fab'),
+        backgroundColor: AppColors.accent(context),
+        foregroundColor: AppColors.accentInk(context),
+        elevation: 3,
+        tooltip: 'Quick Add',
+        onPressed: () => showQuickAddSheet(context, provider),
+        child: const Icon(Icons.add),
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -195,16 +225,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   onTap: () => setState(() => _selectedIndex = 0),
                 ),
                 _NavButton(
-                  icon: '★',
-                  label: 'Hadiah',
-                  badge: '${provider.pointsBalance}',
-                  badgeGold: true,
+                  icon: '▦',
+                  label: 'Dasbor',
                   selected: _selectedIndex == 1,
-                  onTap: () => setState(() => _selectedIndex = 1),
+                  onTap: () {
+                    provider.setEditMode(false);
+                    setState(() => _selectedIndex = 1);
+                  },
                 ),
                 _NavButton(
                   icon: '▥',
-                  label: 'Jejak',
+                  label: 'Laporan',
                   selected: _selectedIndex == 2,
                   onTap: () {
                     provider.setEditMode(false);
@@ -212,21 +243,139 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   },
                 ),
                 _NavButton(
-                  icon: '⋯',
-                  label: 'Lainnya',
-                  badge: inactiveTotal > 0 ? '$inactiveTotal' : null,
+                  icon: '⊞',
+                  label: 'Workspace',
+                  badge: auditErrCount > 0 ? '$auditErrCount' : null,
                   badgeGold: false,
-                  selected: _selectedIndex == 3,
-                  onTap: () {
-                    provider.setEditMode(false);
-                    setState(() => _selectedIndex = 3);
-                  },
+                  selected: _selectedIndex >= 3,
+                  onTap: () => _openWorkspaceSheet(context, provider, inactiveTotal, auditErrCount),
                 ),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _openWorkspaceSheet(
+    BuildContext context,
+    ChecklistProvider provider,
+    int inactiveTotal,
+    int auditErrCount,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (sheetCtx) {
+        final items = [
+          (icon: '✓', title: 'Productivity', sub: 'Task & Fokus', idx: 2, mod: 'productivity', badge: null as String?),
+          (icon: 'Rp', title: 'Finance', sub: 'Cashflow & Amplop', idx: 2, mod: 'finance', badge: null as String?),
+          (icon: '♥', title: 'Health', sub: 'Berat, Air, Kalori', idx: 2, mod: 'health', badge: null as String?),
+          (icon: '◐', title: 'Wellness', sub: 'Mood, Stres, Tidur', idx: 2, mod: 'wellness', badge: null as String?),
+          (icon: '✿', title: 'Menstrual', sub: 'Siklus & Gejala', idx: 2, mod: 'menstrual', badge: null as String?),
+          (icon: '✎', title: 'Notes', sub: 'Jurnal & Tags', idx: 2, mod: 'notes', badge: null as String?),
+          (icon: '★', title: 'Hadiah', sub: '${provider.pointsBalance} poin', idx: 3, mod: null as String?, badge: '${provider.pointsBalance}'),
+          (icon: '☰', title: 'Jejak', sub: 'Analitik & Riwayat', idx: 4, mod: null as String?, badge: null as String?),
+          (icon: '⚠', title: 'Audit Log', sub: 'API & Sync Error', idx: 6, mod: null as String?, badge: auditErrCount > 0 ? '$auditErrCount' : null),
+          (icon: '⚙', title: 'Lainnya', sub: 'Sinkron & Tema', idx: 5, mod: null as String?, badge: inactiveTotal > 0 ? '$inactiveTotal' : null),
+        ];
+
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Workspace Menu',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.muted(sheetCtx))),
+                const SizedBox(height: 2),
+                Text('Pilih Modul, Laporan & Sistem',
+                    style: AppTheme.displayStyle(sheetCtx, fontSize: 20)),
+                const SizedBox(height: 14),
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: items.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 8,
+                    mainAxisExtent: 66,
+                  ),
+                  itemBuilder: (ctx, idx) {
+                    final it = items[idx];
+                    return InkWell(
+                      key: Key('ws_tile_${it.title}'),
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () {
+                        Navigator.of(sheetCtx).pop();
+                        provider.setEditMode(false);
+                        if (it.mod != null) {
+                          provider.setReportFilter(module: it.mod);
+                        }
+                        setState(() => _selectedIndex = it.idx);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.bg(sheetCtx),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.line(sheetCtx)),
+                        ),
+                        child: Row(
+                          children: [
+                            Text(it.icon, style: const TextStyle(fontSize: 18)),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(it.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                                  Text(it.sub,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(fontSize: 11, color: AppColors.muted(sheetCtx))),
+                                ],
+                              ),
+                            ),
+                            if (it.badge != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.accentSoft(sheetCtx),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(it.badge!,
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.accent(sheetCtx))),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

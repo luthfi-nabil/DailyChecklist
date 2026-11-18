@@ -23,6 +23,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getMonthSchedule: (data) => ipcRenderer.invoke('checklist:get-month-schedule', data),
   getInactive: () => ipcRenderer.invoke('checklist:get-inactive'),
 
+  getLifeOsSummary: (day) => ipcRenderer.invoke('lifeos:get-summary', day),
+  getDashboardLayout: () => ipcRenderer.invoke('lifeos:get-layout'),
+  saveDashboardLayout: (layout) => ipcRenderer.invoke('lifeos:save-layout', layout),
+  resetDashboardLayout: () => ipcRenderer.invoke('lifeos:reset-layout'),
+  getModuleReport: (params) => ipcRenderer.invoke('lifeos:get-report', params),
+  quickAdd: (payload) => ipcRenderer.invoke('lifeos:quick-add', payload),
+  getProjects: () => ipcRenderer.invoke('lifeos:get-projects'),
+  getEnvelopes: () => ipcRenderer.invoke('lifeos:get-envelopes'),
+  getAuditLogs: (params) => ipcRenderer.invoke('lifeos:get-audit-logs', params),
+  logAudit: (entry) => ipcRenderer.invoke('lifeos:log-audit', entry),
+  clearAuditLogs: () => ipcRenderer.invoke('lifeos:clear-audit-logs'),
+
   getSettings: () => ipcRenderer.invoke('settings:get'),
   rotateCode: () => ipcRenderer.invoke('settings:rotate-code'),
   removeDevice: (deviceId) => ipcRenderer.invoke('settings:remove-device', deviceId),

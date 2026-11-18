@@ -1,4 +1,11 @@
 const crypto = require('node:crypto');
+const {
+  DEFAULT_DASHBOARD_LAYOUT,
+  LIFEOS_SYNC_TABLES,
+  sanitizeAuditDetails,
+  parseJsonArray,
+  resolveReportBounds,
+} = require('./lifeOsHelpers');
 
 function formatLocalDay(date) {
   const y = date.getFullYear();
@@ -624,7 +631,16 @@ class Repository {
       claims = claims.filter(cl => !excludeKeys.claims.has(cl.id));
     }
 
-    return { groups, tasks, rewards, checks, claims };
+    const result = { groups, tasks, rewards, checks, claims };
+    for (const tbl of LIFEOS_SYNC_TABLES) {
+      let rows = this.sqlite.prepare(`SELECT ${tbl.cols.join(', ')} FROM ${tbl.name} WHERE seq > ?`).all(since);
+      if (excludeKeys && excludeKeys[tbl.name]) {
+        rows = rows.filter(r => !excludeKeys[tbl.name].has(r.id));
+      }
+      result[tbl.name] = rows;
+    }
+
+    return result;
   }
 
   applyChanges(changes, clientDeviceId = '') {
@@ -636,6 +652,9 @@ class Repository {
       checks: new Set(),
       claims: new Set()
     };
+    for (const tbl of LIFEOS_SYNC_TABLES) {
+      acceptedKeys[tbl.name] = new Set();
+    }
 
     const shouldOverwrite = (incomingUpdatedAt, existingUpdatedAt) => {
       if (incomingUpdatedAt > existingUpdatedAt) return true;
@@ -752,7 +771,407 @@ class Repository {
       }
     }
 
+    for (const tbl of LIFEOS_SYNC_TABLES) {
+      const list = changes[tbl.name];
+      if (!list || !Array.isArray(list)) continue;
+      const placeholders = tbl.cols.map(() => '?').join(', ');
+      const updateSet = tbl.cols.filter(c => c !== 'id').map(c => `${c} = excluded.${c}`).join(', ');
+      const findStmt = this.sqlite.prepare(`SELECT updated_at FROM ${tbl.name} WHERE id = ?`);
+      const upsertStmt = this.sqlite.prepare(`
+        INSERT INTO ${tbl.name} (${tbl.cols.join(', ')}, seq)
+        VALUES (${placeholders}, ?)
+        ON CONFLICT(id) DO UPDATE SET ${updateSet}, seq = excluded.seq
+      `);
+
+      for (const row of list) {
+        if (!row || !row.id) continue;
+        const existing = findStmt.get(row.id);
+        if (!existing || shouldOverwrite(row.updated_at || 0, existing.updated_at)) {
+          const seq = this.db.nextSeq();
+          const vals = tbl.cols.map(c => row[c] === undefined ? null : row[c]);
+          upsertStmt.run(...vals, seq);
+          acceptedKeys[tbl.name].add(row.id);
+        }
+      }
+    }
+
     return acceptedKeys;
+  }
+
+  // --- PERSONAL LIFE OS: LAYOUT & CRUD ---
+  getDashboardLayout() {
+    const raw = this.db.getMeta('dashboard_layout_v1');
+    if (raw) {
+      const parsed = parseJsonArray(raw);
+      if (parsed.length > 0) return parsed;
+    }
+    return DEFAULT_DASHBOARD_LAYOUT.map(x => ({ ...x }));
+  }
+
+  saveDashboardLayout(layout) {
+    const safe = Array.isArray(layout) ? layout.map(w => ({
+      id: String(w.id),
+      visible: w.visible !== false,
+      size: ['s', 'm', 'l'].includes(w.size) ? w.size : 'm',
+    })) : DEFAULT_DASHBOARD_LAYOUT;
+    this.db.setMeta('dashboard_layout_v1', JSON.stringify(safe));
+    return safe;
+  }
+
+  resetDashboardLayout() {
+    const def = DEFAULT_DASHBOARD_LAYOUT.map(x => ({ ...x }));
+    this.db.setMeta('dashboard_layout_v1', JSON.stringify(def));
+    return def;
+  }
+
+  getProjects() {
+    return this.sqlite.prepare('SELECT * FROM projects WHERE is_active = 1 ORDER BY updated_at DESC').all();
+  }
+
+  saveProject(p) {
+    const id = p.id || crypto.randomUUID();
+    const now = Date.now();
+    const seq = this.db.nextSeq();
+    const progress = Math.max(0, Math.min(100, parseInt(p.progress || 0, 10) || 0));
+    const status = p.status === 'done' || progress >= 100 ? 'done' : 'active';
+    const isActive = p.is_active !== undefined ? p.is_active : 1;
+    this.sqlite.prepare(`
+      INSERT INTO projects (id, name, status, progress, is_active, updated_at, seq)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET name = excluded.name, status = excluded.status, progress = excluded.progress, is_active = excluded.is_active, updated_at = excluded.updated_at, seq = excluded.seq
+    `).run(id, p.name || 'Proyek', status, progress, isActive, now, seq);
+    return this.sqlite.prepare('SELECT * FROM projects WHERE id = ?').get(id);
+  }
+
+  saveFocusSession(fs) {
+    const id = fs.id || crypto.randomUUID();
+    const now = Date.now();
+    const seq = this.db.nextSeq();
+    const day = fs.day || formatLocalDay(new Date());
+    const minutes = Math.max(1, parseInt(fs.minutes || 25, 10) || 25);
+    this.sqlite.prepare(`
+      INSERT INTO focus_sessions (id, task_id, project_id, day, minutes, note, updated_at, seq)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET task_id = excluded.task_id, project_id = excluded.project_id, day = excluded.day, minutes = excluded.minutes, note = excluded.note, updated_at = excluded.updated_at, seq = excluded.seq
+    `).run(id, fs.task_id ?? null, fs.project_id ?? null, day, minutes, fs.note ?? null, now, seq);
+    return this.sqlite.prepare('SELECT * FROM focus_sessions WHERE id = ?').get(id);
+  }
+
+  getEnvelopes() {
+    return this.sqlite.prepare('SELECT * FROM finance_envelopes WHERE is_active = 1 ORDER BY name ASC').all();
+  }
+
+  saveEnvelope(env) {
+    const id = env.id || crypto.randomUUID();
+    const now = Date.now();
+    const seq = this.db.nextSeq();
+    const budget = Math.max(0, parseInt(env.monthly_budget || 0, 10) || 0);
+    this.sqlite.prepare(`
+      INSERT INTO finance_envelopes (id, name, monthly_budget, is_active, updated_at, seq)
+      VALUES (?, ?, ?, 1, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET name = excluded.name, monthly_budget = excluded.monthly_budget, is_active = excluded.is_active, updated_at = excluded.updated_at, seq = excluded.seq
+    `).run(id, env.name || 'Amplop', budget, now, seq);
+    return this.sqlite.prepare('SELECT * FROM finance_envelopes WHERE id = ?').get(id);
+  }
+
+  saveFinanceEntry(entry) {
+    const id = entry.id || crypto.randomUUID();
+    const now = Date.now();
+    const seq = this.db.nextSeq();
+    const day = entry.day || formatLocalDay(new Date());
+    const type = entry.type === 'income' ? 'income' : 'expense';
+    const category = ['general', 'savings', 'debt'].includes(entry.category) ? entry.category : 'general';
+    const amount = Math.max(0, Math.round(Number(entry.amount) || 0));
+    this.sqlite.prepare(`
+      INSERT INTO finance_entries (id, day, type, category, amount, envelope_id, note, is_active, updated_at, seq)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET day = excluded.day, type = excluded.type, category = excluded.category, amount = excluded.amount, envelope_id = excluded.envelope_id, note = excluded.note, is_active = excluded.is_active, updated_at = excluded.updated_at, seq = excluded.seq
+    `).run(id, day, type, category, amount, entry.envelope_id ?? null, entry.note ?? null, now, seq);
+    return this.sqlite.prepare('SELECT * FROM finance_entries WHERE id = ?').get(id);
+  }
+
+  saveHealthEntry(entry) {
+    const id = entry.id || crypto.randomUUID();
+    const now = Date.now();
+    const seq = this.db.nextSeq();
+    const day = entry.day || formatLocalDay(new Date());
+    const kind = ['food', 'weight', 'water', 'workout', 'measurement'].includes(entry.kind) ? entry.kind : 'water';
+    const v1 = Number(entry.value_num) || 0;
+    const v2 = entry.value_num2 !== undefined && entry.value_num2 !== null && entry.value_num2 !== '' ? Number(entry.value_num2) : null;
+    this.sqlite.prepare(`
+      INSERT INTO health_entries (id, day, kind, name, value_num, value_num2, unit, note, is_active, updated_at, seq)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET day = excluded.day, kind = excluded.kind, name = excluded.name, value_num = excluded.value_num, value_num2 = excluded.value_num2, unit = excluded.unit, note = excluded.note, updated_at = excluded.updated_at, seq = excluded.seq
+    `).run(id, day, kind, entry.name ?? null, v1, v2, entry.unit ?? null, entry.note ?? null, now, seq);
+    return this.sqlite.prepare('SELECT * FROM health_entries WHERE id = ?').get(id);
+  }
+
+  saveWellnessEntry(entry) {
+    const id = entry.id || crypto.randomUUID();
+    const now = Date.now();
+    const seq = this.db.nextSeq();
+    const day = entry.day || formatLocalDay(new Date());
+    const clamp5 = (n, def) => Math.max(1, Math.min(5, parseInt(n || def, 10) || def));
+    this.sqlite.prepare(`
+      INSERT INTO wellness_entries (id, day, mood, mood_score, energy, stress, sleep_hours, triggers_text, note, is_active, updated_at, seq)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET day = excluded.day, mood = excluded.mood, mood_score = excluded.mood_score, energy = excluded.energy, stress = excluded.stress, sleep_hours = excluded.sleep_hours, triggers_text = excluded.triggers_text, note = excluded.note, updated_at = excluded.updated_at, seq = excluded.seq
+    `).run(id, day, entry.mood || 'Tenang', clamp5(entry.mood_score, 4), clamp5(entry.energy, 3), clamp5(entry.stress, 2), Number(entry.sleep_hours) || 7, entry.triggers_text ?? null, entry.note ?? null, now, seq);
+    return this.sqlite.prepare('SELECT * FROM wellness_entries WHERE id = ?').get(id);
+  }
+
+  saveMenstrualEntry(entry) {
+    const id = entry.id || crypto.randomUUID();
+    const now = Date.now();
+    const seq = this.db.nextSeq();
+    const day = entry.day || formatLocalDay(new Date());
+    const syms = Array.isArray(entry.symptoms) ? JSON.stringify(entry.symptoms) : (entry.symptoms_json || '[]');
+    this.sqlite.prepare(`
+      INSERT INTO menstrual_entries (id, day, phase, cycle_day, flow, symptoms_json, is_period_start, cycle_length, note, is_active, updated_at, seq)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET day = excluded.day, phase = excluded.phase, cycle_day = excluded.cycle_day, flow = excluded.flow, symptoms_json = excluded.symptoms_json, is_period_start = excluded.is_period_start, cycle_length = excluded.cycle_length, note = excluded.note, updated_at = excluded.updated_at, seq = excluded.seq
+    `).run(id, day, entry.phase || 'Menstruasi', parseInt(entry.cycle_day || 1, 10) || 1, entry.flow ?? null, syms, entry.is_period_start ? 1 : 0, entry.cycle_length ? parseInt(entry.cycle_length, 10) : null, entry.note ?? null, now, seq);
+    return this.sqlite.prepare('SELECT * FROM menstrual_entries WHERE id = ?').get(id);
+  }
+
+  saveNote(n) {
+    const id = n.id || crypto.randomUUID();
+    const now = Date.now();
+    const seq = this.db.nextSeq();
+    const day = n.day || formatLocalDay(new Date());
+    const tags = Array.isArray(n.tags)
+      ? JSON.stringify(n.tags.map(t => String(t).trim()).filter(Boolean))
+      : (typeof n.tags_text === 'string'
+        ? JSON.stringify(n.tags_text.split(',').map(t => t.trim()).filter(Boolean))
+        : (n.tags_json || '[]'));
+    this.sqlite.prepare(`
+      INSERT INTO notes (id, day, title, body, tags_json, is_active, updated_at, seq)
+      VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET day = excluded.day, title = excluded.title, body = excluded.body, tags_json = excluded.tags_json, updated_at = excluded.updated_at, seq = excluded.seq
+    `).run(id, day, n.title || 'Catatan cepat', n.body || '', tags, now, seq);
+    return this.sqlite.prepare('SELECT * FROM notes WHERE id = ?').get(id);
+  }
+
+  quickAdd(payload) {
+    const kind = payload?.kind;
+    const data = payload?.data || {};
+    const day = data.day || formatLocalDay(new Date());
+    if (kind === 'task') {
+      const groups = this.getGroups(false);
+      const gid = data.group_id || (groups[0] && groups[0].id) || 'seed-group-pagi';
+      return this.saveTask({ group_id: gid, name: data.name || 'Langkah baru', core: data.core ? 1 : 0, sort: 99, freq: 'daily' });
+    }
+    if (kind === 'finance') return this.saveFinanceEntry({ ...data, day });
+    if (['food', 'weight', 'water', 'workout', 'measurement'].includes(kind)) {
+      return this.saveHealthEntry({ ...data, kind, day });
+    }
+    if (kind === 'mood') return this.saveWellnessEntry({ ...data, day });
+    if (kind === 'menstrual') return this.saveMenstrualEntry({ ...data, day });
+    if (kind === 'note') return this.saveNote({ ...data, day });
+    if (kind === 'project') return this.saveProject(data);
+    if (kind === 'focus') return this.saveFocusSession({ ...data, day });
+    if (kind === 'envelope') return this.saveEnvelope(data);
+    throw new Error(`Unknown quickAdd kind: ${kind}`);
+  }
+
+  getLifeOsSummary(dayStr) {
+    const todayData = this.getTodayData(dayStr);
+    const scheduled = todayData.groups.flatMap(g => g.tasks).filter(t => t.scheduled);
+    const prodDone = scheduled.filter(t => t.done).length;
+    const prodTotal = scheduled.length;
+    const focusToday = this.sqlite.prepare('SELECT COALESCE(SUM(minutes), 0) as mins FROM focus_sessions WHERE day = ?').get(dayStr).mins;
+
+    const finInc = this.sqlite.prepare("SELECT COALESCE(SUM(amount), 0) as s FROM finance_entries WHERE is_active = 1 AND type = 'income'").get().s;
+    const finExp = this.sqlite.prepare("SELECT COALESCE(SUM(amount), 0) as s FROM finance_entries WHERE is_active = 1 AND type = 'expense'").get().s;
+    const finCount = this.sqlite.prepare('SELECT COUNT(*) as c FROM finance_entries WHERE is_active = 1').get().c;
+
+    const latestWeight = this.sqlite.prepare("SELECT value_num, value_num2, day FROM health_entries WHERE is_active = 1 AND kind = 'weight' ORDER BY day DESC, updated_at DESC LIMIT 1").get();
+    const waterToday = this.sqlite.prepare("SELECT COALESCE(SUM(value_num), 0) as ml FROM health_entries WHERE is_active = 1 AND kind = 'water' AND day = ?").get(dayStr).ml;
+    const kcalToday = this.sqlite.prepare("SELECT COALESCE(SUM(value_num), 0) as kcal FROM health_entries WHERE is_active = 1 AND kind = 'food' AND day = ?").get(dayStr).kcal;
+
+    const latestWell = this.sqlite.prepare('SELECT mood, mood_score, energy, stress, sleep_hours, day FROM wellness_entries WHERE is_active = 1 ORDER BY day DESC, updated_at DESC LIMIT 1').get();
+    const latestMens = this.sqlite.prepare('SELECT phase, cycle_day, symptoms_json, day FROM menstrual_entries WHERE is_active = 1 ORDER BY day DESC, updated_at DESC LIMIT 1').get();
+    const notesCount = this.sqlite.prepare('SELECT COUNT(*) as c FROM notes WHERE is_active = 1').get().c;
+    const latestNote = this.sqlite.prepare('SELECT title, day FROM notes WHERE is_active = 1 ORDER BY day DESC, updated_at DESC LIMIT 1').get();
+    const activeRewards = this.sqlite.prepare('SELECT COUNT(*) as c FROM rewards WHERE is_active = 1').get().c;
+    const errorAuditCount = this.sqlite.prepare("SELECT COUNT(*) as c FROM audit_logs WHERE level IN ('error','warn')").get().c;
+
+    return {
+      layout: this.getDashboardLayout(),
+      productivity: { done: prodDone, total: prodTotal, focusMinutesToday: focusToday },
+      finance: { income: finInc, expense: finExp, balance: finInc - finExp, count: finCount },
+      health: { latestWeight: latestWeight ? latestWeight.value_num : null, waterTodayMl: waterToday, kcalToday },
+      wellness: latestWell || null,
+      menstrual: latestMens ? { ...latestMens, symptoms: parseJsonArray(latestMens.symptoms_json) } : null,
+      notes: { count: notesCount, latestTitle: latestNote ? latestNote.title : null, latestDay: latestNote ? latestNote.day : null },
+      rewards: { balance: todayData.balance, activeCount: activeRewards },
+      errorAuditCount,
+    };
+  }
+
+  getModuleReport({ module, range = 'week', customStart = null, customEnd = null, today }) {
+    const todayStr = today || formatLocalDay(new Date());
+    const { start, end } = resolveReportBounds(range, customStart, customEnd, todayStr);
+
+    if (module === 'productivity') {
+      const daysCount = Math.max(1, Math.round((parseLocalDay(end) - parseLocalDay(start)) / 86400000) + 1);
+      const stats = this.getDashboardStats(range === 'month' ? 'month' : (range === 'year' ? 'all' : 'week'), end);
+      const focusRows = this.sqlite.prepare('SELECT * FROM focus_sessions WHERE day >= ? AND day <= ? ORDER BY day DESC, updated_at DESC').all(start, end);
+      const focusMinutes = focusRows.reduce((a, b) => a + (b.minutes || 0), 0);
+      const projects = this.getProjects();
+      const tasks = this.getTasks(false);
+      let scheduledSlots = 0;
+      let doneSlots = 0;
+      const checkedRows = this.sqlite.prepare('SELECT task_id, day FROM checks WHERE checked = 1 AND day >= ? AND day <= ?').all(start, end);
+      const checkedSet = new Set(checkedRows.map(r => `${r.task_id}|${r.day}`));
+      for (const t of tasks) {
+        const sched = countScheduledDaysInRange(t, start, end);
+        scheduledSlots += sched;
+        for (let i = 0; i < daysCount; i++) {
+          const d = parseLocalDay(start);
+          d.setDate(d.getDate() + i);
+          const ds = formatLocalDay(d);
+          if (checkedSet.has(`${t.id}|${ds}`)) doneSlots++;
+        }
+      }
+      const completionRate = scheduledSlots > 0 ? Math.round((doneSlots / scheduledSlots) * 100) : stats.rate;
+      return {
+        module, start, end,
+        completionRate, doneCount: doneSlots, scheduledCount: scheduledSlots,
+        focusMinutes, focusSessions: focusRows, projects,
+        taskBreakdown: stats.taskStats,
+      };
+    }
+
+    if (module === 'finance') {
+      const entries = this.sqlite.prepare('SELECT * FROM finance_entries WHERE is_active = 1 AND day >= ? AND day <= ? ORDER BY day DESC, updated_at DESC').all(start, end);
+      const envelopes = this.getEnvelopes();
+      const income = entries.filter(e => e.type === 'income').reduce((a, b) => a + b.amount, 0);
+      const expense = entries.filter(e => e.type === 'expense').reduce((a, b) => a + b.amount, 0);
+      const savings = entries.filter(e => e.category === 'savings').reduce((a, b) => a + b.amount, 0);
+      const debt = entries.filter(e => e.category === 'debt').reduce((a, b) => a + b.amount, 0);
+      const envelopeUsage = envelopes.map(env => {
+        const used = entries.filter(e => e.type === 'expense' && e.envelope_id === env.id).reduce((a, b) => a + b.amount, 0);
+        const pct = env.monthly_budget > 0 ? Math.min(100, Math.round((used / env.monthly_budget) * 100)) : 0;
+        return { ...env, used, pct };
+      });
+      return { module, start, end, income, expense, net: income - expense, savings, debt, envelopeUsage, entries };
+    }
+
+    if (module === 'health') {
+      const rows = this.sqlite.prepare('SELECT * FROM health_entries WHERE is_active = 1 AND day >= ? AND day <= ? ORDER BY day DESC, updated_at DESC').all(start, end);
+      const weightHistory = rows.filter(r => r.kind === 'weight');
+      const foodLogs = rows.filter(r => r.kind === 'food');
+      const waterLogs = rows.filter(r => r.kind === 'water');
+      const workoutLogs = rows.filter(r => r.kind === 'workout');
+      const measurementLogs = rows.filter(r => r.kind === 'measurement');
+      const totalCalories = Math.round(foodLogs.reduce((a, b) => a + b.value_num, 0));
+      const totalWaterMl = Math.round(waterLogs.reduce((a, b) => a + b.value_num, 0));
+      const totalWorkoutMin = Math.round(workoutLogs.reduce((a, b) => a + b.value_num, 0));
+      return {
+        module, start, end,
+        latestWeight: weightHistory[0] ? weightHistory[0].value_num : null,
+        totalCalories, totalWaterMl, totalWorkoutMin,
+        weightHistory, foodLogs, waterLogs, workoutLogs, measurementLogs,
+      };
+    }
+
+    if (module === 'wellness') {
+      const entries = this.sqlite.prepare('SELECT * FROM wellness_entries WHERE is_active = 1 AND day >= ? AND day <= ? ORDER BY day DESC, updated_at DESC').all(start, end);
+      const count = entries.length;
+      const avg = (k) => count > 0 ? Number((entries.reduce((a, b) => a + Number(b[k] || 0), 0) / count).toFixed(1)) : 0;
+      const triggerMap = {};
+      for (const e of entries) {
+        if (!e.triggers_text) continue;
+        for (const raw of e.triggers_text.split(',')) {
+          const t = raw.trim();
+          if (t) triggerMap[t] = (triggerMap[t] || 0) + 1;
+        }
+      }
+      const triggers = Object.entries(triggerMap).map(([name, cnt]) => ({ name, count: cnt })).sort((a, b) => b.count - a.count);
+      return {
+        module, start, end, count,
+        avgMood: avg('mood_score'), avgEnergy: avg('energy'), avgStress: avg('stress'), avgSleep: avg('sleep_hours'),
+        triggers, entries,
+      };
+    }
+
+    if (module === 'menstrual') {
+      const entries = this.sqlite.prepare('SELECT * FROM menstrual_entries WHERE is_active = 1 AND day >= ? AND day <= ? ORDER BY day DESC, updated_at DESC').all(start, end)
+        .map(r => ({ ...r, symptoms: parseJsonArray(r.symptoms_json) }));
+      const periodStarts = entries.filter(e => e.is_period_start === 1);
+      const lengths = entries.map(e => e.cycle_length).filter(n => typeof n === 'number' && n > 0);
+      const avgCycleDuration = lengths.length ? Math.round(lengths.reduce((a, b) => a + b, 0) / lengths.length) : null;
+      const symptomMap = {};
+      for (const e of entries) {
+        for (const s of e.symptoms) symptomMap[s] = (symptomMap[s] || 0) + 1;
+      }
+      const symptomSummary = Object.entries(symptomMap).map(([name, cnt]) => ({ name, count: cnt })).sort((a, b) => b.count - a.count);
+      return {
+        module, start, end, count: entries.length,
+        avgCycleDuration, periodCount: periodStarts.length,
+        latestPhase: entries[0] ? entries[0].phase : null,
+        symptomSummary, entries,
+      };
+    }
+
+    // notes
+    const entries = this.sqlite.prepare('SELECT * FROM notes WHERE is_active = 1 AND day >= ? AND day <= ? ORDER BY day DESC, updated_at DESC').all(start, end)
+      .map(n => ({ ...n, tags: parseJsonArray(n.tags_json) }));
+    const tagMap = {};
+    let totalWords = 0;
+    for (const n of entries) {
+      totalWords += n.body ? n.body.trim().split(/\s+/).filter(Boolean).length : 0;
+      for (const t of n.tags) tagMap[t] = (tagMap[t] || 0) + 1;
+    }
+    const tags = Object.entries(tagMap).map(([name, cnt]) => ({ name, count: cnt })).sort((a, b) => b.count - a.count);
+    return { module: 'notes', start, end, count: entries.length, totalWords, uniqueTags: tags.length, tags, entries };
+  }
+
+  // --- AUDIT LOG (LOCAL-ONLY API & SYNC DIAGNOSTICS) ---
+  logAudit({ source = 'Desktop', category = 'sync', level = 'error', endpoint = '', statusCode = null, errorCode = '', message = '', details = null }) {
+    const id = crypto.randomUUID();
+    const now = Date.now();
+    const day = formatLocalDay(new Date(now));
+    const safeDetails = details !== null && details !== undefined ? JSON.stringify(sanitizeAuditDetails(details)) : null;
+    const safeMsg = sanitizeAuditDetails(String(message || 'Unknown error'));
+    this.sqlite.prepare(`
+      INSERT INTO audit_logs (id, created_at, day, source, category, level, endpoint, status_code, error_code, message, details_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, now, day, source, category, level, endpoint, statusCode, errorCode || null, safeMsg, safeDetails);
+
+    // Retention: prune >30 days and keep newest 500
+    const cutoff = now - 30 * 24 * 60 * 60 * 1000;
+    this.sqlite.prepare('DELETE FROM audit_logs WHERE created_at < ?').run(cutoff);
+    this.sqlite.prepare('DELETE FROM audit_logs WHERE id NOT IN (SELECT id FROM audit_logs ORDER BY created_at DESC LIMIT 500)').run();
+    return id;
+  }
+
+  getAuditLogs({ category = 'all', source = 'all', range = 'week', customStart = null, customEnd = null, today = null } = {}) {
+    const todayStr = today || formatLocalDay(new Date());
+    const { start, end } = resolveReportBounds(range, customStart, customEnd, todayStr);
+    let rows = this.sqlite.prepare('SELECT * FROM audit_logs WHERE day >= ? AND day <= ? ORDER BY created_at DESC').all(start, end);
+    if (category && category !== 'all') {
+      if (category === 'sync') rows = rows.filter(r => (r.category === 'sync' || r.category === 'discovery') && r.level === 'error');
+      else if (category === 'auth') rows = rows.filter(r => r.category === 'auth' || r.status_code === 401);
+      else if (category === 'info') rows = rows.filter(r => r.level === 'info');
+      else rows = rows.filter(r => r.category === category);
+    }
+    if (source && source !== 'all') {
+      rows = rows.filter(r => r.source.toLowerCase().includes(source.toLowerCase()));
+    }
+    return rows.map(r => {
+      let details = null;
+      if (r.details_json) {
+        try { details = JSON.parse(r.details_json); } catch (_) { details = r.details_json; }
+      }
+      return { ...r, details };
+    });
+  }
+
+  clearAuditLogs() {
+    this.sqlite.exec('DELETE FROM audit_logs');
+    return true;
   }
 }
 

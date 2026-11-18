@@ -473,3 +473,147 @@ class DayLog {
     required this.groups,
   });
 }
+
+// --- PERSONAL LIFE OS & AUDIT LOG MODELS ---
+
+class DashboardWidgetConfig {
+  final String id;
+  final bool visible;
+  final String size; // 's' | 'm' | 'l'
+
+  const DashboardWidgetConfig({
+    required this.id,
+    this.visible = true,
+    this.size = 'm',
+  });
+
+  DashboardWidgetConfig copyWith({bool? visible, String? size}) =>
+      DashboardWidgetConfig(
+        id: id,
+        visible: visible ?? this.visible,
+        size: size ?? this.size,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'visible': visible,
+        'size': size,
+      };
+
+  factory DashboardWidgetConfig.fromJson(Map<String, dynamic> m) =>
+      DashboardWidgetConfig(
+        id: m['id'] as String,
+        visible: m['visible'] != false,
+        size: (m['size'] as String?) ?? 'm',
+      );
+}
+
+const defaultDashboardLayout = [
+  DashboardWidgetConfig(id: 'w-prod', visible: true, size: 'm'),
+  DashboardWidgetConfig(id: 'w-fin', visible: true, size: 'm'),
+  DashboardWidgetConfig(id: 'w-hlth', visible: true, size: 's'),
+  DashboardWidgetConfig(id: 'w-well', visible: true, size: 's'),
+  DashboardWidgetConfig(id: 'w-mens', visible: true, size: 's'),
+  DashboardWidgetConfig(id: 'w-note', visible: true, size: 'm'),
+  DashboardWidgetConfig(id: 'w-rew', visible: true, size: 'm'),
+];
+
+class LifeOsSummary {
+  final List<DashboardWidgetConfig> layout;
+  final int prodDone;
+  final int prodTotal;
+  final int focusMinutesToday;
+  final int financeIncome;
+  final int financeExpense;
+  final int financeBalance;
+  final int financeCount;
+  final double? latestWeight;
+  final double waterTodayMl;
+  final double kcalToday;
+  final String? latestMood;
+  final int? latestEnergy;
+  final int? latestStress;
+  final double? latestSleepHours;
+  final String? latestMenstrualPhase;
+  final int? latestCycleDay;
+  final List<String> latestSymptoms;
+  final int notesCount;
+  final String? latestNoteTitle;
+  final int rewardsBalance;
+  final int activeRewardsCount;
+  final int errorAuditCount;
+
+  LifeOsSummary({
+    required this.layout,
+    required this.prodDone,
+    required this.prodTotal,
+    required this.focusMinutesToday,
+    required this.financeIncome,
+    required this.financeExpense,
+    required this.financeBalance,
+    required this.financeCount,
+    this.latestWeight,
+    required this.waterTodayMl,
+    required this.kcalToday,
+    this.latestMood,
+    this.latestEnergy,
+    this.latestStress,
+    this.latestSleepHours,
+    this.latestMenstrualPhase,
+    this.latestCycleDay,
+    this.latestSymptoms = const [],
+    required this.notesCount,
+    this.latestNoteTitle,
+    required this.rewardsBalance,
+    required this.activeRewardsCount,
+    required this.errorAuditCount,
+  });
+}
+
+class ModuleReportData {
+  final String module;
+  final String start;
+  final String end;
+  final Map<String, dynamic> metrics;
+  final List<Map<String, dynamic>> breakdown;
+  final List<Map<String, dynamic>> entries;
+  final List<({String name, int count})> tagsOrTriggers;
+
+  ModuleReportData({
+    required this.module,
+    required this.start,
+    required this.end,
+    required this.metrics,
+    this.breakdown = const [],
+    this.entries = const [],
+    this.tagsOrTriggers = const [],
+  });
+}
+
+class AuditLogEntry {
+  final String id;
+  final int createdAt;
+  final String day;
+  final String source;
+  final String category;
+  final String level;
+  final String endpoint;
+  final int? statusCode;
+  final String? errorCode;
+  final String message;
+  final Map<String, dynamic>? details;
+
+  AuditLogEntry({
+    required this.id,
+    required this.createdAt,
+    required this.day,
+    required this.source,
+    required this.category,
+    required this.level,
+    required this.endpoint,
+    this.statusCode,
+    this.errorCode,
+    required this.message,
+    this.details,
+  });
+}

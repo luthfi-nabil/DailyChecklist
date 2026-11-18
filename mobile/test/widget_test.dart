@@ -42,9 +42,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Hari ini'), findsWidgets);
-    expect(find.text('Hadiah'), findsOneWidget);
-    expect(find.text('Jejak'), findsOneWidget);
-    expect(find.text('Lainnya'), findsOneWidget);
+    expect(find.text('Dasbor'), findsOneWidget);
+    expect(find.text('Laporan'), findsOneWidget);
+    expect(find.text('Workspace'), findsOneWidget);
+    expect(find.byKey(const Key('global_fab')), findsOneWidget);
 
     // Complete focus task via "Sudah selesai"
     expect(find.text('Sudah selesai'), findsOneWidget);
@@ -83,14 +84,39 @@ void main() {
     expect(provider.todayGroups[0].id, secondGroupId);
     expect(provider.todayGroups[1].id, firstGroupId);
 
-    // Navigate to Jejak tab
-    await tester.tap(find.text('Jejak'));
+    // Navigate to Dasbor tab (Customizable Personal Life OS Dashboard)
+    await tester.tap(find.text('Dasbor').last);
     await tester.pumpAndSettle();
-    expect(find.text('Dasbor'), findsOneWidget);
+    expect(find.byKey(const Key('customize_dashboard_btn')), findsOneWidget);
+    expect(find.text('Finance & Budget'), findsOneWidget);
+
+    // Open Global Quick Add (+) sheet from any page
+    await tester.tap(find.byKey(const Key('global_fab')));
+    await tester.pumpAndSettle();
+    expect(find.text('Add income/expense'), findsOneWidget);
+    expect(find.text('Mood check-in'), findsOneWidget);
+    await tester.tapAt(const Offset(10, 10)); // dismiss bottom sheet
+    await tester.pumpAndSettle();
+
+    // Navigate to Laporan tab (Individual Module Reports)
+    await tester.tap(find.text('Laporan').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Finance'), findsOneWidget);
+    expect(find.text('Menstrual'), findsOneWidget);
+
+    // Open Workspace menu -> Jejak
+    await tester.tap(find.text('Workspace'));
+    await tester.pumpAndSettle();
+    expect(find.text('Audit Log'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('ws_tile_Jejak')));
+    await tester.pumpAndSettle();
     expect(find.text('Riwayat'), findsOneWidget);
 
-    // Navigate to Lainnya tab
-    await tester.tap(find.text('Lainnya'));
+    // Open Workspace menu -> Lainnya
+    await tester.tap(find.text('Workspace'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('ws_tile_Lainnya')));
+    await tester.tap(find.byKey(const Key('ws_tile_Lainnya')));
     await tester.pumpAndSettle();
     expect(find.text('Sinkronisasi'), findsOneWidget);
     await tester.scrollUntilVisible(
@@ -99,6 +125,16 @@ void main() {
       scrollable: find.byType(Scrollable).last,
     );
     expect(find.text('Tampilan'), findsOneWidget);
+
+    // Verify Workspace sheet renders with zero overflow on narrow 360x640 mobile screen
+    await tester.binding.setSurfaceSize(const Size(360, 640));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Workspace'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('ws_tile_Productivity')), findsOneWidget);
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+    await tester.binding.setSurfaceSize(null);
 
     // Unmount widget before disposing provider & db
     await tester.pumpWidget(const SizedBox.shrink());

@@ -98,6 +98,51 @@ function registerIpcHandlers(repository, db, syncServer, getMainWindow, onQuitAp
     return repository.getInactiveItems();
   });
 
+  // --- PERSONAL LIFE OS & AUDIT LOG ---
+  ipcMain.handle('lifeos:get-summary', async (event, day) => {
+    return repository.getLifeOsSummary(day);
+  });
+
+  ipcMain.handle('lifeos:get-layout', async () => {
+    return repository.getDashboardLayout();
+  });
+
+  ipcMain.handle('lifeos:save-layout', async (event, layout) => {
+    return repository.saveDashboardLayout(layout);
+  });
+
+  ipcMain.handle('lifeos:reset-layout', async () => {
+    return repository.resetDashboardLayout();
+  });
+
+  ipcMain.handle('lifeos:get-report', async (event, params) => {
+    return repository.getModuleReport(params || {});
+  });
+
+  ipcMain.handle('lifeos:quick-add', async (event, payload) => {
+    return repository.quickAdd(payload);
+  });
+
+  ipcMain.handle('lifeos:get-projects', async () => {
+    return repository.getProjects();
+  });
+
+  ipcMain.handle('lifeos:get-envelopes', async () => {
+    return repository.getEnvelopes();
+  });
+
+  ipcMain.handle('lifeos:get-audit-logs', async (event, params) => {
+    return repository.getAuditLogs(params || {});
+  });
+
+  ipcMain.handle('lifeos:log-audit', async (event, entry) => {
+    return repository.logAudit(entry || {});
+  });
+
+  ipcMain.handle('lifeos:clear-audit-logs', async () => {
+    return repository.clearAuditLogs();
+  });
+
   ipcMain.handle('settings:get', async () => {
     const loginSettings = app.getLoginItemSettings();
     const ttlDays = Math.min(7, Math.max(3, parseInt(db.getMeta('token_ttl_days') || '7', 10) || 7));

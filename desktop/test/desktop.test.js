@@ -336,3 +336,136 @@ test('Milestone 3: Weekly & Monthly task scheduling, stats, and sync', async (t)
 
   db.close();
 });
+
+test('Milestone 4: Personal Life OS dashboard layout, quickAdd, module reports, sync & audit log', async (t) => {
+  const db = new Database(':memory:');
+  const repo = new Repository(db);
+  const server = new SyncServer(db, repo);
+  const port = await server.start(0);
+
+  await t.test('persists customizable dashboard layout and resets to default', () => {
+    const def = repo.getDashboardLayout();
+    assert.strictEqual(def.length, 7);
+
+    const custom = [{ id: 'w-fin', visible: true, size: 'l' }, { id: 'w-prod', visible: false, size: 's' }];
+    repo.saveDashboardLayout(custom);
+    const saved = repo.getDashboardLayout();
+    assert.strictEqual(saved.length, 2);
+    assert.strictEqual(saved[0].id, 'w-fin');
+    assert.strictEqual(saved[0].size, 'l');
+    assert.strictEqual(saved[1].visible, false);
+
+    const reset = repo.resetDashboardLayout();
+    assert.strictEqual(reset.length, 7);
+    assert.strictEqual(repo.getDashboardLayout().length, 7);
+  });
+
+  await t.test('reports compute strictly from actual stored records (no fake defaults)', () => {
+    const today = '2026-11-18';
+    const emptyFin = repo.getModuleReport({ module: 'finance', range: 'week', today });
+    assert.strictEqual(emptyFin.income, 0);
+    assert.strictEqual(emptyFin.expense, 0);
+    assert.strictEqual(emptyFin.entries.length, 0);
+
+    const env = repo.quickAdd({ kind: 'envelope', data: { name: 'Makan', monthly_budget: 500000 } });
+    repo.quickAdd({ kind: 'finance', data: { day: today, type: 'income', category: 'general', amount: 1000000, note: 'Gaji' } });
+    repo.quickAdd({ kind: 'finance', data: { day: today, type: 'expense', category: 'general', amount: 100000, envelope_id: env.id, note: 'Makan siang' } });
+    repo.quickAdd({ kind: 'finance', data: { day: today, type: 'expense', category: 'savings', amount: 200000, note: 'Tabungan' } });
+    repo.quickAdd({ kind: 'finance', data: { day: today, type: 'expense', category: 'debt', amount: 150000, note: 'Cicilan' } });
+
+    const finRep = repo.getModuleReport({ module: 'finance', range: 'week', today });
+    assert.strictEqual(finRep.income, 1000000);
+    assert.strictEqual(finRep.expense, 450000);
+    assert.strictEqual(finRep.savings, 200000);
+    assert.strictEqual(finRep.debt, 150000);
+    assert.strictEqual(finRep.envelopeUsage[0].used, 100000);
+    assert.strictEqual(finRep.envelopeUsage[0].pct, 20);
+
+    // Health, Wellness, Menstrual, Notes, Project & Focus
+    repo.quickAdd({ kind: 'food', data: { day: today, name: 'Salad', value_num: 350 } });
+    repo.quickAdd({ kind: 'weight', data: { day: today, value_num: 62.5, value_num2: 75 } });
+    repo.quickAdd({ kind: 'water', data: { day: today, value_num: 500 } });
+    repo.quickAdd({ kind: 'workout', data: { day: today, name: 'Jogging', value_num: 30 } });
+    repo.quickAdd({ kind: 'mood', data: { day: today, mood: 'Tenang', mood_score: 4, energy: 4, stress: 2, sleep_hours: 7.5, triggers_text: 'tidur cukup' } });
+    repo.quickAdd({ kind: 'menstrual', data: { day: today, phase: 'Menstruasi', cycle_day: 1, symptoms: ['Kram'], is_period_start: true, cycle_length: 28 } });
+    repo.quickAdd({ kind: 'note', data: { day: today, title: 'Refleksi', body: 'Hari ini cukup tenang', tags: ['refleksi'] } });
+    const proj = repo.quickAdd({ kind: 'project', data: { name: 'Life OS', progress: 60 } });
+    repo.quickAdd({ kind: 'focus', data: { day: today, project_id: proj.id, minutes: 45 } });
+
+    const healthRep = repo.getModuleReport({ module: 'health', range: 'week', today });
+    assert.strictEqual(healthRep.latestWeight, 62.5);
+    assert.strictEqual(healthRep.totalCalories, 350);
+    assert.strictEqual(healthRep.totalWaterMl, 500);
+    assert.strictEqual(healthRep.totalWorkoutMin, 30);
+
+    const wellRep = repo.getModuleReport({ module: 'wellness', range: 'week', today });
+    assert.strictEqual(wellRep.avgMood, 4);
+    assert.strictEqual(wellRep.triggers[0].name, 'tidur cukup');
+
+    const mensRep = repo.getModuleReport({ module: 'menstrual', range: 'week', today });
+    assert.strictEqual(mensRep.avgCycleDuration, 28);
+    assert.strictEqual(mensRep.symptomSummary[0].name, 'Kram');
+
+    const noteRep = repo.getModuleReport({ module: 'notes', range: 'week', today });
+    assert.strictEqual(noteRep.count, 1);
+    assert.strictEqual(noteRep.tags[0].name, 'refleksi');
+
+    const prodRep = repo.getModuleReport({ module: 'productivity', range: 'week', today });
+    assert.strictEqual(prodRep.focusMinutes, 45);
+    assert.strictEqual(prodRep.projects[0].progress, 60);
+  });
+
+  await t.test('syncs Life OS tables via applyChanges/getChangesSince and excludes audit_logs', () => {
+    repo.applyChanges({
+      notes: [{
+        id: 'mob-note-1',
+        day: '2026-11-18',
+        title: 'Catatan Ponsel',
+        body: 'Disinkronkan',
+        tags_json: '["mobile"]',
+        is_active: 1,
+        updated_at: Date.now()
+      }]
+    }, 'mobile-1');
+
+    const exported = repo.getChangesSince(0);
+    assert.ok(exported.notes.find(n => n.id === 'mob-note-1'));
+    assert.strictEqual(exported.audit_logs, undefined);
+  });
+
+  await t.test('audit_logs redacts secrets and logs API/sync failures from SyncServer', async () => {
+    repo.logAudit({
+      source: 'Desktop',
+      category: 'sync',
+      level: 'error',
+      endpoint: 'POST /api/v1/sync',
+      statusCode: 401,
+      errorCode: 'unauthorized',
+      message: 'Failed with Bearer supersecret123',
+      details: { token: 'abc123', host: '192.168.1.5' }
+    });
+
+    const http = require('node:http');
+    await new Promise((resolve) => {
+      const req = http.request({
+        hostname: '127.0.0.1', port, path: '/api/v1/sync', method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer invalid-tok' }
+      }, (res) => { res.resume(); res.on('end', resolve); });
+      req.end('{}');
+    });
+
+    const logs = repo.getAuditLogs({ range: 'week' });
+    assert.ok(logs.length >= 2);
+    assert.ok(logs.some(l => l.error_code === 'unauthorized' && l.status_code === 401));
+    const secretEntry = logs.find(l => l.details && l.details.host === '192.168.1.5');
+    assert.ok(secretEntry);
+    assert.strictEqual(secretEntry.details.token, '[REDACTED]');
+    assert.strictEqual(secretEntry.message.includes('supersecret123'), false);
+
+    repo.clearAuditLogs();
+    assert.strictEqual(repo.getAuditLogs({ range: 'week' }).length, 0);
+  });
+
+  await server.stop();
+  db.close();
+});

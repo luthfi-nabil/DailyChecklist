@@ -75,7 +75,7 @@ class TodayView extends StatelessWidget {
     final isToday = provider.selectedDate == provider.currentDay;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
       children: [
         // 0. Schedule Calendar Card
         if (provider.showCalendar) ...[

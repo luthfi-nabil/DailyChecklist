@@ -163,6 +163,14 @@ class SyncService {
     }
 
     _setStatus(SyncStatus.notFound);
+    await repository.logAudit(
+      category: 'discovery',
+      level: 'error',
+      endpoint: 'UDP 47899 / mDNS',
+      errorCode: 'NOT_FOUND',
+      message: 'Desktop sync server tidak ditemukan di jaringan lokal.',
+      details: {'timeoutSeconds': timeout.inSeconds},
+    );
     return null;
   }
 
@@ -323,11 +331,37 @@ class SyncService {
         return true;
       } else if (res.statusCode == 403) {
         _setStatus(SyncStatus.unauthorized, error: 'Kode pairing salah');
+        await repository.logAudit(
+          category: 'auth',
+          level: 'warn',
+          endpoint: 'POST /api/v1/pair',
+          statusCode: 403,
+          errorCode: 'bad_code',
+          message: 'Kode pairing salah saat menyambungkan ke Desktop.',
+          details: {'host': server.host, 'port': server.port},
+        );
       } else {
         _setStatus(SyncStatus.error, error: 'Gagal menyambungkan');
+        await repository.logAudit(
+          category: 'api',
+          level: 'error',
+          endpoint: 'POST /api/v1/pair',
+          statusCode: res.statusCode,
+          errorCode: 'HTTP_${res.statusCode}',
+          message: 'Permintaan pairing gagal dengan status HTTP ${res.statusCode}.',
+          details: {'host': server.host, 'port': server.port},
+        );
       }
     } catch (e) {
       _setStatus(SyncStatus.error, error: e.toString());
+      await repository.logAudit(
+        category: 'api',
+        level: 'error',
+        endpoint: 'POST /api/v1/pair',
+        errorCode: 'EXCEPTION',
+        message: 'Error jaringan saat pairing: $e',
+        details: {'host': server.host, 'port': server.port},
+      );
     }
     return false;
   }
@@ -356,9 +390,18 @@ class SyncService {
         await repository.setMeta('paired_token', '');
         await repository.setMeta('token_expires_at', '');
         _setStatus(SyncStatus.unauthorized, error: 'Sesi kedaluwarsa, silakan sambungkan ulang');
+        await repository.logAudit(
+          category: 'auth',
+          level: 'warn',
+          endpoint: 'POST /api/v1/sync',
+          statusCode: 401,
+          errorCode: 'token_expired_local',
+          message: 'Token sinkronisasi lokal kedaluwarsa. Perlu pairing ulang.',
+        );
         return false;
       }
 
+      final hadPriorError = errorMessage != null || status == SyncStatus.error || status == SyncStatus.notFound;
       _setStatus(SyncStatus.syncing);
 
       final uri = Uri.parse('http://${server.host}:${server.port}/api/v1/sync');
@@ -399,20 +442,57 @@ class SyncService {
           await repository.setMeta('token_expires_at', serverExp.toString());
         }
         _setStatus(SyncStatus.connected);
+        if (hadPriorError) {
+          await repository.logAudit(
+            category: 'sync',
+            level: 'info',
+            endpoint: 'POST /api/v1/sync',
+            statusCode: 200,
+            errorCode: 'OK',
+            message: 'Sinkronisasi berhasil dipulihkan.',
+            details: {'cursor': newCursor, 'host': server.host},
+          );
+        }
         return true;
       } else if (res.statusCode == 401) {
         tokenExpiresAt = null;
         await repository.setMeta('paired_token', '');
         await repository.setMeta('token_expires_at', '');
         _setStatus(SyncStatus.unauthorized, error: 'Sesi berakhir, perlu disambungkan ulang');
+        await repository.logAudit(
+          category: 'auth',
+          level: 'warn',
+          endpoint: 'POST /api/v1/sync',
+          statusCode: 401,
+          errorCode: 'unauthorized',
+          message: 'Server menolak token sinkronisasi (401). Perlu pairing ulang.',
+          details: {'host': server.host, 'port': server.port},
+        );
       } else {
         // Might have changed IP; clear currentServer so next attempt re-discovers
+        final prevHost = server.host;
         currentServer = null;
         _setStatus(SyncStatus.error, error: 'HTTP ${res.statusCode}');
+        await repository.logAudit(
+          category: 'sync',
+          level: 'error',
+          endpoint: 'POST /api/v1/sync',
+          statusCode: res.statusCode,
+          errorCode: 'HTTP_${res.statusCode}',
+          message: 'Sinkronisasi gagal dengan HTTP ${res.statusCode}.',
+          details: {'host': prevHost},
+        );
       }
     } catch (e) {
       currentServer = null;
       _setStatus(SyncStatus.notFound, error: e.toString());
+      await repository.logAudit(
+        category: 'sync',
+        level: 'error',
+        endpoint: 'POST /api/v1/sync',
+        errorCode: 'SYNC_FAILED',
+        message: 'Sinkronisasi gagal: $e',
+      );
     } finally {
       _isSyncing = false;
     }

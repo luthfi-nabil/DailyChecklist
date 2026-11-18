@@ -1,6 +1,6 @@
-# Langkah Kecil — Daily Checklist
+# Langkah Kecil — Daily Checklist & Personal Life OS
 
-**Version: V0.1 (`0.1.0`)**
+**Version: V0.2.0 (`0.2.0`)**
 
 A calm, local-first daily checklist and habit-tracking suite for **Desktop (Electron)** and **Mobile (Flutter)** with zero-configuration local network synchronization.
 
@@ -25,6 +25,12 @@ A calm, local-first daily checklist and habit-tracking suite for **Desktop (Elec
   - Interactive collapsible checklist calendar in *Hari ini* showing Weekly and Monthly indicator dots, date inspection, and read-only preview for future dates.
   - Edit Mode (*Ubah*) displays high-contrast frequency badges below each input, an icon-only `📅` schedule picker button, off-day visibility, and `↑` / `↓` controls to reorder activity groups.
   - Activity Dashboard calculates completion rates against scheduled days in range, and Day Logs only list tasks scheduled (or completed) on that date.
+- **Personal Life OS & Audit Log (Milestone 4A–4C):**
+  - **Soft Pastel Minimalist** theme system (Light & Dark) across a collapsible Desktop sidebar and Mobile Bottom Navigation + Workspace Grid Menu.
+  - **Customizable Dashboard (*Dasbor*):** Add/remove, drag-and-drop or step-reorder, resize (`S`/`M`/`L` on Desktop), toggle visibility, persist layout preferences, and reset to default across all 7 modules (Productivity, Finance, Health, Wellness, Menstrual Cycle, Notes & Journal, Rewards).
+  - **Individual Module Reports (*Laporan*):** Dedicated Weekly, Monthly, Yearly, and Custom Date Range reports for Productivity, Finance, Health, Wellness, Menstrual Cycle, and Notes & Journal—computed strictly from stored records.
+  - **Global Quick Add (`+`):** Persistent floating `+` action across all main pages with 9 inline forms (Task, Income/Expense, Food, Weight, Water, Workout, Mood check-in, Menstrual symptom, Quick note).
+  - **Audit Log (`audit_logs`):** Per-device local diagnostics logging API errors, discovery timeouts, `401` auth issues, and failed/recovered sync attempts with token/secret redaction.
 
 ---
 
@@ -34,9 +40,10 @@ A calm, local-first daily checklist and habit-tracking suite for **Desktop (Elec
 DailyChecklist/
 ├── desktop/            # Electron desktop app (main, preload, renderer, node:sqlite, tests)
 ├── mobile/             # Flutter mobile app (clean architecture, sqflite, tests)
-├── Design/             # Interactive HTML UI mockups (DesktopDesign.html, MobileDesign.html, ThirdDesign.html)
+├── Design/             # Interactive HTML UI mockups (DesktopDesign.html, MobileDesign.html, ThirdDesign.html, PersonalLifeOS.html)
 ├── docs/               # Shared SyncProtocol.md contract
-├── Milestone.md        # Milestone 1–3 planning & acceptance criteria
+├── Milestone.md        # Milestone 1–4+ planning & acceptance criteria
+├── CHANGELOG.md        # Full release changelog by version
 ├── CLAUDE.md           # Project rules & constraints
 └── README.md           # This file
 ```
@@ -69,17 +76,12 @@ flutter build apk --release
 
 ## Versioning & Changelog
 
-This project uses semantic versioning starting from **V0.1 (`0.1.0`)**, tracked in:
-- [desktop/package.json](desktop/package.json) (`version`)
-- [mobile/pubspec.yaml](mobile/pubspec.yaml) (`version`)
+This project uses semantic versioning starting from **V0.1 (`0.1.0`)**.
 
-### V0.1 (`0.1.0`) — 2026-11-17
-- Initial release implementing **Milestone 1** (Checklist, Focus Card, Lite Mode, Rewards, Edit Mode, Local SQLite, Desktop Tray/Startup, Zero-Config LAN Sync), **Milestone 2** (Activity Dashboard, Calendar & Day Logs, Soft Delete / Reactivate), and **Milestone 3** (Scheduled Activities & Group Reordering).
-- Added desktop tray hide on window close (**X**) and full process/server exit via **Keluar (Exit)**.
-- Fixed deterministic seed timestamps (`updated_at = 1`) and cursor resets so Desktop/Mobile deactivation state syncs cleanly regardless of install order.
-- Added configurable `3–7` day mobile pairing token expiration (default `7` days).
-- Implemented **Milestone 3: Scheduled Activities & Group Reordering** across Desktop (Electron) and Mobile (Flutter) per [Milestone.md](Milestone.md) and [Design/ThirdDesign.html](Design/ThirdDesign.html):
-  - Extended SQLite schemas (`tasks.freq`, `tasks.freq_days`) and `/api/v1/sync` LWW protocol with automatic migration for existing databases.
-  - Added collapsible checklist calendar in *Hari ini* with Weekly/Monthly indicator dots, past/future date banners (`Kembali ke hari ini`), and read-only preview for upcoming dates.
-  - Updated Edit Mode (*Ubah*) with an icon-only `📅` schedule button (tooltip/alternate text), high-contrast frequency pills below activity inputs, schedule modal/bottom sheet (`Harian` / `Mingguan` / `Bulanan`), and `↑` / `↓` group reordering synced between Desktop and Mobile.
-  - Updated Activity Dashboard completion rates to use scheduled days as the denominator and filtered Day Logs by scheduled tasks.
+- **Current Version:** `V0.2.0` (`0.2.0`)
+- **Version Manifests:**
+  - Desktop: [desktop/package.json](desktop/package.json) (`"version": "0.2.0"`)
+  - Mobile: [mobile/pubspec.yaml](mobile/pubspec.yaml) (`version: 0.2.0+2`)
+- **Versions Overview** *(see full release notes in [CHANGELOG.md](CHANGELOG.md))*:
+  - **V0.2.0 (`0.2.0`) — 2026-11-18:** Personal Life OS (Customizable 7-module Dashboard, Soft Pastel Minimalist theme, Collapsible Sidebar & Mobile Workspace navigation, 6 Module Reports with range filters, Global Quick Add `+`, and per-device API/Sync Audit Log).
+  - **V0.1 (`0.1.0`) — 2026-11-17:** Core Daily Checklist & Rewards (Milestone 1), Log Tracking & Activity Dashboard (Milestone 2), Scheduled Activities & Group Ordering (Milestone 3), Desktop Tray & 3–7 day Zero-Config LAN Sync.

@@ -20,7 +20,7 @@ class DatabaseHelper {
     final path = p.join(dbPath, 'langkah_kecil.db');
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: (db, version) async {
         await createTables(db);
         await seedDefaultData(db);
@@ -35,6 +35,9 @@ class DatabaseHelper {
           if (!names.contains('freq_days')) {
             await db.execute('ALTER TABLE tasks ADD COLUMN freq_days TEXT');
           }
+        }
+        if (oldVersion < 3) {
+          await createLifeOsTables(db);
         }
       },
       onOpen: (db) async {
@@ -135,11 +138,145 @@ class DatabaseHelper {
       );
     ''');
 
+    await createLifeOsTables(db);
+
     final uuid = const Uuid().v4();
     await db.insert('meta', {'key': 'device_id', 'value': uuid});
     await db.insert('meta', {'key': 'device_name', 'value': 'Ponsel'});
     await db.insert('meta', {'key': 'last_sync_cursor', 'value': '0'});
     await db.insert('meta', {'key': 'auto_sync', 'value': 'true'});
+  }
+
+  static Future<void> createLifeOsTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'active',
+        progress INTEGER NOT NULL DEFAULT 0,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        updated_at INTEGER NOT NULL,
+        dirty INTEGER NOT NULL DEFAULT 0
+      );
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS focus_sessions (
+        id TEXT PRIMARY KEY,
+        task_id TEXT,
+        project_id TEXT,
+        day TEXT NOT NULL,
+        minutes INTEGER NOT NULL,
+        note TEXT,
+        updated_at INTEGER NOT NULL,
+        dirty INTEGER NOT NULL DEFAULT 0
+      );
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS finance_envelopes (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        monthly_budget INTEGER NOT NULL DEFAULT 0,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        updated_at INTEGER NOT NULL,
+        dirty INTEGER NOT NULL DEFAULT 0
+      );
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS finance_entries (
+        id TEXT PRIMARY KEY,
+        day TEXT NOT NULL,
+        type TEXT NOT NULL,
+        category TEXT NOT NULL DEFAULT 'general',
+        amount INTEGER NOT NULL,
+        envelope_id TEXT,
+        note TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        updated_at INTEGER NOT NULL,
+        dirty INTEGER NOT NULL DEFAULT 0
+      );
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS health_entries (
+        id TEXT PRIMARY KEY,
+        day TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        name TEXT,
+        value_num REAL NOT NULL,
+        value_num2 REAL,
+        unit TEXT,
+        note TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        updated_at INTEGER NOT NULL,
+        dirty INTEGER NOT NULL DEFAULT 0
+      );
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS wellness_entries (
+        id TEXT PRIMARY KEY,
+        day TEXT NOT NULL,
+        mood TEXT NOT NULL,
+        mood_score INTEGER NOT NULL,
+        energy INTEGER NOT NULL,
+        stress INTEGER NOT NULL,
+        sleep_hours REAL NOT NULL,
+        triggers_text TEXT,
+        note TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        updated_at INTEGER NOT NULL,
+        dirty INTEGER NOT NULL DEFAULT 0
+      );
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS menstrual_entries (
+        id TEXT PRIMARY KEY,
+        day TEXT NOT NULL,
+        phase TEXT NOT NULL,
+        cycle_day INTEGER NOT NULL DEFAULT 1,
+        flow TEXT,
+        symptoms_json TEXT,
+        is_period_start INTEGER NOT NULL DEFAULT 0,
+        cycle_length INTEGER,
+        note TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        updated_at INTEGER NOT NULL,
+        dirty INTEGER NOT NULL DEFAULT 0
+      );
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS notes (
+        id TEXT PRIMARY KEY,
+        day TEXT NOT NULL,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        tags_json TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        updated_at INTEGER NOT NULL,
+        dirty INTEGER NOT NULL DEFAULT 0
+      );
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id TEXT PRIMARY KEY,
+        created_at INTEGER NOT NULL,
+        day TEXT NOT NULL,
+        source TEXT NOT NULL,
+        category TEXT NOT NULL,
+        level TEXT NOT NULL,
+        endpoint TEXT NOT NULL,
+        status_code INTEGER,
+        error_code TEXT,
+        message TEXT NOT NULL,
+        details_json TEXT
+      );
+    ''');
   }
 
   static Future<void> seedDefaultData(Database db) async {

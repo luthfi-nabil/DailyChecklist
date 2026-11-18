@@ -1,0 +1,1666 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Langkah Kecil — Personal Life OS (Design Proposal Mockup)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* ==========================================================================
+   DESIGN TOKENS — Soft Pastel Minimalist (Light & Dark Themes)
+   ========================================================================== */
+:root {
+  --bg: #F8F7F4;
+  --surface: #FFFFFF;
+  --side: #F2EFE9;
+  --ink: #242A30;
+  --muted: #6C757D;
+  --line: #E8E4DC;
+  --tab-bg: #EBE7DF;
+  --accent: #3F7E68;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #DCECE4;
+  --focus: #3F7E68;
+
+  /* Module Soft Pastel Tokens */
+  --p-sage: #DCECE4;     --p-sage-ink: #235340;
+  --p-butter: #F6ECD2;   --p-butter-ink: #6D5214;
+  --p-sky: #DCEBF5;      --p-sky-ink: #22536F;
+  --p-lavender: #EAE3F6; --p-lavender-ink: #4A396B;
+  --p-blush: #F6DFE4;    --p-blush-ink: #723140;
+  --p-peach: #F7E5DA;    --p-peach-ink: #713F26;
+  --p-danger: #F6DFDB;   --p-danger-ink: #8C3B2B;
+
+  --radius-card: 20px;
+  --radius-ctrl: 12px;
+  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15171A;
+    --surface: #1D2024;
+    --side: #111316;
+    --ink: #ECEAE6;
+    --muted: #98A0A8;
+    --line: #2B2F36;
+    --tab-bg: #24282E;
+    --accent: #7CC2A8;
+    --accent-ink: #11221B;
+    --accent-soft: #21382F;
+    --focus: #7CC2A8;
+
+    --p-sage: #21382F;     --p-sage-ink: #9DD6BE;
+    --p-butter: #352E1B;   --p-butter-ink: #EBD293;
+    --p-sky: #1E3240;      --p-sky-ink: #9BCEEB;
+    --p-lavender: #2C253A; --p-lavender-ink: #C9B9EA;
+    --p-blush: #3A2228;    --p-blush-ink: #EBADB9;
+    --p-peach: #3A281E;    --p-peach-ink: #EBBFA5;
+    --p-danger: #3D231F;   --p-danger-ink: #EBA496;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #15171A;
+  --surface: #1D2024;
+  --side: #111316;
+  --ink: #ECEAE6;
+  --muted: #98A0A8;
+  --line: #2B2F36;
+  --tab-bg: #24282E;
+  --accent: #7CC2A8;
+  --accent-ink: #11221B;
+  --accent-soft: #21382F;
+  --focus: #7CC2A8;
+
+  --p-sage: #21382F;     --p-sage-ink: #9DD6BE;
+  --p-butter: #352E1B;   --p-butter-ink: #EBD293;
+  --p-sky: #1E3240;      --p-sky-ink: #9BCEEB;
+  --p-lavender: #2C253A; --p-lavender-ink: #C9B9EA;
+  --p-blush: #3A2228;    --p-blush-ink: #EBADB9;
+  --p-peach: #3A281E;    --p-peach-ink: #EBBFA5;
+  --p-danger: #3D231F;   --p-danger-ink: #EBA496;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 14.5px/1.55 var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 2.5px solid var(--focus); outline-offset: 2px; }
+button, input, select, textarea { font: inherit; color: inherit; }
+h1, h2, h3 { font-family: var(--font-display); margin: 0; letter-spacing: -.015em; }
+h1 { font-size: 1.65rem; line-height: 1.15; }
+h2 { font-size: 1.0625rem; }
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.small { font-size: .8125rem; }
+[hidden] { display: none !important; }
+
+/* ==========================================================================
+   MOCKUP PREVIEW CONTROLS BAR
+   ========================================================================== */
+.preview-bar {
+  position: sticky; top: 0; z-index: 40;
+  background: var(--side); border-bottom: 1px solid var(--line);
+  padding: 10px 18px;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
+}
+.preview-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.preview-title b { font-family: var(--font-display); font-size: .95rem; }
+.badge-prop {
+  padding: 3px 10px; border-radius: 999px; font-size: .75rem; font-weight: 700;
+  background: var(--p-lavender); color: var(--p-lavender-ink);
+}
+.preview-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+.seg {
+  display: inline-grid; grid-auto-flow: column; gap: 3px; padding: 3px;
+  background: var(--tab-bg); border-radius: 11px;
+}
+.seg button {
+  min-height: 32px; padding: 0 12px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--muted); font-size: .8125rem; font-weight: 600; cursor: pointer;
+}
+.seg button[aria-pressed="true"] {
+  background: var(--surface); color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0,0,0,.08);
+}
+
+/* ==========================================================================
+   APP SHELL — DESKTOP (SIDEBAR) & MOBILE (DEVICE FRAME + BOTTOM NAV)
+   ========================================================================== */
+.stage {
+  max-width: 1280px; margin: 18px auto 64px; padding: 0 18px;
+  transition: max-width .25s ease;
+}
+.stage.mobile-mode {
+  max-width: 430px;
+  margin: 18px auto 40px;
+}
+
+.app-frame {
+  position: relative;
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  min-height: 760px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  overflow: hidden;
+  transition: grid-template-columns .22s ease;
+}
+.app-frame.sidebar-collapsed { grid-template-columns: 74px minmax(0, 1fr); }
+
+.stage.mobile-mode .app-frame {
+  grid-template-columns: 1fr;
+  height: 820px;
+  min-height: 820px;
+  border-radius: 34px;
+  border-width: 2px;
+  box-shadow: 0 20px 50px rgba(0,0,0,.10);
+}
+
+/* Desktop Sidebar */
+.sidebar {
+  background: var(--side);
+  border-right: 1px solid var(--line);
+  padding: 16px 12px;
+  display: flex; flex-direction: column; gap: 10px;
+  overflow-y: auto;
+}
+.stage.mobile-mode .sidebar { display: none; }
+
+.brand-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 2px 4px 8px;
+}
+.brand-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.logo {
+  width: 34px; height: 34px; flex: none; border-radius: 11px;
+  background: var(--accent); color: var(--accent-ink);
+  display: grid; place-items: center; font-family: var(--font-display); font-weight: 700;
+}
+.brand-text b { display: block; font-family: var(--font-display); font-size: .95rem; line-height: 1.1; }
+.brand-text span { font-size: .72rem; color: var(--muted); }
+.app-frame.sidebar-collapsed .brand-text,
+.app-frame.sidebar-collapsed .nav-section-label,
+.app-frame.sidebar-collapsed .nav-btn .lbl,
+.app-frame.sidebar-collapsed .nav-btn .tag,
+.app-frame.sidebar-collapsed .sidebar-foot-text { display: none; }
+.app-frame.sidebar-collapsed .brand-row { justify-content: center; }
+.app-frame.sidebar-collapsed .nav-btn { justify-content: center; padding: 0; }
+
+.icon-btn {
+  width: 34px; height: 34px; flex: none; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--surface);
+  cursor: pointer; display: grid; place-items: center; color: var(--muted);
+}
+.icon-btn:hover { color: var(--ink); border-color: var(--accent); }
+
+.nav-section-label {
+  margin: 8px 10px 2px; font-size: .6875rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .07em; color: var(--muted);
+}
+.nav-btn {
+  width: 100%; min-height: 40px; padding: 0 10px; border: 0; border-radius: 12px;
+  background: transparent; color: var(--muted); font-weight: 600; font-size: .875rem;
+  display: flex; align-items: center; gap: 10px; cursor: pointer; text-align: left;
+  transition: background .15s, color .15s;
+}
+.nav-btn:hover { background: color-mix(in srgb, var(--surface) 60%, transparent); color: var(--ink); }
+.nav-btn[aria-current="page"] {
+  background: var(--surface); color: var(--ink);
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+}
+.nav-btn .ic { width: 22px; text-align: center; flex: none; font-size: 1rem; }
+.nav-btn .tag {
+  margin-left: auto; font-size: .7rem; padding: 2px 7px; border-radius: 999px;
+  background: var(--tab-bg); color: var(--muted);
+}
+
+.sidebar-spacer { flex: 1; }
+.sidebar-quick {
+  width: 100%; min-height: 42px; border: 0; border-radius: 12px;
+  background: var(--accent); color: var(--accent-ink); font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;
+}
+
+/* Main Viewport */
+.main-area {
+  position: relative;
+  display: flex; flex-direction: column;
+  min-width: 0; height: 100%; overflow: hidden;
+}
+.topbar {
+  padding: 18px 24px 12px;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+.stage.mobile-mode .topbar { padding: 14px 16px 10px; }
+.eyebrow {
+  margin: 0 0 2px; font-size: .72rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .07em; color: var(--muted);
+}
+.topbar-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+.scroll-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px 96px;
+}
+.stage.mobile-mode .scroll-body {
+  padding: 14px 14px 148px; /* Room so FAB never covers bottom cards above nav bar */
+}
+
+/* Mobile Bottom Nav & Workspace Sheet */
+.mobile-nav {
+  display: none;
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 20;
+  background: var(--surface); border-top: 1px solid var(--line);
+  padding: 6px 8px 10px;
+  grid-template-columns: repeat(4, 1fr); gap: 4px;
+}
+.stage.mobile-mode .mobile-nav { display: grid; }
+.mnav-btn {
+  min-height: 50px; border: 0; border-radius: 12px; background: transparent;
+  color: var(--muted); font-size: .72rem; font-weight: 600;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  cursor: pointer;
+}
+.mnav-btn span.mic { font-size: 1.05rem; }
+.mnav-btn[aria-current="page"] { background: var(--accent-soft); color: var(--p-sage-ink); }
+
+/* Persistent Floating Quick Add Button (+) */
+.fab {
+  position: absolute; right: 22px; bottom: 22px; z-index: 25;
+  height: 52px; padding: 0 20px; border-radius: 999px; border: 0;
+  background: var(--accent); color: var(--accent-ink); font-weight: 700;
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  box-shadow: 0 10px 24px rgba(0,0,0,.16);
+  transition: transform .15s ease;
+}
+.fab:hover { transform: translateY(-1px); }
+.fab .plus { font-size: 1.25rem; line-height: 1; }
+.stage.mobile-mode .fab {
+  right: 16px;
+  bottom: 78px; /* Safely clear of 66px mobile bottom bar */
+  width: 54px; height: 54px; padding: 0; justify-content: center;
+}
+.stage.mobile-mode .fab .fab-lbl { display: none; }
+
+/* ==========================================================================
+   REUSABLE MINIMALIST COMPONENTS
+   ========================================================================== */
+.chip, .btn {
+  min-height: 38px; padding: 0 14px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface);
+  font-size: .8125rem; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn { border-radius: var(--radius-ctrl); }
+.btn.primary, .chip[aria-pressed="true"] {
+  background: var(--accent); border-color: var(--accent); color: var(--accent-ink);
+}
+.btn.soft { background: var(--accent-soft); border-color: transparent; color: var(--p-sage-ink); }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--muted); }
+.btn:hover:not(.primary):not(:disabled) { border-color: var(--accent); }
+.btn:disabled { opacity: .4; cursor: default; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 18px;
+}
+
+.pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 999px; font-size: .74rem; font-weight: 600;
+}
+.t-sage { background: var(--p-sage); color: var(--p-sage-ink); }
+.t-butter { background: var(--p-butter); color: var(--p-butter-ink); }
+.t-sky { background: var(--p-sky); color: var(--p-sky-ink); }
+.t-lavender { background: var(--p-lavender); color: var(--p-lavender-ink); }
+.t-blush { background: var(--p-blush); color: var(--p-blush-ink); }
+.t-peach { background: var(--p-peach); color: var(--p-peach-ink); }
+.t-danger { background: var(--p-danger); color: var(--p-danger-ink); }
+.t-muted { background: var(--tab-bg); color: var(--muted); }
+
+/* ==========================================================================
+   CUSTOMIZABLE DASHBOARD GRID & WIDGET CHROME
+   ========================================================================== */
+.dash-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
+  margin-bottom: 16px; padding: 12px 16px; border-radius: 16px;
+  background: var(--p-lavender); color: var(--p-lavender-ink);
+}
+.widget-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px;
+}
+.widget-card {
+  grid-column: span 4;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 18px;
+  display: flex; flex-direction: column; gap: 12px;
+  transition: border-color .15s, opacity .15s, transform .15s;
+}
+.widget-card[data-size="m"] { grid-column: span 6; }
+.widget-card[data-size="l"] { grid-column: span 12; }
+.stage.mobile-mode .widget-grid { grid-template-columns: 1fr; }
+.stage.mobile-mode .widget-card,
+.stage.mobile-mode .widget-card[data-size="m"],
+.stage.mobile-mode .widget-card[data-size="l"] { grid-column: span 1; }
+
+.widget-card.customizing { border-style: dashed; border-width: 1.5px; cursor: grab; }
+.widget-card.dragging { opacity: .45; transform: scale(.98); }
+.widget-card.drag-over { border-color: var(--accent); background: var(--accent-soft); }
+
+.w-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.w-title-wrap { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.w-title { font-family: var(--font-display); font-size: 1rem; font-weight: 700; }
+.w-kpi { font-family: var(--font-display); font-size: 1.75rem; font-weight: 700; line-height: 1.1; }
+.w-sub { font-size: .8125rem; color: var(--muted); }
+
+.w-edit-bar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px;
+  padding-top: 8px; border-top: 1px dashed var(--line);
+}
+.mini-btn {
+  min-height: 28px; padding: 0 8px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg);
+  font-size: .74rem; font-weight: 600; cursor: pointer;
+}
+.mini-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.mini-btn.remove { color: var(--p-danger-ink); }
+
+.progress-track { height: 9px; border-radius: 999px; background: var(--tab-bg); overflow: hidden; }
+.progress-fill { height: 100%; border-radius: inherit; background: var(--accent); transition: width .3s ease; }
+
+/* ==========================================================================
+   MODULE REPORTS VIEW
+   ========================================================================== */
+.module-tabs {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px;
+}
+.mod-tab {
+  min-height: 38px; padding: 0 14px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface);
+  font-size: .82rem; font-weight: 600; cursor: pointer;
+}
+.mod-tab[aria-selected="true"] {
+  background: var(--accent-soft); border-color: var(--accent); color: var(--p-sage-ink);
+}
+
+.filter-bar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
+  margin-bottom: 16px;
+}
+.date-range-pickers { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.date-range-pickers input {
+  min-height: 36px; padding: 0 10px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--surface); font-size: .8125rem;
+}
+
+.kpi-grid {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px;
+}
+.stage.mobile-mode .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.kpi-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px;
+}
+.kpi-card .k-lbl { font-size: .75rem; color: var(--muted); font-weight: 600; }
+.kpi-card .k-val { font-family: var(--font-display); font-size: 1.45rem; font-weight: 700; margin-top: 4px; }
+
+.report-cols { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; }
+.stage.mobile-mode .report-cols { grid-template-columns: 1fr; }
+
+.bar-row { display: flex; flex-direction: column; gap: 5px; padding: 8px 0; border-top: 1px solid var(--line); }
+.bar-row:first-child { border-top: 0; }
+.bar-row-top { display: flex; justify-content: space-between; font-size: .84rem; gap: 8px; }
+
+.log-list { list-style: none; margin: 0; padding: 0; }
+.log-list li {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;
+  padding: 10px 0; border-top: 1px solid var(--line); font-size: .85rem;
+}
+.log-list li:first-child { border-top: 0; }
+
+.empty-box {
+  text-align: center; padding: 36px 20px; border: 1px dashed var(--line);
+  border-radius: 18px; color: var(--muted);
+}
+
+.audit-item {
+  border-top: 1px solid var(--line);
+  padding: 12px 0;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.audit-item:first-child { border-top: 0; }
+.audit-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.audit-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.audit-details summary {
+  font-size: .78rem; font-weight: 600; color: var(--accent); cursor: pointer;
+}
+.audit-details pre {
+  margin: 8px 0 0; padding: 10px 12px; border-radius: 12px;
+  background: var(--bg); border: 1px solid var(--line);
+  font-size: .76rem; line-height: 1.45; overflow-x: auto; white-space: pre-wrap;
+}
+
+/* ==========================================================================
+   MODALS / DRAWERS (QUICK ADD, WIDGET CATALOG, MOBILE WORKSPACE MENU)
+   ========================================================================== */
+.backdrop {
+  position: absolute; inset: 0; z-index: 50;
+  background: rgba(18, 22, 26, .45);
+  display: grid; place-items: center; padding: 16px;
+}
+.stage.mobile-mode .backdrop { align-items: end; padding: 0; }
+.sheet {
+  width: 100%; max-width: 520px; max-height: 86vh; overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 22px;
+  padding: 20px; display: flex; flex-direction: column; gap: 14px;
+  box-shadow: 0 20px 50px rgba(0,0,0,.22);
+}
+.stage.mobile-mode .sheet {
+  max-width: 100%; border-radius: 24px 24px 0 0; max-height: 78%;
+}
+
+.qa-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stage.mobile-mode .qa-grid { grid-template-columns: repeat(2, 1fr); }
+.qa-opt {
+  min-height: 68px; padding: 10px; border-radius: 14px;
+  border: 1px solid var(--line); background: var(--bg);
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between;
+  gap: 6px; text-align: left; cursor: pointer; font-weight: 600; font-size: .8125rem;
+}
+.qa-opt:hover { border-color: var(--accent); background: var(--accent-soft); }
+.qa-opt .qic { font-size: 1.15rem; }
+
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: .78rem; font-weight: 600; color: var(--muted); }
+.field input, .field select, .field textarea {
+  padding: 9px 12px; border-radius: 11px; border: 1px solid var(--line); background: var(--bg);
+}
+
+.ws-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.ws-tile {
+  padding: 14px; border-radius: 16px; border: 1px solid var(--line);
+  background: var(--bg); text-align: left; cursor: pointer;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.ws-tile:hover { border-color: var(--accent); }
+
+.toast {
+  position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 60;
+  background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 999px;
+  font-size: .82rem; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,.22);
+}
+.stage.mobile-mode .toast { bottom: 80px; }
+</style>
+</head>
+<body>
+
+<!-- PREVIEW BAR FOR DESIGN REVIEW -->
+<div class="preview-bar">
+  <div class="preview-title">
+    <b>Langkah Kecil · Personal Life OS</b>
+    <span class="badge-prop">Design Proposal · Milestone 4+ (Pre-Implementation)</span>
+  </div>
+  <div class="preview-controls">
+    <div class="seg" id="viewportSeg" aria-label="Pratinjau perangkat">
+      <button type="button" data-vp="desktop" aria-pressed="true">Desktop (Sidebar)</button>
+      <button type="button" data-vp="mobile" aria-pressed="false">Mobile (Bottom Nav)</button>
+    </div>
+    <div class="seg" id="themeSeg" aria-label="Tema tampilan">
+      <button type="button" data-th="light" aria-pressed="true">Terang</button>
+      <button type="button" data-th="dark" aria-pressed="false">Gelap</button>
+    </div>
+    <div class="seg" id="dataSeg" aria-label="Mode data">
+      <button type="button" data-ds="sample" aria-pressed="true">Simulasi Terhitung</button>
+      <button type="button" data-ds="empty" aria-pressed="false">Kosong (0 Data)</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN INTERACTIVE STAGE -->
+<div class="stage" id="stage">
+  <div class="app-frame" id="appFrame">
+
+    <!-- DESKTOP COLLAPSIBLE SIDEBAR -->
+    <aside class="sidebar" aria-label="Navigasi Workspace">
+      <div class="brand-row">
+        <div class="brand-left">
+          <div class="logo">L</div>
+          <div class="brand-text">
+            <b>Langkah Kecil</b>
+            <span>Personal Life OS</span>
+          </div>
+        </div>
+        <button class="icon-btn" id="collapseBtn" type="button" title="Ciutkan / lebarkan sidebar" aria-label="Ciutkan sidebar">⇄</button>
+      </div>
+
+      <p class="nav-section-label">Utama</p>
+      <button class="nav-btn" data-nav="dashboard" aria-current="page"><span class="ic">▦</span><span class="lbl">Dasbor</span></button>
+      <button class="nav-btn" data-nav="reports" data-mod="productivity"><span class="ic">▥</span><span class="lbl">Laporan</span></button>
+      <button class="nav-btn" data-nav="checklist"><span class="ic">☀</span><span class="lbl">Ceklis Harian</span></button>
+
+      <p class="nav-section-label">Modul Workspace</p>
+      <button class="nav-btn" data-nav="reports" data-mod="productivity"><span class="ic">✓</span><span class="lbl">Productivity</span><span class="tag">Laporan</span></button>
+      <button class="nav-btn" data-nav="reports" data-mod="finance"><span class="ic">Rp</span><span class="lbl">Finance</span></button>
+      <button class="nav-btn" data-nav="reports" data-mod="health"><span class="ic">♥</span><span class="lbl">Health</span></button>
+      <button class="nav-btn" data-nav="reports" data-mod="wellness"><span class="ic">◐</span><span class="lbl">Wellness</span></button>
+      <button class="nav-btn" data-nav="reports" data-mod="menstrual"><span class="ic">✿</span><span class="lbl">Menstrual</span></button>
+      <button class="nav-btn" data-nav="reports" data-mod="notes"><span class="ic">✎</span><span class="lbl">Notes &amp; Journal</span></button>
+      <button class="nav-btn" data-nav="rewards"><span class="ic">★</span><span class="lbl">Rewards</span></button>
+
+      <p class="nav-section-label">Sistem</p>
+      <button class="nav-btn" data-nav="audit"><span class="ic">⚠</span><span class="lbl">Audit Log</span><span class="tag" id="auditNavTag">0</span></button>
+
+      <div class="sidebar-spacer"></div>
+      <button class="sidebar-quick" id="sidebarQuickBtn" type="button">
+        <span>＋</span><span class="sidebar-foot-text">Quick Add</span>
+      </button>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <div class="main-area">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow" id="topEyebrow">Personal Life OS</p>
+          <h1 id="topTitle">Dasbor Kustom</h1>
+        </div>
+        <div class="topbar-actions" id="topActions"></div>
+      </header>
+
+      <main class="scroll-body" id="mainScroll"></main>
+
+      <!-- MOBILE BOTTOM NAVIGATION -->
+      <nav class="mobile-nav" aria-label="Navigasi Mobile">
+        <button class="mnav-btn" data-mnav="dashboard" aria-current="page"><span class="mic">▦</span>Dasbor</button>
+        <button class="mnav-btn" data-mnav="checklist"><span class="mic">☀</span>Tugas</button>
+        <button class="mnav-btn" data-mnav="reports"><span class="mic">▥</span>Laporan</button>
+        <button class="mnav-btn" data-mnav="workspace"><span class="mic">⊞</span>Workspace</button>
+      </nav>
+
+      <!-- GLOBAL FLOATING QUICK ADD BUTTON (+) -->
+      <button class="fab" id="globalFab" type="button" aria-label="Quick Add global">
+        <span class="plus">＋</span><span class="fab-lbl">Quick Add</span>
+      </button>
+
+      <!-- MODALS INSIDE APP FRAME SO MOBILE & DESKTOP CONTAIN THEM CLEANLY -->
+      <div class="backdrop" id="modalBackdrop" hidden>
+        <div class="sheet" id="modalSheet" role="dialog" aria-modal="true"></div>
+      </div>
+      <div class="toast" id="toast" hidden></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==========================================================================
+// 1. ALL AVAILABLE WIDGET DEFINITIONS (ACROSS ALL 7 MODULES)
+// ==========================================================================
+const WIDGET_CATALOG = [
+  { id: 'w-prod', module: 'Productivity', badge: 't-sage',   title: 'Productivity & Fokus',     supportsResize: true, defaultSize: 'm' },
+  { id: 'w-fin',  module: 'Finance',      badge: 't-butter', title: 'Finance & Budget',         supportsResize: true, defaultSize: 'm' },
+  { id: 'w-hlth', module: 'Health',       badge: 't-sky',    title: 'Health & Hydration',       supportsResize: true, defaultSize: 's' },
+  { id: 'w-well', module: 'Wellness',     badge: 't-lavender',title: 'Wellness Check-in',       supportsResize: true, defaultSize: 's' },
+  { id: 'w-mens', module: 'Menstrual Cycle',badge: 't-blush', title: 'Menstrual Cycle',         supportsResize: true, defaultSize: 's' },
+  { id: 'w-note', module: 'Notes & Journal',badge: 't-peach', title: 'Notes & Journal',         supportsResize: true, defaultSize: 'm' },
+  { id: 'w-rew',  module: 'Rewards',      badge: 't-butter', title: 'Rewards & Poin',           supportsResize: true, defaultSize: 'm' },
+];
+
+const DEFAULT_LAYOUT = [
+  { id: 'w-prod', visible: true, size: 'm' },
+  { id: 'w-fin',  visible: true, size: 'm' },
+  { id: 'w-hlth', visible: true, size: 's' },
+  { id: 'w-well', visible: true, size: 's' },
+  { id: 'w-mens', visible: true, size: 's' },
+  { id: 'w-note', visible: true, size: 'm' },
+  { id: 'w-rew',  visible: true, size: 'm' },
+];
+
+// ==========================================================================
+// 2. ACTUAL-RECORD BACKED STORE (WITH CLEAN EMPTY-STATE MODE TOGGLE)
+//    All KPIs & Reports are dynamically derived from matching date ranges.
+// ==========================================================================
+const SAMPLE_RECORDS = {
+  tasks: [
+    { date: '2026-11-18', title: 'Review arsitektur Life OS', group: 'Pagi', done: true, focusMin: 45, project: 'Personal Life OS' },
+    { date: '2026-11-18', title: 'Minum air & peregangan', group: 'Pagi', done: true, focusMin: 10, project: 'Rutinitas' },
+    { date: '2026-11-18', title: 'Draft laporan mingguan', group: 'Siang', done: false, focusMin: 0, project: 'Personal Life OS' },
+    { date: '2026-11-16', title: 'Finalisasi Milestone 3', group: 'Pagi', done: true, focusMin: 90, project: 'Langkah Kecil' },
+    { date: '2026-11-10', title: 'Audit anggaran bulanan', group: 'Malam', done: true, focusMin: 35, project: 'Keuangan' },
+  ],
+  finance: [
+    { date: '2026-11-18', type: 'expense', amount: 42000, envelope: 'Makan & Minum', note: 'Sarapan sehat' },
+    { date: '2026-11-15', type: 'income',  amount: 3500000, envelope: 'Pemasukan', note: 'Proyek freelance' },
+    { date: '2026-11-14', type: 'expense', amount: 250000, envelope: 'Tabungan', note: 'Setor dana darurat' },
+    { date: '2026-11-12', type: 'expense', amount: 180000, envelope: 'Cicilan', note: 'Angsuran laptop' },
+  ],
+  envelopes: [
+    { name: 'Makan & Minum', budget: 1200000 },
+    { name: 'Transport', budget: 400000 },
+    { name: 'Tabungan', budget: 1500000 },
+    { name: 'Cicilan', budget: 500000 },
+  ],
+  food: [
+    { date: '2026-11-18', name: 'Oatmeal + pisang', kcal: 360 },
+    { date: '2026-11-18', name: 'Nasi ayam panggang', kcal: 540 },
+    { date: '2026-11-17', name: 'Sup sayuran + tempe', kcal: 420 },
+  ],
+  weight: [
+    { date: '2026-11-18', kg: 62.4, waistCm: 76 },
+    { date: '2026-11-11', kg: 62.9, waistCm: 77 },
+    { date: '2026-10-28', kg: 63.4, waistCm: 77.5 },
+  ],
+  water: [
+    { date: '2026-11-18', ml: 1450 },
+    { date: '2026-11-17', ml: 2100 },
+    { date: '2026-11-16', ml: 1900 },
+  ],
+  workouts: [
+    { date: '2026-11-18', name: 'Jalan pagi 30m', minutes: 30, kcal: 165 },
+    { date: '2026-11-15', name: 'Yoga & mobilitas', minutes: 40, kcal: 140 },
+  ],
+  wellness: [
+    { date: '2026-11-18', mood: 'Tenang', moodScore: 4, energy: 4, stress: 2, sleepHrs: 7.5, trigger: 'Tidur cukup & kopi pagi' },
+    { date: '2026-11-16', mood: 'Fokus',  moodScore: 5, energy: 4, stress: 2, sleepHrs: 8.0, trigger: 'Selesai milestone' },
+    { date: '2026-11-12', mood: 'Lelah',  moodScore: 3, energy: 2, stress: 4, sleepHrs: 5.8, trigger: 'Rapat berturut-turut' },
+  ],
+  menstrual: [
+    { date: '2026-11-18', phase: 'Fase Luteal', cycleDay: 21, flow: 'None', symptom: 'Kram ringan', isPeriodStart: false, cycleLen: 28 },
+    { date: '2026-10-29', phase: 'Menstruasi', cycleDay: 1, flow: 'Medium', symptom: 'Lelah & nyeri pinggang', isPeriodStart: true, cycleLen: 29 },
+    { date: '2026-09-30', phase: 'Menstruasi', cycleDay: 1, flow: 'Heavy', symptom: 'Sakit kepala', isPeriodStart: true, cycleLen: 28 },
+  ],
+  notes: [
+    { date: '2026-11-18', title: 'Pagi yang lebih pelan', body: 'Membatasi notifikasi membuat fokus pagi terasa jauh lebih ringan.', tags: ['refleksi', 'pagi'] },
+    { date: '2026-11-15', title: 'Ide menu makan minggu depan', body: 'Siapkan bahan sup hangat dan buah potong di kulkas.', tags: ['kesehatan', 'mealprep'] },
+  ],
+  rewards: { spent: 10, catalog: [{ name: 'Kopi spesial akhir pekan', cost: 15 }, { name: 'Waktu baca tanpa layar 1 jam', cost: 8 }] },
+  auditLogs: [
+    {
+      id: 'aud-1', date: '2026-11-18', ts: '2026-11-18 09:42:11', source: 'Mobile · Android',
+      category: 'sync', level: 'error', endpoint: 'POST /api/v1/sync', statusCode: 0,
+      errorCode: 'ECONNREFUSED', message: 'Gagal terhubung ke server sinkronisasi Desktop (192.168.1.12:47800).',
+      details: { host: '192.168.1.12', port: 47800, pendingDirtyRows: 4, retryQueued: true }
+    },
+    {
+      id: 'aud-2', date: '2026-11-17', ts: '2026-11-17 21:14:05', source: 'Desktop · :47800',
+      category: 'auth', level: 'warn', endpoint: 'POST /api/v1/sync', statusCode: 401,
+      errorCode: 'token_expired', message: 'Token sinkronisasi perangkat mobile kadaluarsa (> 7 hari). Perlu pairing ulang 6 digit.',
+      details: { deviceId: 'mob-pixel-01', tokenTtlDays: 7, actionRequired: 're_pair' }
+    },
+    {
+      id: 'aud-3', date: '2026-11-16', ts: '2026-11-16 14:03:29', source: 'Mobile · Android',
+      category: 'discovery', level: 'error', endpoint: 'UDP 47899 / mDNS', statusCode: 504,
+      errorCode: 'ETIMEDOUT', message: 'Auto-discovery server lokal timeout setelah 3000 ms (jaringan berbeda / firewall aktif).',
+      details: { subnet: '192.168.1.0/24', mdnsService: '_langkahkecil._tcp', timeoutMs: 3000 }
+    },
+    {
+      id: 'aud-4', date: '2026-11-16', ts: '2026-11-16 14:06:10', source: 'Mobile · Android',
+      category: 'sync', level: 'info', endpoint: 'POST /api/v1/sync', statusCode: 200,
+      errorCode: 'OK', message: 'Sinkronisasi berhasil dipulihkan; 4 baris tertunda terkirim.',
+      details: { serverSeq: 128, mergedTasks: 2, mergedChecks: 2 }
+    }
+  ]
+};
+
+function emptyDataset() {
+  return {
+    tasks: [], finance: [], envelopes: [], food: [], weight: [], water: [],
+    workouts: [], wellness: [], menstrual: [], notes: [],
+    rewards: { spent: 0, catalog: [] },
+    auditLogs: []
+  };
+}
+
+const LAYOUT_KEY = 'lk-lifeos-layout-v1';
+let state = {
+  viewport: 'desktop',
+  theme: 'light',
+  dataMode: 'sample',
+  sidebarCollapsed: false,
+  page: 'dashboard',       // dashboard | reports | checklist | rewards | audit
+  reportModule: 'productivity',
+  reportRange: 'week',     // week | month | year | custom
+  auditFilter: 'all',      // all | sync | auth | info
+  auditSource: 'all',      // all | Mobile | Desktop
+  customStart: '2026-11-01',
+  customEnd: '2026-11-18',
+  today: '2026-11-18',
+  customizeMode: false,
+  layout: loadLayout(),
+  records: structuredClone(SAMPLE_RECORDS),
+  dragId: null,
+};
+
+function loadLayout() {
+  try {
+    const raw = localStorage.getItem(LAYOUT_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length) return parsed;
+    }
+  } catch {}
+  return structuredClone(DEFAULT_LAYOUT);
+}
+function saveLayout() {
+  localStorage.setItem(LAYOUT_KEY, JSON.stringify(state.layout));
+}
+
+function getRecords() {
+  return state.dataMode === 'empty' ? emptyDataset() : state.records;
+}
+
+// ==========================================================================
+// 3. DATE RANGE FILTERING & REPORT COMPUTATION (NO HARDCODED METRICS)
+// ==========================================================================
+function getRangeBounds() {
+  const end = state.reportRange === 'custom' ? state.customEnd : state.today;
+  if (state.reportRange === 'custom') {
+    return { start: state.customStart <= end ? state.customStart : end, end };
+  }
+  const d = new Date(state.today + 'T00:00:00');
+  if (state.reportRange === 'week') d.setDate(d.getDate() - 6);
+  else if (state.reportRange === 'month') d.setDate(d.getDate() - 29);
+  else d.setDate(d.getDate() - 364);
+  const start = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return { start, end };
+}
+
+function inRange(list) {
+  const { start, end } = getRangeBounds();
+  return list.filter(r => r.date >= start && r.date <= end);
+}
+
+function fmtRp(n) {
+  return 'Rp ' + Math.round(n || 0).toLocaleString('id-ID');
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+// ==========================================================================
+// 4. RENDER PIPELINE
+// ==========================================================================
+function renderAll() {
+  document.documentElement.setAttribute('data-theme', state.theme);
+  const stage = document.getElementById('stage');
+  const frame = document.getElementById('appFrame');
+  stage.classList.toggle('mobile-mode', state.viewport === 'mobile');
+  frame.classList.toggle('sidebar-collapsed', state.sidebarCollapsed);
+
+  document.querySelectorAll('#viewportSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.vp === state.viewport)));
+  document.querySelectorAll('#themeSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.th === state.theme)));
+  document.querySelectorAll('#dataSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.ds === state.dataMode)));
+
+  // Active nav indicators
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    const matchPage = b.dataset.nav === state.page;
+    const matchMod = !b.dataset.mod || b.dataset.mod === state.reportModule;
+    b.setAttribute('aria-current', (matchPage && (state.page !== 'reports' || matchMod)) ? 'page' : 'false');
+  });
+  document.querySelectorAll('.mnav-btn').forEach(b => {
+    b.setAttribute('aria-current', b.dataset.mnav === state.page ? 'page' : 'false');
+  });
+
+  renderHeader();
+  const errCount = getRecords().auditLogs.filter(l => l.level === 'error' || l.level === 'warn').length;
+  const auditTag = document.getElementById('auditNavTag');
+  if (auditTag) {
+    auditTag.textContent = String(errCount);
+    auditTag.hidden = errCount === 0;
+  }
+
+  const scroll = document.getElementById('mainScroll');
+  if (state.page === 'dashboard') renderDashboard(scroll);
+  else if (state.page === 'reports') renderReports(scroll);
+  else if (state.page === 'checklist') renderChecklist(scroll);
+  else if (state.page === 'rewards') renderRewards(scroll);
+  else if (state.page === 'audit') renderAuditLog(scroll);
+}
+
+function renderHeader() {
+  const eyebrow = document.getElementById('topEyebrow');
+  const title = document.getElementById('topTitle');
+  const actions = document.getElementById('topActions');
+
+  if (state.page === 'dashboard') {
+    eyebrow.textContent = 'Ringkasan Personal Life OS · 18 Nov 2026';
+    title.textContent = 'Dasbor Kustom';
+    actions.innerHTML = `
+      <button class="chip" id="btnToggleCustomize" type="button" aria-pressed="${state.customizeMode}">
+        ${state.customizeMode ? '✓ Selesai atur' : '⊞ Atur Widget'}
+      </button>
+      ${state.customizeMode ? `
+        <button class="btn soft" id="btnWidgetCatalog" type="button">＋ Tambah / Sembunyikan</button>
+        <button class="btn" id="btnResetLayout" type="button">Reset ke bawaan</button>
+      ` : ''}
+    `;
+    document.getElementById('btnToggleCustomize').onclick = () => {
+      state.customizeMode = !state.customizeMode;
+      renderAll();
+    };
+    if (state.customizeMode) {
+      document.getElementById('btnWidgetCatalog').onclick = openWidgetCatalogModal;
+      document.getElementById('btnResetLayout').onclick = () => {
+        state.layout = structuredClone(DEFAULT_LAYOUT);
+        saveLayout();
+        renderAll();
+        showToast('Tata letak dasbor dikembalikan ke bawaan.');
+      };
+    }
+  } else if (state.page === 'reports') {
+    const modNames = {
+      productivity: 'Productivity Reports', finance: 'Finance Reports', health: 'Health Reports',
+      wellness: 'Wellness Reports', menstrual: 'Menstrual Reports', notes: 'Notes & Journal Reports'
+    };
+    eyebrow.textContent = 'Laporan Modul · Dihitung dari data tersimpan';
+    title.textContent = modNames[state.reportModule];
+    actions.innerHTML = `<button class="btn" id="btnGoDash" type="button">← Ke Dasbor</button>`;
+    document.getElementById('btnGoDash').onclick = () => { state.page = 'dashboard'; renderAll(); };
+  } else if (state.page === 'checklist') {
+    eyebrow.textContent = 'Productivity · Hari Ini';
+    title.textContent = 'Ceklis Harian';
+    actions.innerHTML = `<button class="btn soft" id="btnGoProdRep" type="button">Lihat Laporan →</button>`;
+    document.getElementById('btnGoProdRep').onclick = () => { state.page = 'reports'; state.reportModule = 'productivity'; renderAll(); };
+  } else if (state.page === 'audit') {
+    eyebrow.textContent = 'Diagnostik API & Sinkronisasi Lokal';
+    title.textContent = 'Audit Log';
+    actions.innerHTML = `
+      <button class="btn soft" id="btnSimAuditErr" type="button">＋ Simulasikan Sync Error</button>
+      <button class="btn" id="btnClearAudit" type="button">Bersihkan Log</button>
+    `;
+    document.getElementById('btnSimAuditErr').onclick = () => {
+      state.dataMode = 'sample';
+      state.records.auditLogs.unshift({
+        id: 'aud-' + Date.now(),
+        date: state.today,
+        ts: `${state.today} 10:35:00`,
+        source: 'Mobile · Android',
+        category: 'sync',
+        level: 'error',
+        endpoint: 'POST /api/v1/sync',
+        statusCode: 503,
+        errorCode: 'SYNC_FAILED',
+        message: 'Simulasi kegagalan sinkronisasi: server lokal tidak merespons tepat waktu.',
+        details: { pendingDirtyRows: 2, timeoutMs: 5000, sanitizedAuth: 'Bearer [REDACTED]' }
+      });
+      renderAll();
+      showToast('Entri Audit Log baru ditambahkan.');
+    };
+    document.getElementById('btnClearAudit').onclick = () => {
+      state.records.auditLogs = [];
+      renderAll();
+      showToast('Audit Log dibersihkan.');
+    };
+  } else {
+    eyebrow.textContent = 'Apresiasi Langkah Kecil';
+    title.textContent = 'Rewards & Poin';
+    actions.innerHTML = '';
+  }
+}
+
+// ==========================================================================
+// 5. CUSTOMIZABLE DASHBOARD RENDER + DRAG & DROP / RESIZE / VISIBILITY
+// ==========================================================================
+function renderWidgetBody(id) {
+  const r = getRecords();
+  if (id === 'w-prod') {
+    const done = r.tasks.filter(t => t.done).length;
+    const total = r.tasks.length;
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    const focus = r.tasks.reduce((a, b) => a + (b.focusMin || 0), 0);
+    return `
+      <div class="w-kpi num">${done}<span class="muted" style="font-size:1rem"> / ${total} tugas</span></div>
+      <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <div class="w-sub">Tingkat selesai ${pct}% · ${focus} menit fokus tercatat</div>
+    `;
+  }
+  if (id === 'w-fin') {
+    const inc = r.finance.filter(x => x.type === 'income').reduce((a, b) => a + b.amount, 0);
+    const exp = r.finance.filter(x => x.type === 'expense').reduce((a, b) => a + b.amount, 0);
+    return `
+      <div class="w-kpi num">${fmtRp(inc - exp)}</div>
+      <div class="w-sub">Masuk ${fmtRp(inc)} · Keluar ${fmtRp(exp)} (${r.finance.length} transaksi)</div>
+    `;
+  }
+  if (id === 'w-hlth') {
+    const latestW = r.weight[0];
+    const todayWater = r.water.filter(w => w.date === state.today).reduce((a, b) => a + b.ml, 0);
+    const todayKcal = r.food.filter(f => f.date === state.today).reduce((a, b) => a + b.kcal, 0);
+    return `
+      <div class="w-kpi num">${latestW ? latestW.kg + ' kg' : 'Belum ada data'}</div>
+      <div class="w-sub">Air hari ini: ${todayWater} ml · Asupan: ${todayKcal} kkal</div>
+    `;
+  }
+  if (id === 'w-well') {
+    const latest = r.wellness[0];
+    return `
+      <div class="w-kpi">${latest ? esc(latest.mood) : 'Belum check-in'}</div>
+      <div class="w-sub">${latest ? `Energi ${latest.energy}/5 · Stres ${latest.stress}/5 · Tidur ${latest.sleepHrs}j` : 'Ketuk + untuk mood check-in'}</div>
+    `;
+  }
+  if (id === 'w-mens') {
+    const latest = r.menstrual[0];
+    return `
+      <div class="w-kpi">${latest ? `Hari ke-${latest.cycleDay}` : 'Belum ada catatan'}</div>
+      <div class="w-sub">${latest ? `${esc(latest.phase)} · ${esc(latest.symptom)}` : 'Tambahkan catatan siklus di Quick Add'}</div>
+    `;
+  }
+  if (id === 'w-note') {
+    const latest = r.notes[0];
+    return `
+      <div class="w-kpi num">${r.notes.length} <span class="muted" style="font-size:1rem">catatan</span></div>
+      <div class="w-sub">${latest ? `Terbaru: "${esc(latest.title)}"` : 'Mulai menulis catatan cepat melalui tombol +'}</div>
+    `;
+  }
+  if (id === 'w-rew') {
+    const earned = r.tasks.filter(t => t.done).length;
+    const bal = Math.max(0, earned - (r.rewards.spent || 0));
+    return `
+      <div class="w-kpi num">${bal} <span class="muted" style="font-size:1rem">poin tersedia</span></div>
+      <div class="w-sub">${earned} total didapat · ${r.rewards.catalog.length} hadiah aktif</div>
+    `;
+  }
+  return '';
+}
+
+function renderDashboard(container) {
+  const visibleWidgets = state.layout.filter(w => state.customizeMode || w.visible);
+  let html = '';
+
+  if (state.customizeMode) {
+    html += `
+      <div class="dash-toolbar">
+        <div>
+          <b>Mode Atur Dasbor Aktif</b>
+          <div class="small">Seret kartu untuk mengurutkan, ubah ukuran (S/M/L), atur visibilitas, atau tambah/hapus widget.</div>
+        </div>
+        <span class="pill t-sage">${state.layout.filter(w => w.visible).length}/${state.layout.length} tampil</span>
+      </div>
+    `;
+  }
+
+  if (visibleWidgets.length === 0) {
+    html += `
+      <div class="empty-box">
+        <p><b>Tidak ada widget yang ditampilkan.</b></p>
+        <p class="small">Buka "Atur Widget" untuk menambahkan kembali modul atau Reset ke bawaan.</p>
+      </div>
+    `;
+    container.innerHTML = html;
+    return;
+  }
+
+  html += `<div class="widget-grid" id="widgetGrid">`;
+  visibleWidgets.forEach((cfg, idx) => {
+    const def = WIDGET_CATALOG.find(d => d.id === cfg.id);
+    if (!def) return;
+    const mutedStyle = !cfg.visible ? 'opacity:.52;' : '';
+    const sizeLabels = { s: 'S (1/3)', m: 'M (1/2)', l: 'L (Penuh)' };
+
+    html += `
+      <article class="widget-card ${state.customizeMode ? 'customizing' : ''}"
+               style="${mutedStyle}"
+               data-wid="${cfg.id}"
+               data-size="${cfg.size || def.defaultSize}"
+               draggable="${state.customizeMode}">
+        <div class="w-head">
+          <div class="w-title-wrap">
+            <span class="pill ${def.badge}" style="align-self:flex-start">${def.module}</span>
+            <span class="w-title">${def.title}</span>
+          </div>
+          ${!state.customizeMode && def.module !== 'Rewards'
+            ? `<button class="mini-btn" type="button" data-open-rep="${reportKeyForWidget(cfg.id)}">Laporan →</button>`
+            : (state.customizeMode ? `<span class="small muted">⠿ Seret</span>` : '')}
+        </div>
+        ${renderWidgetBody(cfg.id)}
+        ${state.customizeMode ? `
+          <div class="w-edit-bar">
+            <div style="display:flex;gap:4px">
+              <button class="mini-btn" type="button" data-wmove="${cfg.id}" data-dir="-1" ${idx === 0 ? 'disabled' : ''} title="Geser naik">↑</button>
+              <button class="mini-btn" type="button" data-wmove="${cfg.id}" data-dir="1" ${idx === visibleWidgets.length - 1 ? 'disabled' : ''} title="Geser turun">↓</button>
+              ${['s','m','l'].map(sz => `<button class="mini-btn" type="button" data-wsize="${cfg.id}" data-sz="${sz}" aria-pressed="${cfg.size === sz}">${sz.toUpperCase()}</button>`).join('')}
+            </div>
+            <div style="display:flex;gap:4px">
+              <button class="mini-btn" type="button" data-wvis="${cfg.id}">${cfg.visible ? '👁 Tampil' : '🚫 Tersembunyi'}</button>
+              <button class="mini-btn remove" type="button" data-wrem="${cfg.id}" title="Hapus dari dasbor">✕</button>
+            </div>
+          </div>
+        ` : ''}
+      </article>
+    `;
+  });
+  html += `</div>`;
+  container.innerHTML = html;
+
+  // Bind widget interactions
+  container.querySelectorAll('[data-open-rep]').forEach(b => {
+    b.onclick = () => { state.page = 'reports'; state.reportModule = b.dataset.openRep; renderAll(); };
+  });
+  container.querySelectorAll('[data-wmove]').forEach(b => {
+    b.onclick = () => moveWidget(b.dataset.wmove, Number(b.dataset.dir));
+  });
+  container.querySelectorAll('[data-wsize]').forEach(b => {
+    b.onclick = () => {
+      const w = state.layout.find(x => x.id === b.dataset.wsize);
+      if (w) { w.size = b.dataset.sz; saveLayout(); renderAll(); }
+    };
+  });
+  container.querySelectorAll('[data-wvis]').forEach(b => {
+    b.onclick = () => {
+      const w = state.layout.find(x => x.id === b.dataset.wvis);
+      if (w) { w.visible = !w.visible; saveLayout(); renderAll(); }
+    };
+  });
+  container.querySelectorAll('[data-wrem]').forEach(b => {
+    b.onclick = () => {
+      state.layout = state.layout.filter(x => x.id !== b.dataset.wrem);
+      saveLayout(); renderAll();
+      showToast('Widget dihapus. Bisa ditambah kembali di Tambah Widget.');
+    };
+  });
+
+  if (state.customizeMode) {
+    container.querySelectorAll('.widget-card').forEach(card => {
+      card.addEventListener('dragstart', e => {
+        state.dragId = card.dataset.wid;
+        card.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      card.addEventListener('dragend', () => {
+        card.classList.remove('dragging');
+        container.querySelectorAll('.widget-card').forEach(c => c.classList.remove('drag-over'));
+      });
+      card.addEventListener('dragover', e => { e.preventDefault(); card.classList.add('drag-over'); });
+      card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+      card.addEventListener('drop', e => {
+        e.preventDefault();
+        const targetId = card.dataset.wid;
+        if (state.dragId && targetId && state.dragId !== targetId) {
+          const from = state.layout.findIndex(x => x.id === state.dragId);
+          const to = state.layout.findIndex(x => x.id === targetId);
+          if (from > -1 && to > -1) {
+            const [item] = state.layout.splice(from, 1);
+            state.layout.splice(to, 0, item);
+            saveLayout(); renderAll();
+          }
+        }
+      });
+    });
+  }
+}
+
+function reportKeyForWidget(wid) {
+  return { 'w-prod':'productivity','w-fin':'finance','w-hlth':'health','w-well':'wellness','w-mens':'menstrual','w-note':'notes' }[wid] || 'productivity';
+}
+
+function moveWidget(id, dir) {
+  const idx = state.layout.findIndex(w => w.id === id);
+  const next = idx + dir;
+  if (idx < 0 || next < 0 || next >= state.layout.length) return;
+  [state.layout[idx], state.layout[next]] = [state.layout[next], state.layout[idx]];
+  saveLayout(); renderAll();
+}
+
+// ==========================================================================
+// 6. INDIVIDUAL MODULE REPORTS (COMPUTED STRICTLY FROM STORED RECORDS)
+// ==========================================================================
+function renderReports(container) {
+  const mods = [
+    { id:'productivity', label:'Productivity' },
+    { id:'finance', label:'Finance' },
+    { id:'health', label:'Health' },
+    { id:'wellness', label:'Wellness' },
+    { id:'menstrual', label:'Menstrual' },
+    { id:'notes', label:'Notes & Journal' },
+  ];
+
+  const bounds = getRangeBounds();
+  let html = `
+    <div class="module-tabs" role="tablist">
+      ${mods.map(m => `<button class="mod-tab" type="button" role="tab" data-rmod="${m.id}" aria-selected="${state.reportModule === m.id}">${m.label}</button>`).join('')}
+    </div>
+
+    <div class="filter-bar card" style="padding:12px 16px">
+      <div class="seg" id="rangeSeg">
+        <button type="button" data-rng="week" aria-pressed="${state.reportRange === 'week'}">Mingguan</button>
+        <button type="button" data-rng="month" aria-pressed="${state.reportRange === 'month'}">Bulanan</button>
+        <button type="button" data-rng="year" aria-pressed="${state.reportRange === 'year'}">Tahunan</button>
+        <button type="button" data-rng="custom" aria-pressed="${state.reportRange === 'custom'}">Rentang Kustom</button>
+      </div>
+      <div class="date-range-pickers">
+        ${state.reportRange === 'custom'
+          ? `<input type="date" id="cStart" value="${state.customStart}"> <span class="small muted">s/d</span> <input type="date" id="cEnd" value="${state.customEnd}">`
+          : `<span class="small muted num">Periode aktual: <b>${bounds.start}</b> s/d <b>${bounds.end}</b></span>`}
+      </div>
+    </div>
+  `;
+
+  html += buildModuleReportContent(state.reportModule);
+  container.innerHTML = html;
+
+  container.querySelectorAll('[data-rmod]').forEach(b => {
+    b.onclick = () => { state.reportModule = b.dataset.rmod; renderAll(); };
+  });
+  container.querySelectorAll('[data-rng]').forEach(b => {
+    b.onclick = () => { state.reportRange = b.dataset.rng; renderAll(); };
+  });
+  const cs = document.getElementById('cStart');
+  const ce = document.getElementById('cEnd');
+  if (cs && ce) {
+    cs.onchange = () => { state.customStart = cs.value; renderAll(); };
+    ce.onchange = () => { state.customEnd = ce.value; renderAll(); };
+  }
+}
+
+function buildModuleReportContent(mod) {
+  const r = getRecords();
+  const emptyNotice = (label) => `<div class="empty-box"><p><b>Belum ada data ${label} pada rentang ini.</b></p><p class="small">Laporan dihitung dari data tersimpan. Gunakan tombol <b>+ Quick Add</b> untuk menambah catatan.</p></div>`;
+
+  if (mod === 'productivity') {
+    const tasks = inRange(r.tasks);
+    if (!tasks.length) return emptyNotice('Productivity');
+    const done = tasks.filter(t => t.done).length;
+    const rate = Math.round((done / tasks.length) * 100);
+    const focusMin = tasks.reduce((a, b) => a + (b.focusMin || 0), 0);
+    const projects = {};
+    tasks.forEach(t => {
+      const p = t.project || 'Umum';
+      projects[p] = projects[p] || { done: 0, total: 0 };
+      projects[p].total++;
+      if (t.done) projects[p].done++;
+    });
+    return `
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="k-lbl">Task Completion</div><div class="k-val num">${rate}%</div></div>
+        <div class="kpi-card"><div class="k-lbl">Tugas Selesai</div><div class="k-val num">${done}/${tasks.length}</div></div>
+        <div class="kpi-card"><div class="k-lbl">Focus Time</div><div class="k-val num">${focusMin} mnt</div></div>
+        <div class="kpi-card"><div class="k-lbl">Proyek Aktif</div><div class="k-val num">${Object.keys(projects).length}</div></div>
+      </div>
+      <div class="report-cols">
+        <div class="card">
+          <h2>Project Progress</h2>
+          ${Object.entries(projects).map(([name, st]) => {
+            const p = Math.round((st.done / st.total) * 100);
+            return `<div class="bar-row"><div class="bar-row-top"><span>${esc(name)}</span><span class="num muted">${st.done}/${st.total} (${p}%)</span></div><div class="progress-track"><div class="progress-fill" style="width:${p}%"></div></div></div>`;
+          }).join('')}
+        </div>
+        <div class="card">
+          <h2>Riwayat Tugas</h2>
+          <ul class="log-list">${tasks.map(t => `<li><span>${t.done ? '✓' : '○'} ${esc(t.title)}</span><span class="small muted num">${t.date} · ${t.focusMin || 0}m</span></li>`).join('')}</ul>
+        </div>
+      </div>
+    `;
+  }
+
+  if (mod === 'finance') {
+    const tx = inRange(r.finance);
+    if (!tx.length) return emptyNotice('Finance');
+    const inc = tx.filter(x => x.type === 'income').reduce((a, b) => a + b.amount, 0);
+    const exp = tx.filter(x => x.type === 'expense').reduce((a, b) => a + b.amount, 0);
+    const sav = tx.filter(x => x.envelope === 'Tabungan').reduce((a, b) => a + b.amount, 0);
+    const debt = tx.filter(x => x.envelope === 'Cicilan').reduce((a, b) => a + b.amount, 0);
+    return `
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="k-lbl">Income</div><div class="k-val num">${fmtRp(inc)}</div></div>
+        <div class="kpi-card"><div class="k-lbl">Expenses</div><div class="k-val num">${fmtRp(exp)}</div></div>
+        <div class="kpi-card"><div class="k-lbl">Savings Recorded</div><div class="k-val num">${fmtRp(sav)}</div></div>
+        <div class="kpi-card"><div class="k-lbl">Debt Payments</div><div class="k-val num">${fmtRp(debt)}</div></div>
+      </div>
+      <div class="report-cols">
+        <div class="card">
+          <h2>Envelope Usage</h2>
+          ${r.envelopes.map(env => {
+            const used = tx.filter(x => x.type === 'expense' && x.envelope === env.name).reduce((a, b) => a + b.amount, 0);
+            const pct = Math.min(100, Math.round((used / env.budget) * 100));
+            return `<div class="bar-row"><div class="bar-row-top"><span>${esc(env.name)}</span><span class="num muted">${fmtRp(used)} / ${fmtRp(env.budget)}</span></div><div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div></div>`;
+          }).join('')}
+        </div>
+        <div class="card">
+          <h2>Transaksi Tersimpan</h2>
+          <ul class="log-list">${tx.map(t => `<li><div><b>${esc(t.note || t.envelope)}</b><div class="small muted">${t.date} · ${esc(t.envelope)}</div></div><span class="pill ${t.type === 'income' ? 't-sage' : 't-butter'} num">${t.type === 'income' ? '+' : '-'}${fmtRp(t.amount)}</span></li>`).join('')}</ul>
+        </div>
+      </div>
+    `;
+  }
+
+  if (mod === 'health') {
+    const food = inRange(r.food), w = inRange(r.weight), wat = inRange(r.water), wo = inRange(r.workouts);
+    if (!food.length && !w.length && !wat.length && !wo.length) return emptyNotice('Health');
+    const totalKcal = food.reduce((a, b) => a + b.kcal, 0);
+    const totalWater = wat.reduce((a, b) => a + b.ml, 0);
+    const woMin = wo.reduce((a, b) => a + b.minutes, 0);
+    return `
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="k-lbl">Latest Weight</div><div class="k-val num">${w[0] ? w[0].kg + ' kg' : '—'}</div></div>
+        <div class="kpi-card"><div class="k-lbl">Calorie Intake</div><div class="k-val num">${totalKcal} kkal</div></div>
+        <div class="kpi-card"><div class="k-lbl">Water Intake</div><div class="k-val num">${totalWater} ml</div></div>
+        <div class="kpi-card"><div class="k-lbl">Workout &amp; Lingkar</div><div class="k-val num">${woMin} mnt${w[0]?.waistCm ? ' · ' + w[0].waistCm + 'cm' : ''}</div></div>
+      </div>
+      <div class="report-cols">
+        <div class="card">
+          <h2>Weight &amp; Body Measurements</h2>
+          <ul class="log-list">${w.length ? w.map(x => `<li><span>${x.date}</span><span class="num"><b>${x.kg} kg</b> · Pinggang ${x.waistCm || '—'} cm</span></li>`).join('') : '<li class="muted">Belum ada catatan berat badan.</li>'}</ul>
+        </div>
+        <div class="card">
+          <h2>Food, Water &amp; Workout Logs</h2>
+          <ul class="log-list">
+            ${food.map(f => `<li><span>🍽 ${esc(f.name)}</span><span class="num small muted">${f.date} · ${f.kcal} kkal</span></li>`).join('')}
+            ${wo.map(x => `<li><span>🏃 ${esc(x.name)}</span><span class="num small muted">${x.date} · ${x.minutes} mnt</span></li>`).join('')}
+            ${wat.map(x => `<li><span>💧 Minum air</span><span class="num small muted">${x.date} · ${x.ml} ml</span></li>`).join('')}
+          </ul>
+        </div>
+      </div>
+    `;
+  }
+
+  if (mod === 'wellness') {
+    const well = inRange(r.wellness);
+    if (!well.length) return emptyNotice('Wellness');
+    const avg = (k) => (well.reduce((a, b) => a + (b[k] || 0), 0) / well.length).toFixed(1);
+    return `
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="k-lbl">Rata-rata Mood</div><div class="k-val num">${avg('moodScore')} / 5</div></div>
+        <div class="kpi-card"><div class="k-lbl">Energi</div><div class="k-val num">${avg('energy')} / 5</div></div>
+        <div class="kpi-card"><div class="k-lbl">Stres</div><div class="k-val num">${avg('stress')} / 5</div></div>
+        <div class="kpi-card"><div class="k-lbl">Rata-rata Tidur</div><div class="k-val num">${avg('sleepHrs')} jam</div></div>
+      </div>
+      <div class="card">
+        <h2>Emotional Triggers &amp; Check-in History</h2>
+        <ul class="log-list">${well.map(x => `<li><div><b>${esc(x.mood)}</b> · <span class="small muted">${x.date}</span><div class="small muted">Pemicu: ${esc(x.trigger || '—')}</div></div><span class="pill t-lavender num">Tidur ${x.sleepHrs}j</span></li>`).join('')}</ul>
+      </div>
+    `;
+  }
+
+  if (mod === 'menstrual') {
+    const m = inRange(r.menstrual);
+    if (!m.length) return emptyNotice('Menstrual Cycle');
+    const periods = m.filter(x => x.isPeriodStart);
+    const avgLen = periods.length ? Math.round(periods.reduce((a, b) => a + (b.cycleLen || 28), 0) / periods.length) : null;
+    return `
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="k-lbl">Catatan Siklus</div><div class="k-val num">${m.length} entri</div></div>
+        <div class="kpi-card"><div class="k-lbl">Rata-rata Durasi Siklus</div><div class="k-val num">${avgLen ? avgLen + ' hari' : '—'}</div></div>
+        <div class="kpi-card"><div class="k-lbl">Period History</div><div class="k-val num">${periods.length} siklus</div></div>
+        <div class="kpi-card"><div class="k-lbl">Status Terkini</div><div class="k-val">${esc(m[0].phase)}</div></div>
+      </div>
+      <div class="card">
+        <h2>Cycle, Symptoms &amp; Period History</h2>
+        <ul class="log-list">${m.map(x => `<li><div><b>${esc(x.phase)} (Hari ke-${x.cycleDay})</b><div class="small muted">Gejala: ${esc(x.symptom || 'Tidak ada')}</div></div><span class="pill t-blush num">${x.date}</span></li>`).join('')}</ul>
+      </div>
+    `;
+  }
+
+  // Notes & Journal
+  const notes = inRange(r.notes);
+  if (!notes.length) return emptyNotice('Notes & Journal');
+  const tagMap = {};
+  notes.forEach(n => (n.tags || []).forEach(tg => { tagMap[tg] = (tagMap[tg] || 0) + 1; }));
+  return `
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="k-lbl">Writing Activity</div><div class="k-val num">${notes.length} entri</div></div>
+      <div class="kpi-card"><div class="k-lbl">Unique Tags</div><div class="k-val num">${Object.keys(tagMap).length} tag</div></div>
+      <div class="kpi-card"><div class="k-lbl">Entri Terbaru</div><div class="k-val num">${notes[0].date}</div></div>
+      <div class="kpi-card"><div class="k-lbl">Total Kata</div><div class="k-val num">${notes.reduce((a, b) => a + b.body.split(/\s+/).length, 0)}</div></div>
+    </div>
+    <div class="report-cols">
+      <div class="card">
+        <h2>Entry History</h2>
+        <ul class="log-list">${notes.map(n => `<li><div><b>${esc(n.title)}</b><div class="small muted">${esc(n.body)}</div></div><span class="small muted num">${n.date}</span></li>`).join('')}</ul>
+      </div>
+      <div class="card">
+        <h2>Tags Digunakan</h2>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+          ${Object.entries(tagMap).map(([tg, c]) => `<span class="pill t-peach">#${esc(tg)} (${c})</span>`).join('') || '<span class="small muted">Belum ada tag</span>'}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ==========================================================================
+// 7. CHECKLIST & REWARDS SUPPORTING VIEWS
+// ==========================================================================
+function renderChecklist(container) {
+  const tasks = getRecords().tasks;
+  container.innerHTML = `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h2>Daftar Langkah Tersimpan</h2>
+        <span class="pill t-sage num">${tasks.filter(t => t.done).length}/${tasks.length} selesai</span>
+      </div>
+      <ul class="log-list">
+        ${tasks.length ? tasks.map((t, i) => `
+          <li>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;flex:1">
+              <input type="checkbox" data-chk="${i}" ${t.done ? 'checked' : ''} style="width:20px;height:20px">
+              <span style="${t.done ? 'text-decoration:line-through;color:var(--muted)' : ''}">${esc(t.title)}</span>
+            </label>
+            <span class="pill t-muted">${esc(t.group)} · ${t.date}</span>
+          </li>
+        `).join('') : '<li class="muted">Belum ada tugas tersimpan. Gunakan + Quick Add untuk menambah.</li>'}
+      </ul>
+    </div>
+  `;
+  container.querySelectorAll('[data-chk]').forEach(chk => {
+    chk.onchange = () => {
+      state.records.tasks[Number(chk.dataset.chk)].done = chk.checked;
+      renderAll();
+    };
+  });
+}
+
+function renderRewards(container) {
+  const r = getRecords();
+  const earned = r.tasks.filter(t => t.done).length;
+  const bal = Math.max(0, earned - (r.rewards.spent || 0));
+  container.innerHTML = `
+    <div class="card" style="background:var(--p-butter);color:var(--p-butter-ink);border-color:transparent;margin-bottom:16px">
+      <p class="eyebrow" style="color:inherit">Poin Saat Ini</p>
+      <div class="w-kpi num">${bal} Poin</div>
+      <p class="small" style="margin:6px 0 0">Dihitung aktual dari ${earned} tugas selesai dikurangi ${r.rewards.spent || 0} poin ditukar.</p>
+    </div>
+    <div class="card">
+      <h2>Katalog Hadiah</h2>
+      <ul class="log-list">
+        ${r.rewards.catalog.length ? r.rewards.catalog.map(c => `<li><span>${esc(c.name)}</span><span class="pill t-butter num">${c.cost} poin</span></li>`).join('') : '<li class="muted">Belum ada hadiah.</li>'}
+      </ul>
+    </div>
+  `;
+}
+
+function renderAuditLog(container) {
+  const logs = getRecords().auditLogs || [];
+  const ranged = inRange(logs);
+  const filtered = ranged.filter(l => {
+    const matchLevel = state.auditFilter === 'all'
+      || (state.auditFilter === 'sync' && (l.category === 'sync' || l.category === 'discovery') && l.level === 'error')
+      || (state.auditFilter === 'auth' && (l.category === 'auth' || l.statusCode === 401))
+      || (state.auditFilter === 'info' && l.level === 'info');
+    const matchSrc = state.auditSource === 'all' || l.source.includes(state.auditSource);
+    return matchLevel && matchSrc;
+  });
+
+  const failedSync = ranged.filter(l => (l.category === 'sync' || l.category === 'discovery') && l.level === 'error').length;
+  const authErr = ranged.filter(l => l.category === 'auth' || l.statusCode === 401).length;
+  const lastFail = ranged.find(l => l.level === 'error' || l.level === 'warn');
+  const lvlClass = (lv) => lv === 'error' ? 't-danger' : (lv === 'warn' ? 't-butter' : 't-sage');
+
+  container.innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="k-lbl">Total Log (Rentang)</div><div class="k-val num">${ranged.length}</div></div>
+      <div class="kpi-card"><div class="k-lbl">Sync / Discovery Failed</div><div class="k-val num">${failedSync}</div></div>
+      <div class="kpi-card"><div class="k-lbl">Auth / 401 Warnings</div><div class="k-val num">${authErr}</div></div>
+      <div class="kpi-card"><div class="k-lbl">Gagal Terakhir</div><div class="k-val num" style="font-size:1.05rem">${lastFail ? esc(lastFail.ts.slice(5)) : '—'}</div></div>
+    </div>
+
+    <div class="filter-bar card" style="padding:12px 16px">
+      <div class="seg" id="auditTypeSeg">
+        <button type="button" data-af="all" aria-pressed="${state.auditFilter === 'all'}">Semua</button>
+        <button type="button" data-af="sync" aria-pressed="${state.auditFilter === 'sync'}">Sync Failed</button>
+        <button type="button" data-af="auth" aria-pressed="${state.auditFilter === 'auth'}">Auth / 401</button>
+        <button type="button" data-af="info" aria-pressed="${state.auditFilter === 'info'}">Pulih</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+        <select id="auditSourceSel" style="min-height:36px;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-size:.8125rem">
+          <option value="all" ${state.auditSource === 'all' ? 'selected' : ''}>Semua Perangkat</option>
+          <option value="Mobile" ${state.auditSource === 'Mobile' ? 'selected' : ''}>Mobile Client</option>
+          <option value="Desktop" ${state.auditSource === 'Desktop' ? 'selected' : ''}>Desktop Server</option>
+        </select>
+        <div class="seg" id="auditRangeSeg">
+          <button type="button" data-rng="week" aria-pressed="${state.reportRange === 'week'}">7H</button>
+          <button type="button" data-rng="month" aria-pressed="${state.reportRange === 'month'}">30H</button>
+          <button type="button" data-rng="year" aria-pressed="${state.reportRange === 'year'}">1T</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;flex-wrap:wrap">
+        <h2>Riwayat Error API &amp; Sinkronisasi</h2>
+        <span class="small muted">Token &amp; kredensial disanitasi sebelum dicatat · Disimpan lokal per perangkat</span>
+      </div>
+      ${filtered.length ? filtered.map(l => `
+        <div class="audit-item">
+          <div class="audit-head">
+            <div class="audit-meta">
+              <span class="pill ${lvlClass(l.level)}">${l.level.toUpperCase()}</span>
+              <span class="pill t-muted num">${esc(l.endpoint)}</span>
+              <span class="pill t-sky num">${l.statusCode ? 'HTTP ' + l.statusCode : 'NET'} · ${esc(l.errorCode)}</span>
+            </div>
+            <span class="small muted num">${esc(l.source)} · ${esc(l.ts)}</span>
+          </div>
+          <div>${esc(l.message)}</div>
+          <details class="audit-details">
+            <summary>Detail teknis &amp; konteks</summary>
+            <pre>${esc(JSON.stringify(l.details, null, 2))}</pre>
+          </details>
+        </div>
+      `).join('') : '<div class="empty-box"><p><b>Tidak ada Audit Log pada filter ini.</b></p><p class="small">Semua permintaan API &amp; sinkronisasi tercatat bersih.</p></div>'}
+    </div>
+  `;
+
+  container.querySelectorAll('#auditTypeSeg [data-af]').forEach(b => {
+    b.onclick = () => { state.auditFilter = b.dataset.af; renderAll(); };
+  });
+  container.querySelectorAll('#auditRangeSeg [data-rng]').forEach(b => {
+    b.onclick = () => { state.reportRange = b.dataset.rng; renderAll(); };
+  });
+  document.getElementById('auditSourceSel').onchange = (e) => {
+    state.auditSource = e.target.value; renderAll();
+  };
+}
+
+// ==========================================================================
+// 8. MODALS: GLOBAL QUICK ADD (9 FORMS), WIDGET CATALOG, MOBILE WORKSPACE
+// ==========================================================================
+const modalBackdrop = document.getElementById('modalBackdrop');
+const modalSheet = document.getElementById('modalSheet');
+function closeModal() { modalBackdrop.hidden = true; }
+modalBackdrop.onclick = e => { if (e.target === modalBackdrop) closeModal(); };
+
+function openQuickAddMenu() {
+  const items = [
+    { k:'task',      ic:'✓', lbl:'Add task',               pill:'t-sage' },
+    { k:'finance',   ic:'Rp',lbl:'Add income/expense',     pill:'t-butter' },
+    { k:'food',      ic:'🍽',lbl:'Add food entry',         pill:'t-sky' },
+    { k:'weight',    ic:'⚖', lbl:'Add weight entry',       pill:'t-sky' },
+    { k:'water',     ic:'💧',lbl:'Add water intake',       pill:'t-sky' },
+    { k:'workout',   ic:'🏃',lbl:'Add workout',            pill:'t-sage' },
+    { k:'mood',      ic:'◐', lbl:'Mood check-in',          pill:'t-lavender' },
+    { k:'menstrual', ic:'✿', lbl:'Menstrual symptom',      pill:'t-blush' },
+    { k:'note',      ic:'✎', lbl:'Create quick note',      pill:'t-peach' },
+  ];
+  modalSheet.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div><p class="eyebrow">Global Quick Add</p><h2>Catat Cepat Tanpa Pindah Halaman</h2></div>
+      <button class="icon-btn" type="button" id="mClose">×</button>
+    </div>
+    <div class="qa-grid">
+      ${items.map(it => `<button class="qa-opt" type="button" data-qa="${it.k}"><span class="pill ${it.pill} qic">${it.ic}</span><span>${it.lbl}</span></button>`).join('')}
+    </div>
+  `;
+  modalBackdrop.hidden = false;
+  document.getElementById('mClose').onclick = closeModal;
+  modalSheet.querySelectorAll('[data-qa]').forEach(b => {
+    b.onclick = () => openQuickAddForm(b.dataset.qa);
+  });
+}
+
+function openQuickAddForm(kind) {
+  const forms = {
+    task: { title:'Add Task', fields:`<div class="field"><label>Nama tugas</label><input id="f1" placeholder="Contoh: Review catatan malam"></div><div class="field"><label>Kelompok</label><select id="f2"><option>Pagi</option><option>Siang</option><option>Malam</option></select></div>` },
+    finance: { title:'Add Income / Expense', fields:`<div class="field"><label>Jenis</label><select id="f1"><option value="expense">Pengeluaran</option><option value="income">Pemasukan</option></select></div><div class="field"><label>Nominal (Rp)</label><input id="f2" type="number" value="50000"></div><div class="field"><label>Pos / Keterangan</label><input id="f3" value="Makan & Minum"></div>` },
+    food: { title:'Add Food Entry', fields:`<div class="field"><label>Menu</label><input id="f1" placeholder="Contoh: Salad + telur rebus"></div><div class="field"><label>Kalori (kkal)</label><input id="f2" type="number" value="350"></div>` },
+    weight: { title:'Add Weight Entry', fields:`<div class="field"><label>Berat badan (kg)</label><input id="f1" type="number" step="0.1" value="62.2"></div><div class="field"><label>Lingkar pinggang (cm, opsional)</label><input id="f2" type="number" step="0.5" value="76"></div>` },
+    water: { title:'Add Water Intake', fields:`<div class="field"><label>Jumlah air (ml)</label><input id="f1" type="number" step="50" value="300"></div>` },
+    workout: { title:'Add Workout', fields:`<div class="field"><label>Jenis olahraga</label><input id="f1" placeholder="Contoh: Jalan cepat"></div><div class="field"><label>Durasi (menit)</label><input id="f2" type="number" value="25"></div>` },
+    mood: { title:'Mood Check-in', fields:`<div class="field"><label>Suasana hati</label><select id="f1"><option value="Tenang|4">Tenang (4/5)</option><option value="Fokus|5">Fokus (5/5)</option><option value="Lelah|3">Lelah (3/5)</option><option value="Tertekan|2">Tertekan (2/5)</option></select></div><div class="field"><label>Pemicu / catatan singkat</label><input id="f2" placeholder="Opsional"></div>` },
+    menstrual: { title:'Menstrual Symptom Entry', fields:`<div class="field"><label>Fase / status</label><select id="f1"><option>Menstruasi</option><option>Fase Folikuler</option><option>Ovulasi</option><option>Fase Luteal</option></select></div><div class="field"><label>Gejala</label><input id="f2" placeholder="Contoh: Kram ringan, lelah"></div>` },
+    note: { title:'Create Quick Note', fields:`<div class="field"><label>Judul</label><input id="f1" placeholder="Judul singkat"></div><div class="field"><label>Isi catatan</label><textarea id="f2" rows="3" placeholder="Tulis pikiran singkatmu..."></textarea></div>` },
+  };
+  const f = forms[kind];
+  modalSheet.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div><p class="eyebrow">Quick Add</p><h2>${f.title}</h2></div>
+      <button class="icon-btn" type="button" id="mBack">←</button>
+    </div>
+    ${f.fields}
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn" type="button" id="mCancel">Batal</button>
+      <button class="btn primary" type="button" id="mSave">Simpan</button>
+    </div>
+  `;
+  document.getElementById('mBack').onclick = openQuickAddMenu;
+  document.getElementById('mCancel').onclick = closeModal;
+  document.getElementById('mSave').onclick = () => {
+    state.dataMode = 'sample';
+    const d = state.today;
+    const v1 = document.getElementById('f1')?.value?.trim();
+    const v2 = document.getElementById('f2')?.value?.trim();
+    const v3 = document.getElementById('f3')?.value?.trim();
+    if (kind === 'task' && v1) state.records.tasks.unshift({ date: d, title: v1, group: v2 || 'Pagi', done: false, focusMin: 0, project: 'Personal Life OS' });
+    if (kind === 'finance' && Number(v2) > 0) state.records.finance.unshift({ date: d, type: v1, amount: Number(v2), envelope: v3 || 'Umum', note: v3 || 'Entri cepat' });
+    if (kind === 'food' && v1) state.records.food.unshift({ date: d, name: v1, kcal: Number(v2) || 250 });
+    if (kind === 'weight' && Number(v1) > 0) state.records.weight.unshift({ date: d, kg: Number(v1), waistCm: Number(v2) || null });
+    if (kind === 'water' && Number(v1) > 0) state.records.water.unshift({ date: d, ml: Number(v1) });
+    if (kind === 'workout' && v1) state.records.workouts.unshift({ date: d, name: v1, minutes: Number(v2) || 20, kcal: 120 });
+    if (kind === 'mood') {
+      const [mood, sc] = (v1 || 'Tenang|4').split('|');
+      state.records.wellness.unshift({ date: d, mood, moodScore: Number(sc), energy: 4, stress: 2, sleepHrs: 7.5, trigger: v2 || 'Quick check-in' });
+    }
+    if (kind === 'menstrual') state.records.menstrual.unshift({ date: d, phase: v1, cycleDay: 1, flow: 'Light', symptom: v2 || 'Tidak ada', isPeriodStart: v1 === 'Menstruasi', cycleLen: 28 });
+    if (kind === 'note' && (v1 || v2)) state.records.notes.unshift({ date: d, title: v1 || 'Catatan cepat', body: v2 || '', tags: ['quick'] });
+
+    closeModal();
+    renderAll();
+    showToast(`${f.title} disimpan & laporan diperbarui.`);
+  };
+}
+
+function openWidgetCatalogModal() {
+  modalSheet.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div><p class="eyebrow">Widget Catalog</p><h2>Tambah / Atur Visibilitas Modul</h2></div>
+      <button class="icon-btn" type="button" id="mClose">×</button>
+    </div>
+    <ul class="log-list">
+      ${WIDGET_CATALOG.map(def => {
+        const cur = state.layout.find(w => w.id === def.id);
+        return `
+          <li>
+            <div><span class="pill ${def.badge}">${def.module}</span> <b>${def.title}</b></div>
+            ${cur
+              ? `<button class="mini-btn" type="button" data-cat-vis="${def.id}">${cur.visible ? 'Tampil ✓' : 'Tersembunyi'}</button>`
+              : `<button class="mini-btn" type="button" data-cat-add="${def.id}">＋ Tambah</button>`}
+          </li>
+        `;
+      }).join('')}
+    </ul>
+  `;
+  modalBackdrop.hidden = false;
+  document.getElementById('mClose').onclick = closeModal;
+  modalSheet.querySelectorAll('[data-cat-vis]').forEach(b => {
+    b.onclick = () => {
+      const w = state.layout.find(x => x.id === b.dataset.catVis);
+      if (w) { w.visible = !w.visible; saveLayout(); renderAll(); openWidgetCatalogModal(); }
+    };
+  });
+  modalSheet.querySelectorAll('[data-cat-add]').forEach(b => {
+    b.onclick = () => {
+      const def = WIDGET_CATALOG.find(x => x.id === b.dataset.catAdd);
+      if (def) { state.layout.push({ id: def.id, visible: true, size: def.defaultSize }); saveLayout(); renderAll(); openWidgetCatalogModal(); }
+    };
+  });
+}
+
+function openMobileWorkspaceMenu() {
+  const tiles = [
+    { lbl:'Productivity', sub:'Task & Focus Reports', nav:'reports', mod:'productivity' },
+    { lbl:'Finance',      sub:'Cashflow & Envelopes', nav:'reports', mod:'finance' },
+    { lbl:'Health',       sub:'Weight, Food, Water',  nav:'reports', mod:'health' },
+    { lbl:'Wellness',     sub:'Mood, Sleep, Stress',  nav:'reports', mod:'wellness' },
+    { lbl:'Menstrual',    sub:'Cycle & Symptoms',     nav:'reports', mod:'menstrual' },
+    { lbl:'Notes',        sub:'Journal & Tags',       nav:'reports', mod:'notes' },
+    { lbl:'Rewards',      sub:'Poin & Hadiah',        nav:'rewards', mod:'' },
+    { lbl:'Ceklis Harian',sub:'Tugas & Jadwal',       nav:'checklist', mod:'' },
+    { lbl:'Audit Log',    sub:'API & Sync Errors',    nav:'audit', mod:'' },
+  ];
+  modalSheet.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div><p class="eyebrow">Workspace Menu</p><h2>Pilih Modul &amp; Laporan</h2></div>
+      <button class="icon-btn" type="button" id="mClose">×</button>
+    </div>
+    <div class="ws-grid">
+      ${tiles.map(t => `<button class="ws-tile" type="button" data-wnav="${t.nav}" data-wmod="${t.mod}"><b>${t.lbl}</b><span class="small muted">${t.sub}</span></button>`).join('')}
+    </div>
+  `;
+  modalBackdrop.hidden = false;
+  document.getElementById('mClose').onclick = closeModal;
+  modalSheet.querySelectorAll('[data-wnav]').forEach(b => {
+    b.onclick = () => {
+      state.page = b.dataset.wnav;
+      if (b.dataset.wmod) state.reportModule = b.dataset.wmod;
+      closeModal(); renderAll();
+    };
+  });
+}
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 3200);
+}
+
+// ==========================================================================
+// 9. EVENT WIRING
+// ==========================================================================
+document.querySelectorAll('#viewportSeg button').forEach(b => b.onclick = () => { state.viewport = b.dataset.vp; renderAll(); });
+document.querySelectorAll('#themeSeg button').forEach(b => b.onclick = () => { state.theme = b.dataset.th; renderAll(); });
+document.querySelectorAll('#dataSeg button').forEach(b => b.onclick = () => { state.dataMode = b.dataset.ds; renderAll(); });
+document.getElementById('collapseBtn').onclick = () => { state.sidebarCollapsed = !state.sidebarCollapsed; renderAll(); };
+document.getElementById('globalFab').onclick = openQuickAddMenu;
+document.getElementById('sidebarQuickBtn').onclick = openQuickAddMenu;
+
+document.querySelectorAll('.nav-btn').forEach(b => {
+  b.onclick = () => {
+    state.page = b.dataset.nav;
+    if (b.dataset.mod) state.reportModule = b.dataset.mod;
+    state.customizeMode = false;
+    renderAll();
+  };
+});
+
+document.querySelectorAll('.mnav-btn').forEach(b => {
+  b.onclick = () => {
+    if (b.dataset.mnav === 'workspace') { openMobileWorkspaceMenu(); return; }
+    state.page = b.dataset.mnav;
+    state.customizeMode = false;
+    renderAll();
+  };
+});
+
+renderAll();
+</script>
+</body>
+</html>

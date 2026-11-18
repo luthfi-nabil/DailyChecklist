@@ -7,6 +7,7 @@ A calm, distraction-free daily checklist and habit tracking desktop app with zer
 - **Milestone 1 Core Flow**: Grouped tasks (Pagi, Siang, Malam), single next-step focus card, "Hari berat" (lite mode), rewards shop with point balance, inline edit mode with undo toast.
 - **Milestone 2 Dashboard & Logging**: Activity dashboard (weekly, monthly, all-time metrics, streaks, daily bar chart), calendar activity heatmap, past day logs with timestamps, soft deletion (deactivation) preserving historical trends.
 - **Milestone 3 Scheduled Activities & Group Ordering**: Daily/Weekly/Monthly activity schedules (`freq`, `freq_days`), interactive checklist calendar with indicator dots, schedule editor modal, scheduled-day dashboard rates, and `↑` / `↓` group reordering.
+- **Milestone 4+ Personal Life OS & Audit Log**: Soft Pastel Minimalist theme, collapsible sidebar, customizable 7-module Dashboard, Individual Module Reports (Productivity, Finance, Health, Wellness, Menstrual, Notes & Journal) with range filters, Global Quick Add (`+`), and local `audit_logs` API/sync diagnostics.
 - **Zero-Config Sync Server**: Built-in HTTP sync server with mDNS (`_langkahkecil._tcp`) and UDP 47899 discovery.
 - **Desktop Background Mode**: Single-instance lock, system tray icon with background operation, toggleable autostart with `--hidden` launch.
 

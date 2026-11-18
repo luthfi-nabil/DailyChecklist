@@ -36,6 +36,19 @@ class ChecklistProvider extends ChangeNotifier {
   Map<String, int> monthActivity = {};
   DayLog? selectedDayLog;
 
+  // --- PERSONAL LIFE OS & AUDIT LOG STATE ---
+  bool customizeDashboard = false;
+  LifeOsSummary? lifeOsSummary;
+  String reportModule = 'productivity';
+  String reportRange = 'week';
+  String? customReportStart;
+  String? customReportEnd;
+  ModuleReportData? moduleReport;
+  List<Map<String, dynamic>> projects = [];
+  List<Map<String, dynamic>> envelopes = [];
+  String auditFilter = 'all';
+  List<AuditLogEntry> auditLogs = [];
+
   final Set<String> _skippedFocusIds = {};
   StreamSubscription<SyncStatus>? _syncSub;
   Timer? _rolloverTimer;
@@ -124,6 +137,21 @@ class ChecklistProvider extends ChangeNotifier {
     dashboardStats = await repository.getDashboardStats(dashPeriod, currentDay);
     monthActivity = await repository.getMonthActivity(calYear, calMonth);
     selectedDayLog = await repository.getDayLog(selectedLogDay);
+    lifeOsSummary = await repository.getLifeOsSummary(currentDay);
+    projects = await repository.getProjects();
+    envelopes = await repository.getEnvelopes();
+    moduleReport = await repository.getModuleReport(
+      module: reportModule,
+      range: reportRange,
+      customStart: customReportStart,
+      customEnd: customReportEnd,
+      todayStr: currentDay,
+    );
+    auditLogs = await repository.getAuditLogs(
+      category: auditFilter,
+      range: reportRange,
+      todayStr: currentDay,
+    );
     notifyListeners();
   }
 
@@ -425,15 +453,128 @@ class ChecklistProvider extends ChangeNotifier {
 
   Future<bool> pairWithDesktop(String code) async {
     final ok = await syncService.pair(code);
-    if (ok) await refreshAll();
-    notifyListeners();
+    await refreshAll();
     return ok;
   }
 
   Future<bool> syncNow() async {
     final ok = await syncService.sync();
-    if (ok) await refreshAll();
-    notifyListeners();
+    await refreshAll();
     return ok;
+  }
+
+  // --- PERSONAL LIFE OS & AUDIT LOG ACTIONS ---
+  void toggleCustomizeDashboard() {
+    customizeDashboard = !customizeDashboard;
+    notifyListeners();
+  }
+
+  void setCustomizeDashboard(bool value) {
+    if (customizeDashboard != value) {
+      customizeDashboard = value;
+      notifyListeners();
+    }
+  }
+
+  Future<void> moveDashboardWidget(String id, int delta) async {
+    final layout = List<DashboardWidgetConfig>.from(
+        lifeOsSummary?.layout ?? defaultDashboardLayout);
+    final idx = layout.indexWhere((w) => w.id == id);
+    final next = idx + delta;
+    if (idx < 0 || next < 0 || next >= layout.length) return;
+    final item = layout.removeAt(idx);
+    layout.insert(next, item);
+    await repository.saveDashboardLayout(layout);
+    await refreshAll();
+  }
+
+  Future<void> reorderDashboardWidgetIndices(int oldIdx, int newIdx) async {
+    final layout = List<DashboardWidgetConfig>.from(
+        lifeOsSummary?.layout ?? defaultDashboardLayout);
+    if (oldIdx < 0 || oldIdx >= layout.length) return;
+    var target = newIdx;
+    if (oldIdx < target) target -= 1;
+    if (target < 0 || target >= layout.length) return;
+    final item = layout.removeAt(oldIdx);
+    layout.insert(target, item);
+    await repository.saveDashboardLayout(layout);
+    await refreshAll();
+  }
+
+  Future<void> toggleWidgetVisible(String id) async {
+    final layout = List<DashboardWidgetConfig>.from(
+        lifeOsSummary?.layout ?? defaultDashboardLayout);
+    final idx = layout.indexWhere((w) => w.id == id);
+    if (idx < 0) return;
+    layout[idx] = layout[idx].copyWith(visible: !layout[idx].visible);
+    await repository.saveDashboardLayout(layout);
+    await refreshAll();
+  }
+
+  Future<void> addWidgetToDashboard(String id) async {
+    final layout = List<DashboardWidgetConfig>.from(
+        lifeOsSummary?.layout ?? defaultDashboardLayout);
+    if (layout.any((w) => w.id == id)) return;
+    final def = defaultDashboardLayout.firstWhere(
+      (w) => w.id == id,
+      orElse: () => DashboardWidgetConfig(id: id),
+    );
+    layout.add(def);
+    await repository.saveDashboardLayout(layout);
+    await refreshAll();
+  }
+
+  Future<void> removeWidgetFromDashboard(String id) async {
+    final layout = List<DashboardWidgetConfig>.from(
+        lifeOsSummary?.layout ?? defaultDashboardLayout);
+    layout.removeWhere((w) => w.id == id);
+    await repository.saveDashboardLayout(layout);
+    await refreshAll();
+  }
+
+  Future<void> resetDashboardLayout() async {
+    await repository.resetDashboardLayout();
+    await refreshAll();
+  }
+
+  Future<void> setReportFilter({
+    String? module,
+    String? range,
+    String? start,
+    String? end,
+  }) async {
+    if (module != null) reportModule = module;
+    if (range != null) reportRange = range;
+    if (start != null) customReportStart = start;
+    if (end != null) customReportEnd = end;
+    moduleReport = await repository.getModuleReport(
+      module: reportModule,
+      range: reportRange,
+      customStart: customReportStart,
+      customEnd: customReportEnd,
+      todayStr: currentDay,
+    );
+    notifyListeners();
+  }
+
+  Future<void> saveQuickAdd(String kind, Map<String, dynamic> data) async {
+    await repository.quickAdd(kind, {'day': currentDay, ...data});
+    await refreshAll();
+    syncService.triggerDebouncedSync();
+  }
+
+  Future<void> setAuditFilter(String filter) async {
+    auditFilter = filter;
+    auditLogs = await repository.getAuditLogs(
+      category: auditFilter,
+      range: reportRange,
+      todayStr: currentDay,
+    );
+    notifyListeners();
+  }
+
+  Future<void> clearAuditLogs() async {
+    await repository.clearAuditLogs();
+    await refreshAll();
   }
 }

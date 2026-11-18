@@ -9,39 +9,60 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div class="shell">
+<div class="shell" id="appShell">
   <aside>
-    <div class="brand">
-      <span class="logo" aria-hidden="true">L</span>
-      <b>Langkah Kecil</b>
+    <div class="brand-row">
+      <div class="brand">
+        <span class="logo" aria-hidden="true">L</span>
+        <b>Langkah Kecil</b>
+      </div>
+      <button class="collapse-btn" id="collapseSidebarBtn" type="button" title="Ciutkan / lebarkan sidebar" aria-label="Ciutkan sidebar">⇄</button>
     </div>
     <nav aria-label="Navigasi utama">
+      <p class="nav-label">Utama</p>
+      <button class="nav" data-view="dash">
+        <span class="ic">▦</span><span class="nav-txt">Dasbor</span>
+      </button>
+      <button class="nav" data-view="reports" data-mod="productivity">
+        <span class="ic">▥</span><span class="nav-txt">Laporan</span>
+      </button>
       <button class="nav" data-view="today" aria-current="page">
-        <span class="ic">☀</span>Hari ini
+        <span class="ic">☀</span><span class="nav-txt">Hari ini</span>
         <span class="badge num" id="navCount">0/0</span>
       </button>
+
+      <p class="nav-label">Workspace</p>
+      <button class="nav" data-view="reports" data-mod="productivity"><span class="ic">✓</span><span class="nav-txt">Productivity</span></button>
+      <button class="nav" data-view="reports" data-mod="finance"><span class="ic">Rp</span><span class="nav-txt">Finance</span></button>
+      <button class="nav" data-view="reports" data-mod="health"><span class="ic">♥</span><span class="nav-txt">Health</span></button>
+      <button class="nav" data-view="reports" data-mod="wellness"><span class="ic">◐</span><span class="nav-txt">Wellness</span></button>
+      <button class="nav" data-view="reports" data-mod="menstrual"><span class="ic">✿</span><span class="nav-txt">Menstrual</span></button>
+      <button class="nav" data-view="reports" data-mod="notes"><span class="ic">✎</span><span class="nav-txt">Notes</span></button>
       <button class="nav" data-view="rewards">
-        <span class="ic">★</span>Hadiah
+        <span class="ic">★</span><span class="nav-txt">Hadiah</span>
         <span class="badge num" id="navPts">0</span>
       </button>
 
-      <p class="nav-label">Jejak</p>
-      <button class="nav" data-view="dash">
-        <span class="ic">▥</span>Dasbor
-      </button>
+      <p class="nav-label">Jejak &amp; Sistem</p>
       <button class="nav" data-view="log">
-        <span class="ic">☰</span>Riwayat
+        <span class="ic">☰</span><span class="nav-txt">Riwayat</span>
       </button>
       <button class="nav" data-view="off">
-        <span class="ic">⏸</span>Nonaktif
+        <span class="ic">⏸</span><span class="nav-txt">Nonaktif</span>
         <span class="badge num" id="navOff">0</span>
       </button>
-
-      <p class="nav-label">Aplikasi</p>
+      <button class="nav" data-view="audit">
+        <span class="ic">⚠</span><span class="nav-txt">Audit Log</span>
+        <span class="badge num" id="navAuditErr" hidden>0</span>
+      </button>
       <button class="nav" data-view="settings">
-        <span class="ic">⚙</span>Pengaturan
+        <span class="ic">⚙</span><span class="nav-txt">Pengaturan</span>
       </button>
     </nav>
+
+    <button class="sidebar-quick" id="sidebarQuickAdd" type="button">
+      <span>＋</span><span class="qa-txt">Quick Add</span>
+    </button>
 
     <div class="sync-box" id="sidebarSync">
       <b><span class="dot"></span>Sinkron aktif</b>
@@ -49,7 +70,7 @@
       <p id="sidebarSyncDevice">Berjalan di baki sistem</p>
     </div>
     <button class="nav" id="sidebarQuitBtn" type="button" style="color:var(--miss)">
-      <span class="ic">⏻</span>Keluar
+      <span class="ic">⏻</span><span class="nav-txt">Keluar</span>
     </button>
   </aside>
 
@@ -59,7 +80,11 @@
         <p class="date" id="currentDate">Memuat tanggal...</p>
         <h1 id="viewTitle">Hari ini</h1>
       </div>
-      <div class="row">
+      <div class="row" id="topBarActions">
+        <button class="chip" id="dashCustomizeBtn" type="button" aria-pressed="false" hidden>⊞ Atur Widget</button>
+        <button class="btn" id="dashCatalogBtn" type="button" hidden>＋ Tambah Widget</button>
+        <button class="btn" id="dashResetBtn" type="button" hidden>Reset ke bawaan</button>
+        <button class="btn" id="auditClearBtn" type="button" hidden>Bersihkan Log</button>
         <button class="chip" id="calToggleBtn" type="button" aria-pressed="true">📅 Kalender</button>
         <button class="chip" id="editBtn" type="button" aria-pressed="false">Ubah</button>
       </div>
@@ -126,13 +151,26 @@
 
       <section class="view" id="v-dash">
         <div class="col">
-          <div class="row" style="justify-content:space-between">
-            <div class="seg" id="periodSeg" role="group" aria-label="Periode">
-              <button aria-pressed="true" data-p="week">Minggu ini</button>
-              <button aria-pressed="false" data-p="month">Bulan ini</button>
-              <button aria-pressed="false" data-p="all">Semua</button>
+          <div class="dash-toolbar" id="lifeosCustomBar" hidden>
+            <div>
+              <b>Mode Atur Dasbor Aktif</b>
+              <p class="small" style="margin:2px 0 0">Seret widget untuk mengatur urutan, ubah ukuran (S/M/L), atur visibilitas, atau tambah/hapus modul.</p>
             </div>
-            <span class="muted small" id="periodNote">-</span>
+            <span class="pill t-sage" id="lifeosVisCount">0/7 tampil</span>
+          </div>
+
+          <div class="widget-grid" id="lifeosWidgetGrid"></div>
+
+          <div class="head" style="margin:8px 0 0">
+            <h2>Analisis Ceklis</h2>
+            <div class="row">
+              <div class="seg" id="periodSeg" role="group" aria-label="Periode">
+                <button aria-pressed="true" data-p="week">Minggu ini</button>
+                <button aria-pressed="false" data-p="month">Bulan ini</button>
+                <button aria-pressed="false" data-p="all">Semua</button>
+              </div>
+              <span class="muted small" id="periodNote">-</span>
+            </div>
           </div>
 
           <div class="metrics">
@@ -232,6 +270,14 @@
             <div id="offGroupsList"></div>
           </div>
         </div>
+      </section>
+
+      <section class="view" id="v-reports">
+        <div id="reportsRoot" class="col"></div>
+      </section>
+
+      <section class="view" id="v-audit">
+        <div id="auditRoot" class="col"></div>
       </section>
 
       <section class="view" id="v-settings">
@@ -337,6 +383,14 @@
     </div>
   </div>
 </div>
+
+<div class="backdrop" id="lifeosModal" hidden>
+  <div class="modal" id="lifeosModalCard" role="dialog" aria-modal="true" style="max-width:520px;max-height:86vh;overflow-y:auto"></div>
+</div>
+
+<button class="fab" id="globalQuickAddBtn" type="button" aria-label="Quick Add Global">
+  <span style="font-size:1.25rem;line-height:1">＋</span><span>Quick Add</span>
+</button>
 
 <div class="toast" id="toast" role="status" hidden>
   <span id="toastMsg"></span>
