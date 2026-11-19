@@ -1,5 +1,7 @@
 import {
   lifeState,
+  tr,
+  L,
   loadLifeOsDashboard,
   openWidgetCatalogModal,
   loadModuleReportsView,
@@ -10,8 +12,13 @@ import {
 
 const api = window.electronAPI;
 
-const DAYS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-const MONTHS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+const DAYS_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const DAYS_ID = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const MONTHS_ID = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+function activeDays() { return lifeState.lang === 'id' ? DAYS_ID : DAYS_EN; }
+function activeMonths() { return lifeState.lang === 'id' ? MONTHS_ID : MONTHS_EN; }
 
 function formatLocalDay(d) {
   const y = d.getFullYear();
@@ -33,7 +40,7 @@ function getTodayStr() {
 function formatDisplayDate(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
   const date = new Date(y, m - 1, d);
-  return `${DAYS[date.getDay()]}, ${d} ${MONTHS[m - 1]}`;
+  return `${activeDays()[date.getDay()]}, ${d} ${activeMonths()[m - 1]}`;
 }
 
 function fmtShortDay(dayStr) {
@@ -42,20 +49,21 @@ function fmtShortDay(dayStr) {
   if (parts.length < 3) return '';
   const m = parseInt(parts[1], 10) - 1;
   const d = parseInt(parts[2], 10);
-  return `${d} ${MONTHS[m].slice(0, 3)}`;
+  return `${d} ${activeMonths()[m].slice(0, 3)}`;
 }
 
 function fmtShortMs(ms) {
   if (!ms) return '';
   const d = new Date(ms);
-  return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}`;
+  return `${d.getDate()} ${activeMonths()[d.getMonth()].slice(0, 3)}`;
 }
 
 const CHECK_SVG = `<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
   <path d="M3 8.5l3.2 3.2L13 4.8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`;
 
-let currentView = 'today';
+let currentView = 'dash';
+let appPrefs = { colorPalette: 'pink', userName: 'User', language: 'en', showReportCharts: true };
 let editMode = false;
 let liteMode = localStorage.getItem('langkah-kecil-lite') === 'true';
 let skippedTasks = {};
@@ -74,15 +82,18 @@ let selectedLogDay = getTodayStr();
 let undoAction = null;
 let toastTimer = null;
 
-const DOW_FULL = ['', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
-const DOW_SHORT = ['', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+const DOW_FULL_EN = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const DOW_FULL_ID = ['', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+const DOW_SHORT_EN = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DOW_SHORT_ID = ['', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
 
 function freqLabel(t) {
-  if (!t || t.freq === 'daily' || !t.freq) return 'Setiap hari';
+  if (!t || t.freq === 'daily' || !t.freq) return L('Daily', 'Setiap hari');
   const days = Array.isArray(t.freq_days) ? t.freq_days : (Array.isArray(t.freqDays) ? t.freqDays : []);
-  if (t.freq === 'weekly') return days.map(d => DOW_FULL[d] || d).join(', ');
-  if (t.freq === 'monthly') return 'Tanggal ' + days.join(', ');
-  return 'Setiap hari';
+  const dowFull = lifeState.lang === 'id' ? DOW_FULL_ID : DOW_FULL_EN;
+  if (t.freq === 'weekly') return days.map(d => dowFull[d] || d).join(', ');
+  if (t.freq === 'monthly') return (lifeState.lang === 'id' ? 'Tanggal ' : 'Day ') + days.join(', ');
+  return L('Daily', 'Setiap hari');
 }
 
 function esc(s) {
@@ -119,6 +130,143 @@ function applyTheme(t) {
   });
 }
 
+const PALETTE_LABELS = {
+  pink: 'White & Pink',
+  sage: 'Pastel Sage',
+  teal: 'Slate Teal',
+  lavender: 'Lavender Mist',
+  peach: 'Warm Peach',
+};
+
+function applyPalette(palette) {
+  const safe = PALETTE_LABELS[palette] ? palette : 'pink';
+  if (safe === 'pink') document.documentElement.removeAttribute('data-palette');
+  else document.documentElement.setAttribute('data-palette', safe);
+  document.querySelectorAll('#paletteGrid [data-palette]').forEach(b => {
+    const active = b.dataset.palette === safe;
+    b.setAttribute('aria-pressed', active ? 'true' : 'false');
+    b.textContent = active ? '✓' : '';
+  });
+  const badge = document.getElementById('activePaletteBadge');
+  if (badge) badge.textContent = PALETTE_LABELS[safe];
+}
+
+function applyLanguage(lang) {
+  lifeState.lang = lang === 'id' ? 'id' : 'en';
+  document.documentElement.lang = lifeState.lang;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    el.textContent = tr(lifeState.lang, key);
+  });
+  const searchEl = document.getElementById('globalSearchInput');
+  if (searchEl) searchEl.placeholder = tr(lifeState.lang, 'search_ph');
+  document.querySelectorAll('#langSeg [data-lang]').forEach(b => {
+    b.setAttribute('aria-pressed', b.dataset.lang === lifeState.lang ? 'true' : 'false');
+  });
+
+  const staticPairs = {
+    backTodayBtn: ['Back to today', 'Kembali ke hari ini'],
+    openEditFromNote: ['View / Edit', 'Lihat / Ubah'],
+    calLegWeekly: ['Weekly', 'Mingguan'],
+    calLegMonthly: ['Monthly', 'Bulanan'],
+    ptsUnitLabel: ['points', 'poin'],
+    dashCustomTitle: ['Dashboard Customization Active', 'Mode Atur Dasbor Aktif'],
+    dashCustomSub: ['Drag widgets to reorder, resize (S/M/L), toggle visibility, or add/remove modules.', 'Seret widget untuk mengatur urutan, ubah ukuran (S/M/L), atur visibilitas, atau tambah/hapus modul.'],
+    dashAnalysisTitle: ['Checklist Analytics', 'Analisis Ceklis'],
+    perWeekBtn: ['This week', 'Minggu ini'],
+    perMonthBtn: ['This month', 'Bulan ini'],
+    perAllBtn: ['All time', 'Semua'],
+    mRateLabel: ['completion rate', 'tingkat selesai'],
+    mDoneLabel: ['steps completed', 'langkah selesai'],
+    mPtsLabel: ['points earned', 'poin didapat'],
+    chartPerDayTitle: ['Steps per day', 'Langkah per hari'],
+    statPerGroupTitle: ['By group', 'Per kelompok'],
+    statPerTaskTitle: ['By step', 'Per langkah'],
+    statMostFreqSub: ['most frequent first', 'paling sering dulu'],
+    statInactiveFootnote: ['Deactivated steps are still counted on days when they were active, keeping historical trends intact.', 'Langkah nonaktif tetap dihitung pada hari ketika masih aktif, sehingga tren riwayat tidak berubah.'],
+    calHeatFootnote: ['Darker shades mean more completed steps.', 'Makin pekat warnanya, makin banyak langkah selesai.'],
+    offTasksTitle: ['Inactive steps', 'Langkah nonaktif'],
+    offGroupsTitle: ['Inactive groups', 'Kelompok nonaktif'],
+    setProfTitle: ['Profile & Appearance', 'Profil & Tampilan'],
+    setNameLabel: ['Display name (updates greeting)', 'Nama tampilan (untuk sapaan)'],
+    setPaletteLabel: ['Color palette (default: White & Pink)', 'Palet warna (bawaan: White & Pink)'],
+    setThemeLabel: ['Theme mode', 'Mode tema'],
+    themeAutoBtn: ['Auto', 'Otomatis'],
+    themeLightBtn: ['Light', 'Terang'],
+    themeDarkBtn: ['Dark', 'Gelap'],
+    setLangTitle: ['Language', 'Bahasa'],
+    setLangSub: ['Switch app labels between English & Bahasa Indonesia.', 'Ganti label aplikasi antara Bahasa Inggris & Bahasa Indonesia.'],
+    setChartsTitle: ['Show charts in reports', 'Tampilkan grafik di laporan'],
+    setChartsSub: ['Optional visual bars; off = calm numeric tables only.', 'Batang visual opsional; nonaktif = angka ringkas saja.'],
+    setBackupTitle: ['Backup & Restore', 'Cadangan & Pulihkan'],
+    setBackupSub: ['Your SQLite database is stored locally and auto-backed up before schema upgrades. Export or restore a full JSON snapshot anytime.', 'Database SQLite disimpan lokal dan dicadangkan otomatis sebelum pembaruan. Ekspor atau pulihkan cadangan JSON kapan saja.'],
+    exportJsonBtn: ['⬇ Export JSON Backup', '⬇ Ekspor Cadangan JSON'],
+    importJsonBtn: ['⬆ Restore JSON Backup', '⬆ Pulihkan Cadangan JSON'],
+    setLanTitle: ['Local LAN Sync', 'Sinkronisasi LAN Lokal'],
+    setLanSub: ['Local-only sync server announced via mDNS and UDP 47899. Phone finds this Desktop automatically without manual cloud accounts.', 'Server sinkron lokal via mDNS dan UDP 47899. Ponsel menemukan Desktop ini secara otomatis tanpa akun cloud.'],
+    setIpPortLbl: ['Desktop LAN IP & Port:', 'IP & Port LAN Desktop:'],
+    setPairCodeLbl: ['Pairing code:', 'Kode sambungan:'],
+    rotateCodeBtn: ['Rotate code', 'Acak kode'],
+    setManualEndpointTitle: ['Manual Listen IP & Port', 'IP & Port Manual'],
+    setBindIpLbl: ['Bind IP', 'IP Bind'],
+    setBindPortLbl: ['Port', 'Port'],
+    resetSyncNetBtn: ['Reset 47800', 'Atur ulang 47800'],
+    saveSyncNetBtn: ['Apply', 'Terapkan'],
+    setPairedTitle: ['Paired Devices', 'Perangkat Terhubung'],
+    setTokenTitle: ['Token lifetime', 'Masa berlaku token'],
+    setTokenSub: ['Phone re-pairs after expiry.', 'Ponsel menyambung ulang setelah kedaluwarsa.'],
+    setAutoSyncTitle: ['Auto-sync on LAN', 'Sinkron otomatis di LAN'],
+    setAutoSyncSub: ['Two-way LWW merge.', 'Penggabungan LWW dua arah.'],
+    setBgTitle: ['Desktop Background', 'Latar Belakang Desktop'],
+    setAutostartTitle: ['Launch on startup', 'Jalankan saat startup'],
+    setAutostartSub: ['Starts minimized in system tray.', 'Mulai diminimalkan ke baki sistem.'],
+    setTrayTitle: ['Keep running on close', 'Tetap berjalan saat ditutup'],
+    setTraySub: ['Keep sync server alive in tray.', 'Menjaga server sinkron tetap aktif di baki sistem.'],
+    setQuitTitle: ['Quit completely', 'Keluar sepenuhnya'],
+    setQuitSub: ['Stops tray process and sync server.', 'Menghentikan proses baki dan server sinkron.'],
+    schedModalEyebrow: ['Task Schedule', 'Atur Jadwal Aktivitas'],
+    freqDailyBtn: ['Daily', 'Harian'],
+    freqWeeklyBtn: ['Weekly', 'Mingguan'],
+    freqMonthlyBtn: ['Monthly', 'Bulanan'],
+    schedWeeklyPrompt: ['Choose which days this step appears:', 'Pilih hari apa saja aktivitas ini muncul:'],
+    schedMonthlyPrompt: ['Choose which dates each month:', 'Pilih tanggal berapa saja setiap bulan:'],
+    saveSchedModalBtn: ['Save schedule', 'Simpan jadwal'],
+  };
+  Object.entries(staticPairs).forEach(([id, [en, idTxt]]) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = L(en, idTxt);
+  });
+  const editNoteEl = document.getElementById('editNote');
+  if (editNoteEl) {
+    editNoteEl.innerHTML = L(
+      'Edit mode active. All tasks are visible (including tasks scheduled on other days). Tap 📅 to set a <b>Daily</b>, <b>Weekly</b>, or <b>Monthly</b> schedule.',
+      'Mode ubah aktif. Semua langkah ditampilkan (termasuk yang terjadwal di hari lain). Ketuk 📅 untuk mengatur jadwal <b>Harian</b>, <b>Mingguan</b>, atau <b>Bulanan</b>.',
+    );
+  }
+  const offIntroEl = document.getElementById('offIntroNote');
+  if (offIntroEl) {
+    offIntroEl.innerHTML = L(
+      'Deactivating a step or group keeps your history and earned points safe. You can <b>Restore</b> it anytime, or <b>Delete Permanently</b> to remove it completely.',
+      'Menonaktifkan langkah atau kelompok menjaga riwayat dan poinmu tetap aman. Kamu bisa memilih <b>Pulihkan</b> kapan saja, atau <b>Hapus Permanen</b> untuk menghapusnya.',
+    );
+  }
+}
+
+function applyPreferences(prefs) {
+  if (!prefs) return;
+  appPrefs = prefs;
+  applyPalette(prefs.colorPalette || 'pink');
+  applyLanguage(prefs.language || 'en');
+  document.body.classList.toggle('hide-report-charts', prefs.showReportCharts === false);
+  const nameIn = document.getElementById('userNameInput');
+  if (nameIn && document.activeElement !== nameIn) nameIn.value = prefs.userName || 'User';
+  const chSw = document.getElementById('showChartsSwitch');
+  if (chSw) chSw.setAttribute('aria-checked', prefs.showReportCharts === false ? 'false' : 'true');
+  if (currentView === 'dash') {
+    document.getElementById('viewTitle').textContent = `${tr(lifeState.lang, 'hello')}, ${prefs.userName || 'User'} ♡`;
+  }
+}
+
 applyTheme(localStorage.getItem('langkah-kecil-theme') || 'auto');
 
 // --- RENDER TODAY & CHECKLIST CALENDAR ---
@@ -130,14 +278,14 @@ async function renderTodayCalendar() {
   if (!showTodayCal) return;
 
   monthScheduleDots = await api.getMonthSchedule({ year: todayCalYear, month: todayCalMonth });
-  document.getElementById('todayCalTitle').textContent = `${MONTHS[todayCalMonth - 1]} ${todayCalYear}`;
+  document.getElementById('todayCalTitle').textContent = `${activeMonths()[todayCalMonth - 1]} ${todayCalYear}`;
 
   const firstDay = new Date(todayCalYear, todayCalMonth - 1, 1).getDay();
   const offset = (firstDay + 6) % 7;
   const daysInMonth = new Date(todayCalYear, todayCalMonth, 0).getDate();
 
   let html = '';
-  ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].forEach(d => {
+  (lifeState.lang === 'id' ? ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'] : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']).forEach(d => {
     html += `<div class="dow">${d}</div>`;
   });
   for (let i = 0; i < offset; i++) html += '<div></div>';
@@ -148,7 +296,7 @@ async function renderTodayCalendar() {
     const isToday = dStr === currentDay;
     const isSel = dStr === selectedTodayDate;
     html += `
-      <button type="button" class="cday ${isToday ? 'today' : ''}" data-cday="${dStr}" aria-pressed="${isSel}" aria-label="${day} ${MONTHS[todayCalMonth - 1]}">
+      <button type="button" class="cday ${isToday ? 'today' : ''}" data-cday="${dStr}" aria-pressed="${isSel}" aria-label="${day} ${activeMonths()[todayCalMonth - 1]}">
         <span>${day}</span>
         <span class="dots">
           ${dot && dot.hasWeekly ? '<i class="dot w"></i>' : ''}
@@ -183,9 +331,9 @@ function renderToday() {
   const banner = document.getElementById('dateBanner');
   banner.hidden = selectedTodayDate === currentDay;
   if (isFuture) {
-    document.getElementById('dateBannerText').textContent = 'Pratinjau jadwal mendatang (belum bisa dicentang).';
+    document.getElementById('dateBannerText').textContent = L('Previewing upcoming schedule (cannot check off yet).', 'Pratinjau jadwal mendatang (belum bisa dicentang).');
   } else if (isPast) {
-    document.getElementById('dateBannerText').textContent = 'Melihat catatan tanggal sebelumnya.';
+    document.getElementById('dateBannerText').textContent = L('Viewing a previous day record.', 'Melihat catatan tanggal sebelumnya.');
   }
 
   const allTasks = [];
@@ -201,26 +349,26 @@ function renderToday() {
   document.getElementById('navCount').textContent = `${done}/${total}`;
   document.getElementById('navPts').textContent = todayData.balance;
 
-  let msg = 'Belum ada langkah terjadwal untuk tanggal ini.';
+  let msg = L('No steps scheduled for this date.', 'Belum ada langkah terjadwal untuk tanggal ini.');
   if (total > 0) {
-    if (isFuture) msg = 'Jadwal yang direncanakan pada tanggal ini.';
-    else if (done === total) msg = 'Semua selesai hari ini. Kamu boleh istirahat.';
-    else if (done === 0) msg = 'Belum mulai juga tidak apa-apa. Pilih satu yang paling kecil.';
-    else msg = `Sudah ${done} langkah hari ini. Lanjut kalau masih ada tenaga.`;
+    if (isFuture) msg = L('Scheduled steps planned for this date.', 'Jadwal yang direncanakan pada tanggal ini.');
+    else if (done === total) msg = L('All done for today. You can rest.', 'Semua selesai hari ini. Kamu boleh istirahat.');
+    else if (done === 0) msg = L('It is okay not to start yet. Pick the smallest step.', 'Belum mulai juga tidak apa-apa. Pilih satu yang paling kecil.');
+    else msg = L(`${done} steps done today. Keep going if you still have energy.`, `Sudah ${done} langkah hari ini. Lanjut kalau masih ada tenaga.`);
   }
 
   document.getElementById('progressCard').innerHTML = `
     <div class="row" style="justify-content:space-between;align-items:baseline;margin-bottom:10px">
-      <div class="big num">${done}<small> dari ${total} langkah</small></div>
+      <div class="big num">${done}<small> ${L('of', 'dari')} ${total} ${L('steps', 'langkah')}</small></div>
       <div class="big num">${pct}<small>%</small></div>
     </div>
-    <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Progres hari ini">
+    <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="${L('Today progress', 'Progres hari ini')}">
       <span style="width:${pct}%"></span>
     </div>
     <p class="muted small" style="margin:10px 0 0">${esc(msg)}</p>
     <div class="switch-row">
-      <p><b>Hari berat</b><br><span class="muted small">Tampilkan hanya langkah inti (★).</span></p>
-      <button class="switch" role="switch" id="liteSwitch" aria-checked="${liteMode}" aria-label="Mode hari berat"></button>
+      <p><b>${L('Low-energy day', 'Hari berat')}</b><br><span class="muted small">${L('Show core steps (★) only.', 'Tampilkan hanya langkah inti (★).')}</span></p>
+      <button class="switch" role="switch" id="liteSwitch" aria-checked="${liteMode}" aria-label="${L('Low-energy day mode', 'Mode hari berat')}"></button>
     </div>
   `;
 
@@ -235,7 +383,10 @@ function renderToday() {
   const otherNote = document.getElementById('otherDayNote');
   otherNote.hidden = editMode || offDayCount === 0;
   if (!otherNote.hidden) {
-    document.getElementById('otherDayText').textContent = `${offDayCount} aktivitas mingguan/bulanan dijadwalkan di tanggal lain.`;
+    document.getElementById('otherDayText').textContent = L(
+      `${offDayCount} weekly/monthly activities are scheduled for other days.`,
+      `${offDayCount} aktivitas mingguan/bulanan dijadwalkan di tanggal lain.`,
+    );
   }
 
   const container = document.getElementById('groupsContainer');
@@ -254,10 +405,10 @@ function renderToday() {
       html += `
         <div class="head" style="gap:6px">
           <input class="text-in gname-input" style="font-family:var(--font-display);font-weight:600"
-                 data-gid="${g.id}" value="${esc(g.name)}" placeholder="Nama kelompok" aria-label="Nama kelompok">
-          <button class="move-g-btn" type="button" data-move-gid="${g.id}" data-dir="-1" ${isFirst ? 'disabled' : ''} title="Pindah ke atas" aria-label="Pindah kelompok ke atas">↑</button>
-          <button class="move-g-btn" type="button" data-move-gid="${g.id}" data-dir="1" ${isLast ? 'disabled' : ''} title="Pindah ke bawah" aria-label="Pindah kelompok ke bawah">↓</button>
-          <button class="btn deact-g-btn" data-gid="${g.id}">Nonaktifkan</button>
+                 data-gid="${g.id}" value="${esc(g.name)}" placeholder="${L('Group name', 'Nama kelompok')}" aria-label="${L('Group name', 'Nama kelompok')}">
+          <button class="move-g-btn" type="button" data-move-gid="${g.id}" data-dir="-1" ${isFirst ? 'disabled' : ''} title="${L('Move up', 'Pindah ke atas')}">↑</button>
+          <button class="move-g-btn" type="button" data-move-gid="${g.id}" data-dir="1" ${isLast ? 'disabled' : ''} title="${L('Move down', 'Pindah ke bawah')}">↓</button>
+          <button class="btn deact-g-btn" data-gid="${g.id}">${L('Deactivate', 'Nonaktifkan')}</button>
         </div>
       `;
     } else {
@@ -274,16 +425,16 @@ function renderToday() {
       if (editMode) {
         const cls = t.freq === 'weekly' ? 'weekly' : (t.freq === 'monthly' ? 'monthly' : '');
         const label = freqLabel(t);
-        const dueNote = t.scheduled === false ? '<span class="freq-tag offday">Bukan tanggal ini</span>' : '';
+        const dueNote = t.scheduled === false ? `<span class="freq-tag offday">${L('Not scheduled today', 'Bukan tanggal ini')}</span>` : '';
         html += `
           <li class="erow">
             <div class="erow-top">
-              <button class="icon-btn core-btn ${t.core ? 'on' : ''}" data-tid="${t.id}" aria-pressed="${!!t.core}" aria-label="Tandai langkah inti">
+              <button class="icon-btn core-btn ${t.core ? 'on' : ''}" data-tid="${t.id}" aria-pressed="${!!t.core}" aria-label="${L('Mark core step', 'Tandai langkah inti')}">
                 ${t.core ? '★' : '☆'}
               </button>
-              <input class="text-in tname-input" id="t-${t.id}" data-tid="${t.id}" value="${esc(t.name)}" placeholder="Nama langkah" aria-label="Nama langkah">
-              <button class="sched-btn ${cls}" type="button" data-sched="${t.id}" title="${esc(label)}" aria-label="Jadwal: ${esc(label)}">📅</button>
-              <button class="icon-btn deact-t-btn" data-tid="${t.id}" aria-label="Nonaktifkan langkah">Nonaktifkan</button>
+              <input class="text-in tname-input" id="t-${t.id}" data-tid="${t.id}" value="${esc(t.name)}" placeholder="${L('Step name', 'Nama langkah')}" aria-label="${L('Step name', 'Nama langkah')}">
+              <button class="sched-btn ${cls}" type="button" data-sched="${t.id}" title="${esc(label)}" aria-label="${L('Schedule', 'Jadwal')}: ${esc(label)}">📅</button>
+              <button class="icon-btn deact-t-btn" data-tid="${t.id}" aria-label="${L('Deactivate step', 'Nonaktifkan langkah')}">${L('Deactivate', 'Nonaktifkan')}</button>
             </div>
             <div class="erow-sub">
               <span class="freq-pill ${cls}">${esc(label)}</span>
@@ -300,7 +451,7 @@ function renderToday() {
             <label class="check">
               <input type="checkbox" class="chk-task" data-tid="${t.id}" ${t.done ? 'checked' : ''} ${isFuture ? 'disabled' : ''}>
               <span class="box">${CHECK_SVG}</span>
-              <span class="nm">${esc(t.name)}${t.core && !liteMode ? '<span class="star">★ inti</span>' : ''}${badge}</span>
+              <span class="nm">${esc(t.name)}${t.core && !liteMode ? `<span class="star">★ ${L('core', 'inti')}</span>` : ''}${badge}</span>
             </label>
           </li>
         `;
@@ -309,13 +460,13 @@ function renderToday() {
     html += `</ul>`;
 
     if (editMode) {
-      html += `<button class="btn dashed add-t-btn" data-gid="${g.id}" style="margin-top:8px">+ Tambah langkah</button>`;
+      html += `<button class="btn dashed add-t-btn" data-gid="${g.id}" style="margin-top:8px">+ ${L('Add step', 'Tambah langkah')}</button>`;
     }
     html += `</section>`;
   });
 
   if (editMode) {
-    html += `<button class="btn dashed" id="addGroupBtn">+ Tambah kelompok</button>`;
+    html += `<button class="btn dashed" id="addGroupBtn">+ ${L('Add group', 'Tambah kelompok')}</button>`;
   }
 
   container.innerHTML = html;
@@ -334,10 +485,10 @@ function renderFocus(countedTasks, isFuture = false) {
 
   if (uncompleted.length === 0) {
     focusEl.innerHTML = `
-      <p class="eyebrow">Selesai</p>
-      <p class="focus-name">Semua langkah terjadwal sudah beres.</p>
-      <p class="hint">Cek Hadiah kalau mau mengambil sesuatu.</p>
-      <button class="btn primary" id="focusGoRewards">Lihat hadiah</button>
+      <p class="eyebrow">${L('Done', 'Selesai')}</p>
+      <p class="focus-name">${L('All scheduled steps are complete.', 'Semua langkah terjadwal sudah beres.')}</p>
+      <p class="hint">${L('Check Rewards if you want to redeem something.', 'Cek Hadiah kalau mau menukar poin.')}</p>
+      <button class="btn primary" id="focusGoRewards">${L('View rewards', 'Lihat hadiah')}</button>
     `;
     document.getElementById('focusGoRewards').onclick = () => switchView('rewards');
     return;
@@ -350,12 +501,12 @@ function renderFocus(countedTasks, isFuture = false) {
   }
 
   focusEl.innerHTML = `
-    <p class="eyebrow">Mulai dari sini</p>
+    <p class="eyebrow">${L('Start here', 'Mulai dari sini')}</p>
     <p class="focus-name">${esc(next.name)}</p>
-    <p class="hint">Cukup yang ini dulu. Yang lain boleh menunggu.</p>
+    <p class="hint">${L('Just this one first. Everything else can wait.', 'Cukup yang ini dulu. Yang lain boleh menunggu.')}</p>
     <div class="row">
-      <button class="btn primary" id="focusDoneBtn" data-tid="${next.id}">Sudah selesai</button>
-      <button class="btn" id="focusSkipBtn" data-tid="${next.id}">Lewati dulu</button>
+      <button class="btn primary" id="focusDoneBtn" data-tid="${next.id}">${L('Done', 'Sudah selesai')}</button>
+      <button class="btn" id="focusSkipBtn" data-tid="${next.id}">${L('Skip for now', 'Lewati dulu')}</button>
     </div>
   `;
 
@@ -430,7 +581,7 @@ function bindTodayEvents() {
         await api.deactivateTask(tid);
         await loadTodayData();
         await refreshInactiveCount();
-        showToast('Langkah dinonaktifkan. Riwayat tetap tersimpan.', async () => {
+        showToast(L('Step deactivated. History kept.', 'Langkah dinonaktifkan. Riwayat tetap tersimpan.'), async () => {
           await api.reactivateTask(tid);
           await loadTodayData();
           await refreshInactiveCount();
@@ -453,7 +604,7 @@ function bindTodayEvents() {
         await api.deactivateGroup(gid);
         await loadTodayData();
         await refreshInactiveCount();
-        showToast('Kelompok dinonaktifkan. Riwayat tetap tersimpan.', async () => {
+        showToast(L('Group deactivated. History kept.', 'Kelompok dinonaktifkan. Riwayat tetap tersimpan.'), async () => {
           await api.reactivateGroup(gid);
           await loadTodayData();
           await refreshInactiveCount();
@@ -464,7 +615,7 @@ function bindTodayEvents() {
     document.querySelectorAll('.add-t-btn').forEach(btn => {
       btn.onclick = async () => {
         const gid = btn.dataset.gid;
-        const saved = await api.saveTask({ group_id: gid, name: 'Langkah baru', core: 0 });
+        const saved = await api.saveTask({ group_id: gid, name: L('New step', 'Langkah baru'), core: 0 });
         await loadTodayData();
         const el = document.getElementById(`t-${saved.id}`);
         if (el) { el.focus(); el.select(); }
@@ -474,7 +625,7 @@ function bindTodayEvents() {
     const addGroupBtn = document.getElementById('addGroupBtn');
     if (addGroupBtn) {
       addGroupBtn.onclick = async () => {
-        await api.saveGroup({ name: 'Kelompok baru', sort: todayData.groups.length });
+        await api.saveGroup({ name: L('New group', 'Kelompok baru'), sort: todayData.groups.length });
         await loadTodayData();
       };
     }
@@ -502,32 +653,34 @@ async function loadRewards() {
   document.getElementById('navPts').textContent = bal;
 
   const container = document.getElementById('rewardsContainer');
+  const icons = ['♡', '✿', '☆', '✦'];
   let html = '';
 
-  rewards.forEach(r => {
+  rewards.forEach((r, idx) => {
     const canClaim = bal >= r.cost;
     const pct = Math.min(100, Math.round((bal / Math.max(1, r.cost)) * 100));
 
     if (editMode) {
       html += `
-        <div class="card">
+        <div class="reward-m6">
           <div class="row" style="flex-wrap:nowrap">
-            <input class="text-in rname-in" data-rid="${r.id}" value="${esc(r.name)}" placeholder="Nama hadiah" aria-label="Nama hadiah">
-            <input class="text-in num-in rcost-in" data-rid="${r.id}" type="number" min="1" max="999" value="${r.cost}" aria-label="Biaya poin">
-            <button class="icon-btn deact-r-btn" data-rid="${r.id}" aria-label="Hapus hadiah">×</button>
+            <input class="text-in rname-in" data-rid="${r.id}" value="${esc(r.name)}" placeholder="${L('Reward name', 'Nama hadiah')}" aria-label="${L('Reward name', 'Nama hadiah')}">
+            <input class="text-in num-in rcost-in" data-rid="${r.id}" type="number" min="1" max="999" value="${r.cost}" aria-label="${L('Points cost', 'Harga poin')}">
+            <button class="icon-btn deact-r-btn" data-rid="${r.id}" aria-label="${L('Remove reward', 'Hapus hadiah')}">×</button>
           </div>
         </div>
       `;
     } else {
       html += `
-        <div class="card">
-          <p style="margin:0;font-weight:600">${esc(r.name)}</p>
-          <p class="muted small num" style="margin:0 0 12px">${r.cost} poin</p>
-          <div class="progress gold" style="margin-bottom:12px">
-            <span style="width:${pct}%"></span>
+        <div class="reward-m6">
+          <div>
+            <div class="star">${icons[idx % icons.length]}</div>
+            <h4>${esc(r.name)}</h4>
+            <p class="num">${r.cost} ${L('points', 'poin')}</p>
+            <div class="progress" style="margin:10px 0 0"><span style="width:${pct}%"></span></div>
           </div>
-          <button class="btn ${canClaim ? 'gold' : ''} claim-btn" data-rid="${r.id}" ${canClaim ? '' : 'disabled'}>
-            ${canClaim ? 'Ambil' : `Kurang ${r.cost - bal}`}
+          <button class="btn claim-btn" style="margin-top:12px;width:fit-content" data-rid="${r.id}" ${canClaim ? '' : 'disabled'}>
+            ${canClaim ? L('Redeem', 'Tukar') : L(`Need ${r.cost - bal} more`, `Kurang ${r.cost - bal} lagi`)}
           </button>
         </div>
       `;
@@ -535,14 +688,14 @@ async function loadRewards() {
   });
 
   if (editMode) {
-    html += `<button class="btn dashed" id="addRewardBtn" style="grid-column:1/-1">+ Tambah hadiah</button>`;
+    html += `<button class="btn dashed" id="addRewardBtn" style="grid-column:1/-1">+ ${L('Create reward', 'Buat hadiah')}</button>`;
   }
 
   container.innerHTML = html;
 
   const claimsList = document.getElementById('claimsList');
   if (claims.length === 0) {
-    claimsList.innerHTML = '<li class="muted">Belum ada hadiah yang diambil.</li>';
+    claimsList.innerHTML = `<li class="muted">${L('No rewards claimed yet.', 'Belum ada hadiah yang ditukar.')}</li>`;
   } else {
     claimsList.innerHTML = claims.slice(0, 10).map(c => `
       <li>
@@ -550,6 +703,30 @@ async function loadRewards() {
         <span>${fmtShortDay(c.day)}</span>
       </li>
     `).join('');
+  }
+
+  const achEl = document.getElementById('rewardsAchievementsContainer');
+  if (achEl) {
+    const sum = await api.getLifeOsSummary(currentDay);
+    const achDefs = {
+      'first-step': { name: L('First step', 'Langkah pertama'), desc: L('Complete your first task', 'Selesaikan langkah pertamamu') },
+      'streak-7': { name: L('Consistency week', 'Pekan konsisten'), desc: L('7-day active streak', 'Aktif 7 hari beruntun') },
+      'checks-25': { name: L('Little by little', 'Sedikit demi sedikit'), desc: L('25 completed steps', '25 langkah terselesaikan') },
+      'focus-60': { name: L('Deep calm focus', 'Fokus tenang mendalam'), desc: L('60m focus logged', '60m fokus tercatat') },
+      'self-care-1': { name: L('Kind treat', 'Apresiasi diri'), desc: L('Claim your first reward', 'Tukar hadiah pertamamu') },
+    };
+    achEl.innerHTML = (sum.achievements || []).map(a => {
+      const def = achDefs[a.id] || { name: a.id, desc: '' };
+      return `
+        <div class="listrow">
+          <div>
+            <b>${def.name}</b>
+            <div class="muted small">${def.desc} · <span class="num">${a.progress}/${a.target}</span></div>
+          </div>
+          <span class="pill-m6">${a.unlocked ? L('Unlocked ✓', 'Terbuka ✓') : L('Not unlocked', 'Belum terbuka')}</span>
+        </div>
+      `;
+    }).join('');
   }
 
   if (editMode) {
@@ -585,7 +762,7 @@ async function loadRewards() {
         const rid = btn.dataset.rid;
         await api.deactivateReward(rid);
         await loadRewards();
-        showToast('Hadiah dihapus.', async () => {
+        showToast(L('Reward deleted.', 'Hadiah dihapus.'), async () => {
           await api.reactivateReward(rid);
           await loadRewards();
         });
@@ -595,7 +772,7 @@ async function loadRewards() {
     const addBtn = document.getElementById('addRewardBtn');
     if (addBtn) {
       addBtn.onclick = async () => {
-        await api.saveReward({ name: 'Hadiah baru', cost: 10, sort: rewards.length });
+        await api.saveReward({ name: L('New reward', 'Hadiah baru'), cost: 10, sort: rewards.length });
         await loadRewards();
       };
     }
@@ -607,17 +784,17 @@ async function loadRewards() {
           const claim = await api.claimReward({ rewardId: rid, day: currentDay });
           await loadTodayData();
           await loadRewards();
-          showToast(`Diambil: ${claim.name}. Nikmati tanpa rasa bersalah.`, async () => {
+          showToast(L(`Claimed: ${claim.name}. Enjoy guilt-free!`, `Ditukar: ${claim.name}. Nikmati tanpa rasa bersalah.`), async () => {
             const ok = await api.undoClaim(claim.id);
             if (!ok) {
-              showToast('Sudah tersinkronisasi, tidak bisa diurungkan.');
+              showToast(L('Already synced, cannot undo.', 'Sudah tersinkronisasi, tidak bisa dibatalkan.'));
             } else {
               await loadTodayData();
               await loadRewards();
             }
           });
         } catch (err) {
-          showToast('Poin tidak mencukupi.');
+          showToast(L('Not enough points.', 'Poin tidak mencukupi.'));
         }
       };
     });
@@ -634,26 +811,28 @@ async function loadDashboard() {
       lifeState.reportModule = mod;
       switchView('reports');
     },
+    onOpenRewards: () => switchView('rewards'),
+    onOpenToday: () => switchView('today'),
     showToast,
   });
   const stats = await api.getDashboard({ period: currentPeriod, day: currentDay });
 
-  document.getElementById('periodNote').textContent = `${stats.label} · ${stats.rate}% selesai`;
+  document.getElementById('periodNote').textContent = `${stats.label} · ${stats.rate}% ${L('done', 'selesai')}`;
   document.getElementById('mRate').textContent = stats.rate;
   document.getElementById('mDone').textContent = stats.totalDone;
   document.getElementById('mDays').innerHTML = `${stats.activeDays}<small>/${stats.daysCount}</small>`;
-  document.getElementById('mStreakText').textContent = `hari aktif · beruntun ${stats.currentStreak} hari`;
+  document.getElementById('mStreakText').textContent = L(`active days · ${stats.currentStreak}-day streak`, `hari aktif · beruntun ${stats.currentStreak} hari`);
   document.getElementById('mPts').textContent = `+${stats.pointsEarned}`;
 
   const maxDayCount = Math.max(...stats.dailyChart.map(d => d.count), 5);
-  document.getElementById('chartMaxCount').textContent = `maks ${maxDayCount}`;
+  document.getElementById('chartMaxCount').textContent = `${L('max', 'maks')} ${maxDayCount}`;
 
   const chartEl = document.getElementById('dailyChart');
   chartEl.innerHTML = stats.dailyChart.map(d => {
     const heightPct = d.count === 0 ? 0 : Math.max(6, Math.round((d.count / maxDayCount) * 100));
     return `
       <div class="bc">
-        <i class="${d.isToday ? 'today' : ''}" style="height:${heightPct}%" title="${d.count} langkah"></i>
+        <i class="${d.isToday ? 'today' : ''}" style="height:${heightPct}%" title="${d.count} ${L('steps', 'langkah')}"></i>
         <span>${esc(d.dow)}</span>
       </div>
     `;
@@ -665,7 +844,7 @@ async function loadDashboard() {
       <div class="item-top"><span>${esc(g.name)}</span><span>${g.rate}%</span></div>
       <div class="progress"><span style="width:${g.rate}%"></span></div>
     </div>
-  `).join('') || '<p class="muted small">Belum ada kelompok.</p>';
+  `).join('') || `<p class="muted small">${L('No groups yet.', 'Belum ada kelompok.')}</p>`;
 
   const taskStatsEl = document.getElementById('taskStatsContainer');
   taskStatsEl.innerHTML = stats.taskStats.slice(0, 8).map(t => `
@@ -674,7 +853,7 @@ async function loadDashboard() {
         <span>
           ${esc(t.name)}
           ${t.freq && t.freq !== 'daily' ? `<span class="freq-tag ${t.freq === 'monthly' ? 'monthly' : ''}">${esc(freqLabel(t))}</span>` : ''}
-          ${!t.isActive ? `<span class="tag">Nonaktif sejak ${fmtShortMs(t.deactivatedAt)}</span>` : ''}
+          ${!t.isActive ? `<span class="tag">${L('Inactive since', 'Nonaktif sejak')} ${fmtShortMs(t.deactivatedAt)}</span>` : ''}
         </span>
         <span>${t.done}/${t.totalDays}</span>
       </div>
@@ -682,7 +861,7 @@ async function loadDashboard() {
         <span style="width:${t.rate}%;${!t.isActive ? 'background:var(--box-line)' : ''}"></span>
       </div>
     </div>
-  `).join('') || '<p class="muted small">Belum ada langkah.</p>';
+  `).join('') || `<p class="muted small">${L('No steps yet.', 'Belum ada langkah.')}</p>`;
 }
 
 document.querySelectorAll('#periodSeg button').forEach(btn => {
@@ -696,13 +875,13 @@ document.querySelectorAll('#periodSeg button').forEach(btn => {
 
 // --- RENDER RIWAYAT ---
 async function loadLogView() {
-  document.getElementById('calMonthTitle').textContent = `${MONTHS[calMonth - 1]} ${calYear}`;
+  document.getElementById('calMonthTitle').textContent = `${activeMonths()[calMonth - 1]} ${calYear}`;
 
   const activity = await api.getMonthActivity({ year: calYear, month: calMonth });
   const calEl = document.getElementById('calContainer');
 
   let html = '';
-  ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].forEach(d => {
+  (lifeState.lang === 'id' ? ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'] : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']).forEach(d => {
     html += `<div class="dow">${d}</div>`;
   });
 
@@ -727,7 +906,7 @@ async function loadLogView() {
 
     html += `
       <button class="day ${levelClass}" data-day="${dStr}" aria-pressed="${isSelected}"
-              ${isFuture ? 'disabled' : ''} aria-label="${d} ${MONTHS[calMonth - 1]}">
+              ${isFuture ? 'disabled' : ''} aria-label="${d} ${activeMonths()[calMonth - 1]}">
         ${d}
       </button>
     `;
@@ -749,13 +928,13 @@ async function loadDayLogDetail(day) {
   const log = await api.getDayLog(day);
 
   document.getElementById('dayLogLabel').textContent = formatDisplayDate(day);
-  document.getElementById('dayLogDone').innerHTML = `${log.completedTasks}<small> dari ${log.totalTasks} langkah</small>`;
-  document.getElementById('dayLogPoints').textContent = `+${log.completedTasks} poin`;
+  document.getElementById('dayLogDone').innerHTML = `${log.completedTasks}<small> ${L('of', 'dari')} ${log.totalTasks} ${L('steps', 'langkah')}</small>`;
+  document.getElementById('dayLogPoints').textContent = `+${log.completedTasks} ${L('points', 'poin')}`;
   document.getElementById('dayLogProgressBar').firstElementChild.style.width = `${log.rate}%`;
 
   const container = document.getElementById('dayLogGroups');
   if (log.groups.length === 0) {
-    container.innerHTML = '<div class="card"><p class="muted" style="margin:0">Tidak ada catatan pada hari ini.</p></div>';
+    container.innerHTML = `<div class="card"><p class="muted" style="margin:0">${L('No records for this day.', 'Tidak ada catatan pada hari ini.')}</p></div>`;
     return;
   }
 
@@ -771,7 +950,7 @@ async function loadDayLogDetail(day) {
             <span class="ico ${t.done ? 'ok' : 'no'}">${t.done ? '✓' : '–'}</span>
             <span class="nm ${t.done ? '' : 'muted'}">
               ${esc(t.name)}
-              ${!t.isActive ? `<span class="tag">Nonaktif sejak ${fmtShortMs(t.deactivatedAt)}</span>` : ''}
+              ${!t.isActive ? `<span class="tag">${L('Inactive since', 'Nonaktif sejak')} ${fmtShortMs(t.deactivatedAt)}</span>` : ''}
             </span>
             <time>${esc(t.time)}</time>
           </li>
@@ -807,30 +986,33 @@ async function loadInactiveView() {
 
   const tasksList = document.getElementById('offTasksList');
   if (tasks.length === 0) {
-    tasksList.innerHTML = '<p class="muted small" style="margin:8px 0 0">Tidak ada langkah nonaktif.</p>';
+    tasksList.innerHTML = `<p class="muted small" style="margin:8px 0 0">${L('No inactive steps.', 'Tidak ada langkah nonaktif.')}</p>`;
   } else {
     tasksList.innerHTML = tasks.map(t => `
       <div class="off">
         <div>
           <p>${esc(t.name)}</p>
-          <p class="muted small">${esc(t.group_name || 'Lainnya')} · dinonaktifkan ${fmtShortMs(t.deactivated_at)} · ${t.completed_count} kali selesai</p>
+          <p class="muted small">${esc(t.group_name || L('Other', 'Lainnya'))} · ${L('deactivated', 'dinonaktifkan')} ${fmtShortMs(t.deactivated_at)} · ${t.completed_count} ${L('completions', 'kali selesai')}</p>
         </div>
-        <button class="btn react-t-btn" data-tid="${t.id}">Aktifkan lagi</button>
+        <div class="row" style="gap:8px;flex-wrap:wrap;justify-content:flex-end">
+          <button class="btn react-t-btn" data-tid="${t.id}">${tr(lifeState.lang, 'restore_btn')}</button>
+          <button class="btn del-perm-t-btn" data-tid="${t.id}" data-tname="${esc(t.name)}" style="color:var(--miss);border-color:var(--miss-soft)">${tr(lifeState.lang, 'delete_perm_btn')}</button>
+        </div>
       </div>
     `).join('');
   }
 
   const groupsList = document.getElementById('offGroupsList');
   if (groups.length === 0) {
-    groupsList.innerHTML = '<p class="muted small" style="margin:8px 0 0">Tidak ada kelompok nonaktif.</p>';
+    groupsList.innerHTML = `<p class="muted small" style="margin:8px 0 0">${L('No inactive groups.', 'Tidak ada kelompok nonaktif.')}</p>`;
   } else {
     groupsList.innerHTML = groups.map(g => `
       <div class="off">
         <div>
           <p>${esc(g.name)}</p>
-          <p class="muted small">${g.task_count} langkah · dinonaktifkan ${fmtShortMs(g.deactivated_at)}</p>
+          <p class="muted small">${g.task_count} ${L('steps', 'langkah')} · ${L('deactivated', 'dinonaktifkan')} ${fmtShortMs(g.deactivated_at)}</p>
         </div>
-        <button class="btn react-g-btn" data-gid="${g.id}">Aktifkan lagi</button>
+        <button class="btn react-g-btn" data-gid="${g.id}">${tr(lifeState.lang, 'restore_btn')}</button>
       </div>
     `).join('');
   }
@@ -840,7 +1022,22 @@ async function loadInactiveView() {
       await api.reactivateTask(btn.dataset.tid);
       await loadInactiveView();
       await loadTodayData();
-      showToast('Langkah diaktifkan kembali.');
+      showToast(L('Step restored.', 'Langkah dipulihkan.'));
+    };
+  });
+
+  document.querySelectorAll('.del-perm-t-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const tname = btn.dataset.tname || L('this step', 'langkah ini');
+      const ok = window.confirm(L(
+        `Permanently delete "${tname}" and its completion history? This cannot be undone.`,
+        `Hapus permanen "${tname}" beserta riwayat ceklisnya? Tindakan ini tidak bisa dibatalkan.`,
+      ));
+      if (!ok) return;
+      await api.deleteTaskPermanently(btn.dataset.tid);
+      await loadInactiveView();
+      await loadTodayData();
+      showToast(L('Step permanently deleted.', 'Langkah dihapus permanen.'));
     };
   });
 
@@ -849,7 +1046,7 @@ async function loadInactiveView() {
       await api.reactivateGroup(btn.dataset.gid);
       await loadInactiveView();
       await loadTodayData();
-      showToast('Kelompok diaktifkan kembali.');
+      showToast(L('Group restored.', 'Kelompok dipulihkan.'));
     };
   });
 }
@@ -859,12 +1056,13 @@ function updateSidebarSync(s) {
   document.getElementById('sidebarSyncSub').textContent = `Port ${s.syncPort}`;
   if (s.pairedDevices && s.pairedDevices.length > 0) {
     const latest = [...s.pairedDevices].sort((a, b) => (b.last_synced_at || 0) - (a.last_synced_at || 0))[0];
+    const loc = lifeState.lang === 'id' ? 'id-ID' : 'en-US';
     const timeStr = latest.last_synced_at
-      ? new Date(latest.last_synced_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-      : 'terhubung';
+      ? new Date(latest.last_synced_at).toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' })
+      : L('connected', 'terhubung');
     document.getElementById('sidebarSyncDevice').textContent = `${latest.device_name} · ${timeStr}`;
   } else {
-    document.getElementById('sidebarSyncDevice').textContent = 'Menunggu ponsel';
+    document.getElementById('sidebarSyncDevice').textContent = L('Waiting for phone', 'Menunggu ponsel');
   }
 }
 
@@ -873,26 +1071,45 @@ async function loadSettingsView() {
   updateSidebarSync(s);
 
   const verEl = document.getElementById('appVersionLabel');
-  if (verEl && s.appVersion) verEl.textContent = `Versi ${s.appVersion}`;
+  if (verEl && s.appVersion) verEl.textContent = `${L('Version', 'Versi')} ${s.appVersion}`;
+  if (s.prefs) applyPreferences(s.prefs);
+
+  const ipEl = document.getElementById('desktopIpBadge');
+  if (ipEl) {
+    const hostDisp = (s.bindHost && s.bindHost !== '0.0.0.0') ? s.bindHost : (s.localIp || 'localhost');
+    ipEl.textContent = `${hostDisp}:${s.syncPort}`;
+  }
+
+  const netHostIn = document.getElementById('settingsSyncHost');
+  const netPortIn = document.getElementById('settingsSyncPort');
+  const netSuggest = document.getElementById('desktopIpSuggestions');
+  if (netHostIn) netHostIn.value = s.bindHost || '0.0.0.0';
+  if (netPortIn) netPortIn.value = s.configuredPort || s.syncPort || 47800;
+  if (netSuggest) {
+    const opts = [{ address: '0.0.0.0', iface: L('All interfaces', 'Semua antarmuka') }, ...(s.localIps || [])];
+    netSuggest.innerHTML = opts.map(o => `<option value="${esc(o.address)}">${esc(o.iface)}</option>`).join('');
+  }
+  updateSidebarSync(s);
 
   document.getElementById('settingsPairingCode').textContent = s.pairingCode;
-  document.getElementById('syncStatusBadge').textContent = s.pairedDevices.length > 0 ? 'Tersambung' : 'Menunggu';
+  document.getElementById('syncStatusBadge').textContent = s.pairedDevices.length > 0 ? L('Connected', 'Terhubung') : L('Waiting', 'Menunggu');
 
   const list = document.getElementById('pairedDevicesList');
   if (s.pairedDevices.length === 0) {
-    list.innerHTML = '<li class="muted">Belum ada perangkat ponsel yang terhubung. Buka Langkah Kecil di ponsel untuk menyambungkan otomatis.</li>';
+    list.innerHTML = `<li class="muted">${L('No phone paired yet. Open Lifolio on your phone to connect over LAN.', 'Belum ada perangkat ponsel yang terhubung. Buka Lifolio di ponsel untuk menyambungkan lewat LAN.')}</li>`;
   } else {
+    const loc = lifeState.lang === 'id' ? 'id-ID' : 'en-US';
     list.innerHTML = s.pairedDevices.map(d => {
-      const syncTime = d.last_synced_at ? new Date(d.last_synced_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Belum pernah';
+      const syncTime = d.last_synced_at ? new Date(d.last_synced_at).toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' }) : L('Never', 'Belum pernah');
       const expired = d.expires_at && Date.now() > d.expires_at;
-      const expStr = d.expires_at ? (expired ? 'Kedaluwarsa' : `Berlaku hingga ${fmtShortMs(d.expires_at)}`) : '';
+      const expStr = d.expires_at ? (expired ? L('Expired', 'Kedaluwarsa') : `${L('Valid until', 'Berlaku hingga')} ${fmtShortMs(d.expires_at)}`) : '';
       return `
         <li>
           <div>
             <b>${esc(d.device_name)}</b><br>
-            <span class="muted small">Terakhir sinkron: ${syncTime}${expStr ? ' · ' + expStr : ''}</span>
+            <span class="muted small">${L('Last sync', 'Terakhir sinkron')}: ${syncTime}${expStr ? ' · ' + expStr : ''}</span>
           </div>
-          <button class="btn remove-dev-btn" data-did="${d.device_id}">Putuskan</button>
+          <button class="btn remove-dev-btn" data-did="${d.device_id}">${L('Disconnect', 'Putuskan')}</button>
         </li>
       `;
     }).join('');
@@ -901,7 +1118,7 @@ async function loadSettingsView() {
       btn.onclick = async () => {
         await api.removeDevice(btn.dataset.did);
         await loadSettingsView();
-        showToast('Perangkat diputuskan.');
+        showToast(L('Device disconnected.', 'Perangkat diputuskan.'));
       };
     });
   }
@@ -912,7 +1129,7 @@ async function loadSettingsView() {
     btn.onclick = async () => {
       await api.setTokenTtl(d);
       await loadSettingsView();
-      showToast(`Masa berlaku token baru: ${d} hari.`);
+      showToast(L(`New token lifetime: ${d} days.`, `Masa berlaku token baru: ${d} hari.`));
     };
   });
 
@@ -944,24 +1161,152 @@ async function loadSettingsView() {
 document.getElementById('rotateCodeBtn').onclick = async () => {
   const newCode = await api.rotateCode();
   document.getElementById('settingsPairingCode').textContent = newCode;
-  showToast('Kode sambungan baru dibuat.');
+  showToast(L('New pairing code generated.', 'Kode sambungan baru dibuat.'));
 };
+
+const saveNetBtn = document.getElementById('saveSyncNetBtn');
+if (saveNetBtn) {
+  saveNetBtn.onclick = async () => {
+    const host = (document.getElementById('settingsSyncHost').value || '0.0.0.0').trim() || '0.0.0.0';
+    const port = parseInt(document.getElementById('settingsSyncPort').value, 10);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      showToast(L('Invalid port (must be 1–65535).', 'Port tidak valid (harus 1–65535).'));
+      return;
+    }
+    try {
+      const res = await api.setNetworkConfig({ host, port });
+      await loadSettingsView();
+      showToast(L(`Sync server listening on ${res.bindHost}:${res.syncPort}`, `Server sinkron aktif di ${res.bindHost}:${res.syncPort}`));
+    } catch (err) {
+      showToast(`${L('Failed to apply endpoint', 'Gagal menerapkan endpoint')}: ${err.message}`);
+    }
+  };
+}
+const resetNetBtn = document.getElementById('resetSyncNetBtn');
+if (resetNetBtn) {
+  resetNetBtn.onclick = async () => {
+    try {
+      await api.setNetworkConfig({ host: '0.0.0.0', port: 47800 });
+      await loadSettingsView();
+      showToast(L('Sync endpoint reset to 0.0.0.0:47800', 'Endpoint sinkron diatur ulang ke 0.0.0.0:47800'));
+    } catch (err) {
+      showToast(`${L('Reset failed', 'Gagal mengatur ulang')}: ${err.message}`);
+    }
+  };
+}
 
 document.querySelectorAll('#themeSeg button').forEach(btn => {
   btn.onclick = () => applyTheme(btn.dataset.t);
 });
 
-// --- NAVIGATION ---
-const viewTitles = {
-  today: 'Hari ini',
-  rewards: 'Hadiah',
-  dash: 'Dasbor Personal Life OS',
-  reports: 'Laporan Modul',
-  log: 'Riwayat',
-  off: 'Nonaktif',
-  audit: 'Audit Log · API & Sync',
-  settings: 'Pengaturan'
+document.getElementById('saveUserNameBtn').onclick = async () => {
+  const val = document.getElementById('userNameInput').value.trim();
+  if (!val) return;
+  const prefs = await api.savePrefs({ userName: val });
+  applyPreferences(prefs);
+  showToast(L(`Greeting updated for ${prefs.userName}!`, `Sapaan diperbarui untuk ${prefs.userName}!`));
 };
+
+document.querySelectorAll('#paletteGrid [data-palette]').forEach(btn => {
+  btn.onclick = async () => {
+    const prefs = await api.savePrefs({ colorPalette: btn.dataset.palette });
+    applyPreferences(prefs);
+    showToast(`${L('Palette', 'Palet')}: ${PALETTE_LABELS[prefs.colorPalette] || prefs.colorPalette}`);
+  };
+});
+
+document.querySelectorAll('#langSeg [data-lang]').forEach(btn => {
+  btn.onclick = async () => {
+    const prefs = await api.savePrefs({ language: btn.dataset.lang });
+    applyPreferences(prefs);
+    switchView(currentView);
+    showToast(prefs.language === 'id' ? 'Bahasa Indonesia aktif.' : 'English language active.');
+  };
+});
+
+document.getElementById('showChartsSwitch').onclick = async () => {
+  const cur = document.getElementById('showChartsSwitch').getAttribute('aria-checked') === 'true';
+  const prefs = await api.savePrefs({ showReportCharts: !cur });
+  applyPreferences(prefs);
+  showToast(prefs.showReportCharts ? L('Report charts shown.', 'Grafik laporan ditampilkan.') : L('Report charts hidden.', 'Grafik laporan disembunyikan.'));
+};
+
+document.getElementById('exportJsonBtn').onclick = async () => {
+  const payload = await api.exportAllDataJson();
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `lifolio-backup-${currentDay}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  document.getElementById('backupStatusText').textContent = L(`Exported JSON backup (${currentDay}).`, `Cadangan JSON diekspor (${currentDay}).`);
+  showToast(L('JSON backup exported.', 'Cadangan JSON diekspor.'));
+};
+
+document.getElementById('importJsonBtn').onclick = () => {
+  document.getElementById('importJsonInput').click();
+};
+document.getElementById('importJsonInput').onchange = async e => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    await api.importAllDataJson(parsed);
+    const prefs = await api.getPrefs();
+    applyPreferences(prefs);
+    await loadTodayData();
+    await loadSettingsView();
+    document.getElementById('backupStatusText').textContent = L(`Restored backup from ${file.name}.`, `Cadangan dipulihkan dari ${file.name}.`);
+    showToast(L('Backup restored successfully!', 'Cadangan berhasil dipulihkan!'));
+  } catch (err) {
+    showToast(`${L('Restore failed', 'Gagal memulihkan')}: ${err.message}`);
+  }
+  e.target.value = '';
+};
+
+const searchEl = document.getElementById('globalSearchInput');
+if (searchEl) {
+  searchEl.oninput = () => {
+    lifeState.searchQuery = searchEl.value;
+    if (currentView === 'dash') loadDashboard();
+    else if (currentView === 'reports') loadModuleReportsView({ todayStr: currentDay, showToast, onAfterMutation: handleQuickAddSaved });
+  };
+}
+
+// --- NAVIGATION ---
+function getViewTitle(viewName) {
+  if (viewName === 'dash') return `${tr(lifeState.lang, 'hello')}, ${appPrefs.userName || 'User'} ♡`;
+  if (viewName === 'today') return tr(lifeState.lang, 'nav_today');
+  if (viewName === 'rewards') return tr(lifeState.lang, 'nav_rewards');
+  if (viewName === 'reports') return tr(lifeState.lang, `mod_${lifeState.reportModule}`);
+  if (viewName === 'log') return tr(lifeState.lang, 'nav_history');
+  if (viewName === 'off') return tr(lifeState.lang, 'nav_inactive');
+  if (viewName === 'audit') return tr(lifeState.lang, 'nav_audit');
+  if (viewName === 'settings') return tr(lifeState.lang, 'nav_settings');
+  return 'Lifolio';
+}
+
+function getModuleMeta(mod) {
+  const map = {
+    productivity: { eyebrow: L('PLAN YOUR DAY', 'RENCANAKAN HARIMU'), sub: L('A gentle place for your plans and priorities.', 'Ruang tenang untuk rencana dan prioritasmu.') },
+    finance: { eyebrow: L('YOUR MONEY, YOUR PACE', 'KEUANGANMU, RITMEMU'), sub: L('Keep track without making it complicated.', 'Catat keuangan tanpa membuatnya rumit.') },
+    health: { eyebrow: L('CARE FOR YOUR BODY', 'RAWAT TUBUHMU'), sub: L('Track gently. Progress, not perfection.', 'Catat perlahan. Progres, bukan kesempurnaan.') },
+    wellness: { eyebrow: L('A MOMENT FOR YOURSELF', 'WAKTU UNTUK DIRIMU'), sub: L('Notice how you feel, without judging it.', 'Kenali perasaanmu tanpa menghakimi.') },
+    menstrual: { eyebrow: L('YOUR CYCLE, YOUR RECORD', 'SIKLUSMU, CATATANMU'), sub: L('Personal cycle notes and estimates.', 'Catatan siklus pribadi dan prakiraan.') },
+    notes: { eyebrow: L('YOUR THOUGHTS LIVE HERE', 'TEMPAT PIKIRANMU TINGGAL'), sub: L('A quiet space to write things down.', 'Ruang tenang untuk menuliskan segalanya.') },
+  };
+  return map[mod] || { eyebrow: '', sub: '' };
+}
+
+function getViewSub(viewName) {
+  if (viewName === 'dash') return L('A little progress is still progress.', 'Kemajuan kecil tetaplah kemajuan.');
+  if (viewName === 'reports') return getModuleMeta(lifeState.reportModule).sub;
+  if (viewName === 'rewards') return L('Earn points for showing up for yourself.', 'Kumpulkan poin dengan merawat dirimu.');
+  if (viewName === 'settings') return L('Only app-level preferences and sync live here.', 'Pengaturan aplikasi dan sinkronisasi ada di sini.');
+  return '';
+}
 
 function switchView(viewName) {
   if (document.activeElement && document.activeElement.tagName === 'INPUT') {
@@ -973,6 +1318,7 @@ function switchView(viewName) {
   }
   if (viewName !== 'dash') {
     lifeState.customizeMode = false;
+    lifeState.editSpaces = false;
   }
 
   document.querySelectorAll('.view').forEach(v => {
@@ -985,22 +1331,34 @@ function switchView(viewName) {
     else n.removeAttribute('aria-current');
   });
 
-  document.getElementById('viewTitle').textContent = viewTitles[viewName] || 'Langkah Kecil';
+  document.getElementById('viewTitle').textContent = getViewTitle(viewName);
+  const subEl = document.getElementById('viewSub');
+  if (subEl) {
+    const subTxt = getViewSub(viewName);
+    subEl.textContent = subTxt;
+    subEl.hidden = !subTxt;
+  }
 
   const editBtn = document.getElementById('editBtn');
   const canEdit = viewName === 'today' || viewName === 'rewards';
   editBtn.hidden = !canEdit;
   editBtn.setAttribute('aria-pressed', editMode ? 'true' : 'false');
-  editBtn.textContent = editMode ? 'Selesai mengubah' : 'Ubah';
+  editBtn.textContent = editMode ? tr(lifeState.lang, 'done_btn') : tr(lifeState.lang, 'edit_btn');
   document.getElementById('calToggleBtn').hidden = viewName !== 'today';
   document.getElementById('dashCustomizeBtn').hidden = viewName !== 'dash';
   document.getElementById('dashCustomizeBtn').setAttribute('aria-pressed', lifeState.customizeMode ? 'true' : 'false');
-  document.getElementById('dashCustomizeBtn').textContent = lifeState.customizeMode ? '✓ Selesai atur' : '⊞ Atur Widget';
+  document.getElementById('dashCustomizeBtn').textContent = lifeState.customizeMode ? `✓ ${tr(lifeState.lang, 'done_btn')}` : tr(lifeState.lang, 'widgets_btn');
   document.getElementById('dashCatalogBtn').hidden = !(viewName === 'dash' && lifeState.customizeMode);
   document.getElementById('dashResetBtn').hidden = !(viewName === 'dash' && lifeState.customizeMode);
   document.getElementById('auditClearBtn').hidden = viewName !== 'audit';
 
-  if (viewName !== 'today') {
+  if (viewName === 'reports') {
+    document.getElementById('currentDate').textContent = getModuleMeta(lifeState.reportModule).eyebrow || formatDisplayDate(currentDay);
+  } else if (viewName === 'rewards') {
+    document.getElementById('currentDate').textContent = L('CELEBRATE YOUR LITTLE WINS', 'RAYAKAN KEMENANGAN KECILMU');
+  } else if (viewName === 'settings') {
+    document.getElementById('currentDate').textContent = L('MAKE IT YOURS', 'SESUAIKAN DENGANMU');
+  } else if (viewName !== 'today') {
     document.getElementById('currentDate').textContent = formatDisplayDate(currentDay);
   }
 
@@ -1009,7 +1367,7 @@ function switchView(viewName) {
   if (viewName === 'today') loadTodayData();
   else if (viewName === 'rewards') loadRewards();
   else if (viewName === 'dash') loadDashboard();
-  else if (viewName === 'reports') loadModuleReportsView({ todayStr: currentDay, showToast });
+  else if (viewName === 'reports') loadModuleReportsView({ todayStr: currentDay, showToast, onAfterMutation: handleQuickAddSaved });
   else if (viewName === 'log') loadLogView();
   else if (viewName === 'off') loadInactiveView();
   else if (viewName === 'audit') loadAuditView({ todayStr: currentDay, showToast });
@@ -1034,17 +1392,35 @@ document.getElementById('dashCustomizeBtn').onclick = () => {
 document.getElementById('dashCatalogBtn').onclick = () => openWidgetCatalogModal({
   todayStr: currentDay,
   onOpenReport: (mod) => { lifeState.reportModule = mod; switchView('reports'); },
+  onOpenRewards: () => switchView('rewards'),
+  onOpenToday: () => switchView('today'),
   showToast,
 });
 document.getElementById('dashResetBtn').onclick = async () => {
   await api.resetDashboardLayout();
-  showToast('Tata letak dasbor dikembalikan ke bawaan.');
+  showToast(L('Dashboard layout reset to default.', 'Tata letak dasbor dikembalikan ke bawaan.'));
   loadDashboard();
 };
+
+const editSpBtn = document.getElementById('editSpacesBtn');
+if (editSpBtn) {
+  editSpBtn.onclick = () => {
+    lifeState.editSpaces = !lifeState.editSpaces;
+    loadDashboard();
+  };
+}
+const resetSpBtn = document.getElementById('resetSpacesBtn');
+if (resetSpBtn) {
+  resetSpBtn.onclick = async () => {
+    await api.resetDashboardLayout();
+    showToast(L('Spaces order & labels reset.', 'Urutan & label ruang dikembalikan.'));
+    loadDashboard();
+  };
+}
 document.getElementById('auditClearBtn').onclick = async () => {
   await api.clearAuditLogs();
   await refreshAuditBadge(currentDay);
-  showToast('Audit Log dibersihkan.');
+  showToast(L('Audit Log cleared.', 'Log Audit dibersihkan.'));
   loadAuditView({ todayStr: currentDay, showToast });
 };
 
@@ -1067,7 +1443,7 @@ document.getElementById('editBtn').onclick = () => {
   }
   editMode = !editMode;
   document.getElementById('editBtn').setAttribute('aria-pressed', editMode ? 'true' : 'false');
-  document.getElementById('editBtn').textContent = editMode ? 'Selesai mengubah' : 'Ubah';
+  document.getElementById('editBtn').textContent = editMode ? tr(lifeState.lang, 'done_btn') : tr(lifeState.lang, 'edit_btn');
   document.getElementById('editNote').hidden = !(editMode && currentView === 'today');
 
   if (currentView === 'today') loadTodayData();
@@ -1093,7 +1469,7 @@ api.onSyncUpdated(async () => {
   updateSidebarSync(s);
   if (currentView === 'rewards') loadRewards();
   if (currentView === 'dash') loadDashboard();
-  if (currentView === 'reports') loadModuleReportsView({ todayStr: currentDay, showToast });
+  if (currentView === 'reports') loadModuleReportsView({ todayStr: currentDay, showToast, onAfterMutation: handleQuickAddSaved });
   if (currentView === 'audit') loadAuditView({ todayStr: currentDay, showToast });
   if (currentView === 'log') loadLogView();
   if (currentView === 'settings') loadSettingsView();
@@ -1103,7 +1479,7 @@ api.onDevicePaired(async () => {
   const s = await api.getSettings();
   updateSidebarSync(s);
   if (currentView === 'settings') loadSettingsView();
-  showToast('Perangkat baru berhasil disambungkan!');
+  showToast(L('New device paired successfully!', 'Perangkat baru berhasil disambungkan!'));
 });
 
 function checkRollover() {
@@ -1126,6 +1502,10 @@ setInterval(checkRollover, 60000);
 loadTodayData();
 refreshInactiveCount();
 refreshAuditBadge(currentDay);
+api.getPrefs().then((prefs) => {
+  applyPreferences(prefs);
+  switchView('dash');
+});
 api.getSettings().then(updateSidebarSync);
 
 document.getElementById('sidebarQuitBtn').onclick = () => api.quitApp();
@@ -1188,9 +1568,11 @@ function renderSchedModal() {
   document.getElementById('panelMonthly').hidden = draftFreq !== 'monthly';
 
   if (draftFreq === 'weekly') {
+    const dowShort = lifeState.lang === 'id' ? DOW_SHORT_ID : DOW_SHORT_EN;
+    const dowFull = lifeState.lang === 'id' ? DOW_FULL_ID : DOW_FULL_EN;
     let wh = '';
     for (let d = 1; d <= 7; d++) {
-      wh += `<button type="button" class="pill-pick" data-dow="${d}" aria-pressed="${draftDays.includes(d)}">${DOW_SHORT[d]}</button>`;
+      wh += `<button type="button" class="pill-pick" data-dow="${d}" aria-pressed="${draftDays.includes(d)}">${dowShort[d]}</button>`;
     }
     const grid = document.getElementById('dowGrid');
     grid.innerHTML = wh;
@@ -1204,7 +1586,7 @@ function renderSchedModal() {
         renderSchedModal();
       };
     });
-    document.getElementById('schedSummary').textContent = `Muncul setiap: ${draftDays.map(d => DOW_FULL[d]).join(', ')}.`;
+    document.getElementById('schedSummary').textContent = `${L('Appears every', 'Muncul setiap')}: ${draftDays.map(d => dowFull[d]).join(', ')}.`;
   } else if (draftFreq === 'monthly') {
     let mh = '';
     for (let m = 1; m <= 31; m++) {
@@ -1222,9 +1604,9 @@ function renderSchedModal() {
         renderSchedModal();
       };
     });
-    document.getElementById('schedSummary').textContent = `Muncul setiap bulan pada tanggal: ${draftDays.join(', ')}.`;
+    document.getElementById('schedSummary').textContent = `${L('Appears every month on day(s)', 'Muncul setiap bulan pada tanggal')}: ${draftDays.join(', ')}.`;
   } else {
-    document.getElementById('schedSummary').textContent = 'Muncul setiap hari (Harian).';
+    document.getElementById('schedSummary').textContent = L('Appears every day (Daily).', 'Muncul setiap hari (Harian).');
   }
 }
 
@@ -1258,6 +1640,6 @@ document.getElementById('saveSchedModalBtn').onclick = async () => {
   }
   document.getElementById('schedModal').hidden = true;
   await loadTodayData();
-  showToast('Jadwal aktivitas disimpan.');
+  showToast(L('Activity schedule saved.', 'Jadwal aktivitas disimpan.'));
 };
 

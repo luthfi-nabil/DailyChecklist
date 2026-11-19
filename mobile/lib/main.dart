@@ -39,10 +39,10 @@ class LangkahKecilApp extends StatelessWidget {
       child: Consumer<ChecklistProvider>(
         builder: (context, prov, _) {
           return MaterialApp(
-            title: 'Langkah Kecil',
+            title: 'Lifolio',
             debugShowCheckedModeBanner: false,
-            theme: AppTheme.light(useGoogleFonts: useGoogleFonts),
-            darkTheme: AppTheme.dark(useGoogleFonts: useGoogleFonts),
+            theme: AppTheme.light(useGoogleFonts: useGoogleFonts, palette: prov.prefs.colorPalette),
+            darkTheme: AppTheme.dark(useGoogleFonts: useGoogleFonts, palette: prov.prefs.colorPalette),
             themeMode: prov.themeMode,
             home: const HomeScreen(),
           );

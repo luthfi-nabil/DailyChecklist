@@ -1,6 +1,6 @@
 # Langkah Kecil — Daily Checklist & Personal Life OS
 
-**Version: V0.2.0 (`0.2.0`)**
+**Version: V0.3.1 (`0.3.1`)**
 
 A calm, local-first daily checklist and habit-tracking suite for **Desktop (Electron)** and **Mobile (Flutter)** with zero-configuration local network synchronization.
 

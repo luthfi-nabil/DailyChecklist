@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; img-src 'self' data:;">
-  <title>Langkah Kecil — Desktop</title>
+  <title>Lifolio — Desktop</title>
+  <link rel="icon" type="image/png" href="assets/icon.png">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=DM+Sans:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -13,113 +14,113 @@
   <aside>
     <div class="brand-row">
       <div class="brand">
-        <span class="logo" aria-hidden="true">L</span>
-        <b>Langkah Kecil</b>
+        <img class="brand-icon" src="assets/icon.png" alt="Lifolio" width="28" height="28">
+        <b>Lifolio</b>
+        <small data-i18n="brand_sub">Personal Life OS</small>
       </div>
-      <button class="collapse-btn" id="collapseSidebarBtn" type="button" title="Ciutkan / lebarkan sidebar" aria-label="Ciutkan sidebar">⇄</button>
+      <button class="collapse-btn" id="collapseSidebarBtn" type="button" title="Collapse / expand sidebar" aria-label="Collapse sidebar">⇄</button>
     </div>
-    <nav aria-label="Navigasi utama">
-      <p class="nav-label">Utama</p>
-      <button class="nav" data-view="dash">
-        <span class="ic">▦</span><span class="nav-txt">Dasbor</span>
+    <nav aria-label="Main navigation">
+      <button class="nav" data-view="dash" aria-current="page">
+        <span class="ic">⌂</span><span class="nav-txt" data-i18n="nav_home">Home</span>
       </button>
-      <button class="nav" data-view="reports" data-mod="productivity">
-        <span class="ic">▥</span><span class="nav-txt">Laporan</span>
-      </button>
-      <button class="nav" data-view="today" aria-current="page">
-        <span class="ic">☀</span><span class="nav-txt">Hari ini</span>
-        <span class="badge num" id="navCount">0/0</span>
-      </button>
-
-      <p class="nav-label">Workspace</p>
-      <button class="nav" data-view="reports" data-mod="productivity"><span class="ic">✓</span><span class="nav-txt">Productivity</span></button>
-      <button class="nav" data-view="reports" data-mod="finance"><span class="ic">Rp</span><span class="nav-txt">Finance</span></button>
-      <button class="nav" data-view="reports" data-mod="health"><span class="ic">♥</span><span class="nav-txt">Health</span></button>
-      <button class="nav" data-view="reports" data-mod="wellness"><span class="ic">◐</span><span class="nav-txt">Wellness</span></button>
-      <button class="nav" data-view="reports" data-mod="menstrual"><span class="ic">✿</span><span class="nav-txt">Menstrual</span></button>
-      <button class="nav" data-view="reports" data-mod="notes"><span class="ic">✎</span><span class="nav-txt">Notes</span></button>
+      <button class="nav" data-view="reports" data-mod="productivity"><span class="ic">☷</span><span class="nav-txt" data-i18n="mod_productivity">Productivity</span></button>
+      <button class="nav" data-view="reports" data-mod="finance"><span class="ic">♡</span><span class="nav-txt" data-i18n="mod_finance">Finance</span></button>
+      <button class="nav" data-view="reports" data-mod="health"><span class="ic">✿</span><span class="nav-txt" data-i18n="mod_health">Health</span></button>
+      <button class="nav" data-view="reports" data-mod="wellness"><span class="ic">☁</span><span class="nav-txt" data-i18n="mod_wellness">Wellness</span></button>
+      <button class="nav" data-view="reports" data-mod="menstrual"><span class="ic">▦</span><span class="nav-txt" data-i18n="mod_menstrual">Menstrual</span></button>
+      <button class="nav" data-view="reports" data-mod="notes"><span class="ic">✎</span><span class="nav-txt" data-i18n="mod_notes">Notes &amp; Journal</span></button>
       <button class="nav" data-view="rewards">
-        <span class="ic">★</span><span class="nav-txt">Hadiah</span>
+        <span class="ic">☆</span><span class="nav-txt" data-i18n="nav_rewards">Rewards</span>
         <span class="badge num" id="navPts">0</span>
       </button>
 
-      <p class="nav-label">Jejak &amp; Sistem</p>
+      <p class="nav-label" data-i18n="nav_system">More</p>
+      <button class="nav" data-view="today">
+        <span class="ic">☀</span><span class="nav-txt" data-i18n="nav_today">Today Checklist</span>
+        <span class="badge num" id="navCount">0/0</span>
+      </button>
       <button class="nav" data-view="log">
-        <span class="ic">☰</span><span class="nav-txt">Riwayat</span>
+        <span class="ic">☰</span><span class="nav-txt" data-i18n="nav_history">History</span>
       </button>
       <button class="nav" data-view="off">
-        <span class="ic">⏸</span><span class="nav-txt">Nonaktif</span>
+        <span class="ic">⏸</span><span class="nav-txt" data-i18n="nav_inactive">Inactive</span>
         <span class="badge num" id="navOff">0</span>
       </button>
       <button class="nav" data-view="audit">
-        <span class="ic">⚠</span><span class="nav-txt">Audit Log</span>
+        <span class="ic">⚠</span><span class="nav-txt" data-i18n="nav_audit">Audit Log</span>
         <span class="badge num" id="navAuditErr" hidden>0</span>
       </button>
       <button class="nav" data-view="settings">
-        <span class="ic">⚙</span><span class="nav-txt">Pengaturan</span>
+        <span class="ic">⚙</span><span class="nav-txt" data-i18n="nav_settings">Settings</span>
       </button>
     </nav>
 
     <button class="sidebar-quick" id="sidebarQuickAdd" type="button">
-      <span>＋</span><span class="qa-txt">Quick Add</span>
+      <span>＋</span><span class="qa-txt" data-i18n="quick_add">Quick Add</span>
     </button>
 
     <div class="sync-box" id="sidebarSync">
-      <b><span class="dot"></span>Sinkron aktif</b>
+      <b><span class="dot"></span><span data-i18n="sync_active">Sync active</span></b>
       <p id="sidebarSyncSub">Port 47800</p>
-      <p id="sidebarSyncDevice">Berjalan di baki sistem</p>
+      <p id="sidebarSyncDevice">Waiting for phone</p>
     </div>
     <button class="nav" id="sidebarQuitBtn" type="button" style="color:var(--miss)">
-      <span class="ic">⏻</span><span class="nav-txt">Keluar</span>
+      <span class="ic">⏻</span><span class="nav-txt" data-i18n="quit_btn">Quit</span>
     </button>
   </aside>
 
   <div class="main">
     <header class="bar-top">
       <div>
-        <p class="date" id="currentDate">Memuat tanggal...</p>
-        <h1 id="viewTitle">Hari ini</h1>
+        <p class="date" id="currentDate">Loading date...</p>
+        <h1 id="viewTitle">Hello, User ♡</h1>
+        <p class="bar-sub" id="viewSub">A little progress is still progress.</p>
       </div>
       <div class="row" id="topBarActions">
-        <button class="chip" id="dashCustomizeBtn" type="button" aria-pressed="false" hidden>⊞ Atur Widget</button>
-        <button class="btn" id="dashCatalogBtn" type="button" hidden>＋ Tambah Widget</button>
-        <button class="btn" id="dashResetBtn" type="button" hidden>Reset ke bawaan</button>
-        <button class="btn" id="auditClearBtn" type="button" hidden>Bersihkan Log</button>
-        <button class="chip" id="calToggleBtn" type="button" aria-pressed="true">📅 Kalender</button>
-        <button class="chip" id="editBtn" type="button" aria-pressed="false">Ubah</button>
+        <label class="topbar-search" aria-label="Search">
+          <span>⌕</span>
+          <input type="search" id="globalSearchInput" placeholder="Search tasks, notes, finance...">
+        </label>
+        <button class="chip" id="dashCustomizeBtn" type="button" aria-pressed="false" hidden>⊞ Widgets</button>
+        <button class="btn" id="dashCatalogBtn" type="button" data-i18n="add_widget_btn" hidden>＋ Add Widget</button>
+        <button class="btn" id="dashResetBtn" type="button" data-i18n="reset_layout_btn" hidden>Reset Layout</button>
+        <button class="btn" id="auditClearBtn" type="button" data-i18n="clear_logs_btn" hidden>Clear Logs</button>
+        <button class="chip" id="calToggleBtn" type="button" aria-pressed="true" data-i18n="cal_btn">📅 Calendar</button>
+        <button class="chip" id="editBtn" type="button" aria-pressed="false">Edit</button>
       </div>
     </header>
 
     <div class="content">
-      <section class="view on" id="v-today">
+      <section class="view" id="v-today">
         <div class="grid2">
           <div class="col">
             <div class="future-banner" id="dateBanner" hidden>
               <span id="dateBannerText"></span>
-              <button class="btn" type="button" id="backTodayBtn" style="min-height:34px">Kembali ke hari ini</button>
+              <button class="btn" type="button" id="backTodayBtn" style="min-height:34px">Back to today</button>
             </div>
             <p class="edit-note" id="editNote" hidden>
-              Mode ubah aktif. Semua aktivitas tampil (termasuk yang terjadwal di hari lain). Ketuk ikon 📅 untuk mengatur jadwal <b>Harian</b>, <b>Mingguan</b>, atau <b>Bulanan</b>.
+              Edit mode active. All tasks are visible (including tasks scheduled on other days). Tap 📅 to set a <b>Daily</b>, <b>Weekly</b>, or <b>Monthly</b> schedule.
             </p>
             <div id="groupsContainer" class="col"></div>
             <div class="other-note" id="otherDayNote" hidden>
               <span id="otherDayText"></span>
-              <button class="btn" type="button" id="openEditFromNote" style="min-height:36px">Lihat / Ubah</button>
+              <button class="btn" type="button" id="openEditFromNote" style="min-height:36px">View / Edit</button>
             </div>
           </div>
           <div class="col sticky">
             <div class="card" id="todayCalCard">
               <div class="head">
-                <h2 id="todayCalTitle">Bulan</h2>
+                <h2 id="todayCalTitle">Month</h2>
                 <div class="row" style="gap:4px">
-                  <button class="btn" type="button" id="todayCalPrevBtn" aria-label="Bulan sebelumnya" style="min-height:32px;padding:0 10px">‹</button>
-                  <button class="btn" type="button" id="todayCalNextBtn" aria-label="Bulan berikutnya" style="min-height:32px;padding:0 10px">›</button>
+                  <button class="btn" type="button" id="todayCalPrevBtn" aria-label="Previous month" style="min-height:32px;padding:0 10px">‹</button>
+                  <button class="btn" type="button" id="todayCalNextBtn" aria-label="Next month" style="min-height:32px;padding:0 10px">›</button>
                 </div>
               </div>
               <div class="cal-grid" id="todayCalGrid"></div>
               <div class="cal-legend">
-                <span><i class="dot w"></i> Mingguan</span>
-                <span><i class="dot m"></i> Bulanan</span>
+                <span><i class="dot w"></i> <span id="calLegWeekly">Weekly</span></span>
+                <span><i class="dot m"></i> <span id="calLegMonthly">Monthly</span></span>
               </div>
             </div>
             <div class="card" id="progressCard"></div>
@@ -129,45 +130,86 @@
       </section>
 
       <section class="view" id="v-rewards">
-        <div class="grid2">
-          <div class="col">
-            <div class="rgrid" id="rewardsContainer"></div>
+        <div class="col">
+          <div class="pinkpanel">
+            <span class="eyebrow" data-i18n="pts_yours">YOUR POINTS</span>
+            <div class="amount-m6" style="font-size:32px;margin:4px 0"><span id="ptsBalance">0</span> <span id="ptsUnitLabel" style="font-size:14px;font-weight:600;color:var(--muted)">points</span></div>
+            <p class="muted small" style="margin:0" data-i18n="pts_note">Every checked step earns 1 point. Missed days never take points away.</p>
           </div>
-          <div class="col sticky">
-            <div class="card balance">
-              <p class="eyebrow">Poin kamu</p>
-              <div class="points"><span id="ptsBalance">0</span><small> poin</small></div>
-              <p class="muted small" style="margin:8px 0 0">
-                Setiap langkah yang dicentang menambah 1 poin. Hari yang terlewat tidak mengurangi poin.
-              </p>
+
+          <div class="grid3-m6" id="rewardsContainer"></div>
+
+          <div class="card">
+            <div class="head">
+              <h2 data-i18n="ach_title">Achievements</h2>
+              <span class="muted small" data-i18n="ach_sub">Unlocked from your real activity</span>
             </div>
-            <div class="card">
-              <h2>Sudah diambil</h2>
-              <ul class="list" id="claimsList" style="margin-top:8px"></ul>
+            <div id="rewardsAchievementsContainer"></div>
+          </div>
+
+          <div class="card">
+            <div class="head">
+              <h2 data-i18n="claimed_title">Reward history</h2>
+              <span class="muted small" data-i18n="claimed_sub">Recently claimed</span>
             </div>
+            <ul class="list" id="claimsList"></ul>
           </div>
         </div>
       </section>
 
-      <section class="view" id="v-dash">
+      <section class="view on" id="v-dash">
         <div class="col">
+          <div class="hero-banner">
+            <div>
+              <strong data-i18n="hero_title">Take it one step at a time.</strong>
+              <p data-i18n="hero_sub">You don't have to do everything today.</p>
+            </div>
+            <span class="heart" aria-hidden="true">♡</span>
+          </div>
+
+          <div class="home-split">
+            <div class="col">
+              <div>
+                <div class="head" style="margin-bottom:10px">
+                  <div>
+                    <h2 style="font-size:18px" data-i18n="home_spaces">Your spaces</h2>
+                    <p class="muted small" style="margin:2px 0 0" data-i18n="home_spaces_sub">Everything you need, in one place.</p>
+                  </div>
+                  <div class="row">
+                    <button class="btn" id="resetSpacesBtn" type="button" hidden>Reset</button>
+                    <button class="chip" id="editSpacesBtn" type="button" aria-pressed="false">Edit</button>
+                  </div>
+                </div>
+                <div class="spaces-grid" id="homeSpacesGrid"></div>
+              </div>
+
+              <div class="card" id="homeQuickTasksCard"></div>
+            </div>
+
+            <div class="col">
+              <div class="card" id="homeMiniCalCard"></div>
+              <div class="card" id="homeMoodCard"></div>
+              <div class="card" id="homeLittleNoteCard"></div>
+            </div>
+          </div>
+
           <div class="dash-toolbar" id="lifeosCustomBar" hidden>
             <div>
-              <b>Mode Atur Dasbor Aktif</b>
-              <p class="small" style="margin:2px 0 0">Seret widget untuk mengatur urutan, ubah ukuran (S/M/L), atur visibilitas, atau tambah/hapus modul.</p>
+              <b id="dashCustomTitle">Dashboard Customization Active</b>
+              <p class="small" id="dashCustomSub" style="margin:2px 0 0">Drag widgets to reorder, resize (S/M/L), toggle visibility, or add/remove modules.</p>
             </div>
-            <span class="pill t-sage" id="lifeosVisCount">0/7 tampil</span>
+            <span class="pill t-sage" id="lifeosVisCount">0/7 visible</span>
           </div>
 
           <div class="widget-grid" id="lifeosWidgetGrid"></div>
 
           <div class="head" style="margin:8px 0 0">
-            <h2>Analisis Ceklis</h2>
+            <h2 id="dashAnalysisTitle">Checklist Analytics</h2>
             <div class="row">
-              <div class="seg" id="periodSeg" role="group" aria-label="Periode">
-                <button aria-pressed="true" data-p="week">Minggu ini</button>
-                <button aria-pressed="false" data-p="month">Bulan ini</button>
-                <button aria-pressed="false" data-p="all">Semua</button>
+              <div class="seg" id="periodSeg" role="group" aria-label="Period">
+                <button aria-pressed="true" data-p="week" id="perWeekBtn">This week</button>
+                <button aria-pressed="false" data-p="month" id="perMonthBtn">This month</button>
+                <button aria-pressed="false" data-p="all" id="perAllBtn">All time</button>
               </div>
               <span class="muted small" id="periodNote">-</span>
             </div>
@@ -176,46 +218,46 @@
           <div class="metrics">
             <div class="card metric">
               <div class="big"><span id="mRate">0</span><small>%</small></div>
-              <p>tingkat selesai</p>
+              <p id="mRateLabel">completion rate</p>
             </div>
             <div class="card metric">
               <div class="big" id="mDone">0</div>
-              <p>langkah selesai</p>
+              <p id="mDoneLabel">steps completed</p>
             </div>
             <div class="card metric">
               <div class="big" id="mDays">0<small>/0</small></div>
-              <p id="mStreakText">hari aktif · beruntun 0 hari</p>
+              <p id="mStreakText">active days · 0-day streak</p>
             </div>
             <div class="card metric gold">
               <div class="big" id="mPts">+0</div>
-              <p>poin didapat</p>
+              <p id="mPtsLabel">points earned</p>
             </div>
           </div>
 
-          <div class="card">
+          <div class="card report-chart-block">
             <div class="head">
-              <h2>Langkah per hari</h2>
-              <span class="count" id="chartMaxCount">maks 0</span>
+              <h2 id="chartPerDayTitle">Steps per day</h2>
+              <span class="count" id="chartMaxCount">max 0</span>
             </div>
-            <div class="chart" id="dailyChart" role="img" aria-label="Grafik langkah selesai per hari"></div>
+            <div class="chart" id="dailyChart" role="img" aria-label="Daily completed steps chart"></div>
           </div>
 
           <div class="cols">
             <div class="card">
-              <div class="head"><h2>Per kelompok</h2></div>
+              <div class="head"><h2 id="statPerGroupTitle">By group</h2></div>
               <div id="groupStatsContainer"></div>
             </div>
             <div class="card">
               <div class="head">
-                <h2>Per langkah</h2>
-                <span class="count">paling sering dulu</span>
+                <h2 id="statPerTaskTitle">By step</h2>
+                <span class="count" id="statMostFreqSub">most frequent first</span>
               </div>
               <div id="taskStatsContainer"></div>
             </div>
           </div>
 
-          <p class="muted small" style="text-align:center;margin:0">
-            Langkah nonaktif tetap dihitung pada hari ketika masih aktif, supaya tren tidak berubah.
+          <p class="muted small" id="statInactiveFootnote" style="text-align:center;margin:0">
+            Deactivated steps are still counted on days when they were active, keeping historical trends intact.
           </p>
         </div>
       </section>
@@ -225,23 +267,23 @@
           <div class="col sticky">
             <div class="card">
               <div class="head">
-                <h2 id="calMonthTitle">Bulan</h2>
+                <h2 id="calMonthTitle">Month</h2>
                 <div class="row" style="gap:4px">
-                  <button class="btn" id="prevMonthBtn" aria-label="Bulan sebelumnya">‹</button>
-                  <button class="btn" id="nextMonthBtn" aria-label="Bulan berikutnya">›</button>
+                  <button class="btn" id="prevMonthBtn" aria-label="Previous month">‹</button>
+                  <button class="btn" id="nextMonthBtn" aria-label="Next month">›</button>
                 </div>
               </div>
               <div class="cal" id="calContainer"></div>
-              <p class="muted small" style="margin:10px 0 0">Makin pekat, makin banyak langkah selesai.</p>
+              <p class="muted small" id="calHeatFootnote" style="margin:10px 0 0">Darker shades mean more completed steps.</p>
             </div>
           </div>
 
           <div class="col">
             <div class="card">
-              <p class="eyebrow" id="dayLogLabel">Hari</p>
+              <p class="eyebrow" id="dayLogLabel">Day</p>
               <div class="row" style="justify-content:space-between;align-items:baseline;margin-bottom:10px">
-                <div class="big" id="dayLogDone">0<small> dari 0 langkah</small></div>
-                <span class="muted small" id="dayLogPoints">+0 poin</span>
+                <div class="big" id="dayLogDone">0<small> of 0 steps</small></div>
+                <span class="muted small" id="dayLogPoints">+0 points</span>
               </div>
               <div class="progress" id="dayLogProgressBar"><span style="width:0%"></span></div>
             </div>
@@ -252,19 +294,19 @@
 
       <section class="view" id="v-off">
         <div class="col" style="max-width:720px">
-          <p class="edit-note">
-            Menghapus langkah atau kelompok hanya <b>menonaktifkannya</b>. Riwayat dan poin lama tetap aman, dan bisa diaktifkan lagi kapan saja.
+          <p class="edit-note" id="offIntroNote">
+            Deactivating a step or group keeps your history and earned points safe. You can <b>Restore</b> it anytime, or <b>Delete Permanently</b> to remove it completely.
           </p>
           <div class="card">
             <div class="head">
-              <h2>Langkah nonaktif</h2>
+              <h2 id="offTasksTitle">Inactive steps</h2>
               <span class="count" id="offTasksCount">0</span>
             </div>
             <div id="offTasksList"></div>
           </div>
           <div class="card">
             <div class="head">
-              <h2>Kelompok nonaktif</h2>
+              <h2 id="offGroupsTitle">Inactive groups</h2>
               <span class="count" id="offGroupsCount">0</span>
             </div>
             <div id="offGroupsList"></div>
@@ -282,65 +324,147 @@
 
       <section class="view" id="v-settings">
         <div class="cols" style="align-items:start">
-          <div class="card">
-            <div class="head">
-              <h2>Sinkronisasi</h2>
-              <span class="pill" id="syncStatusBadge">Siap</span>
-            </div>
-            <p class="muted small" style="margin:0 0 8px">
-              Server sinkron berjalan di komputer ini dan diumumkan di jaringan lokal via mDNS dan UDP. Ponsel menemukannya otomatis tanpa memasukkan IP.
-            </p>
-            <div style="background:var(--bg);padding:12px;border-radius:10px;margin-bottom:12px">
-              <p style="margin:0;font-size:.8125rem;color:var(--muted)">Kode Sambungkan (Pairing):</p>
-              <div class="row" style="justify-content:space-between;margin-top:4px">
-                <span style="font-family:var(--font-display);font-size:1.5rem;font-weight:700;letter-spacing:.1em" id="settingsPairingCode">------</span>
-                <button class="btn" id="rotateCodeBtn" type="button">Ganti kode</button>
+          <div class="col">
+            <div class="card">
+              <div class="head">
+                <h2 id="setProfTitle">Profile &amp; Appearance</h2>
+              </div>
+              <div class="field" style="margin-top:10px">
+                <label for="userNameInput" id="setNameLabel">Display name (updates greeting)</label>
+                <div class="row">
+                  <input type="text" id="userNameInput" placeholder="User" style="flex:1">
+                  <button class="btn primary" id="saveUserNameBtn" type="button" data-i18n="save_btn">Save</button>
+                </div>
+              </div>
+
+              <div class="field" style="margin-top:14px">
+                <div class="row" style="justify-content:space-between">
+                  <label id="setPaletteLabel">Color palette (default: White &amp; Pink)</label>
+                  <span class="pill" id="activePaletteBadge">White &amp; Pink</span>
+                </div>
+                <div class="swatch-row" id="paletteGrid" role="group" aria-label="Color palette chooser">
+                  <button type="button" class="swatch" data-palette="pink" title="White & Pink" aria-pressed="true" style="background:#ED9FBD">✓</button>
+                  <button type="button" class="swatch" data-palette="sage" title="Pastel Sage" aria-pressed="false" style="background:#3F7E68"></button>
+                  <button type="button" class="swatch" data-palette="teal" title="Slate Teal" aria-pressed="false" style="background:#1D7487"></button>
+                  <button type="button" class="swatch" data-palette="lavender" title="Lavender Mist" aria-pressed="false" style="background:#8E7AB5"></button>
+                  <button type="button" class="swatch" data-palette="peach" title="Warm Peach" aria-pressed="false" style="background:#E29578"></button>
+                </div>
+              </div>
+
+              <div style="margin-top:14px">
+                <label id="setThemeLabel" style="font-size:.78rem;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Theme mode</label>
+                <div class="seg" id="themeSeg">
+                  <button aria-pressed="true" data-t="auto" id="themeAutoBtn">Auto</button>
+                  <button aria-pressed="false" data-t="light" id="themeLightBtn">Light</button>
+                  <button aria-pressed="false" data-t="dark" id="themeDarkBtn">Dark</button>
+                </div>
+              </div>
+
+              <div class="switch-row" style="margin-top:14px">
+                <p><b id="setLangTitle">Language</b><br><span class="muted small" id="setLangSub">Switch app labels between English &amp; Bahasa Indonesia.</span></p>
+                <div class="seg" id="langSeg">
+                  <button type="button" aria-pressed="true" data-lang="en">EN</button>
+                  <button type="button" aria-pressed="false" data-lang="id">ID</button>
+                </div>
+              </div>
+
+              <div class="switch-row" style="margin-top:14px">
+                <p><b id="setChartsTitle">Show charts in reports</b><br><span class="muted small" id="setChartsSub">Optional visual bars; off = calm numeric tables only.</span></p>
+                <button class="switch" role="switch" id="showChartsSwitch" aria-checked="true" aria-label="Show charts in reports"></button>
               </div>
             </div>
 
-            <h3 style="margin-top:12px">Perangkat Tersambung</h3>
-            <ul class="list" id="pairedDevicesList" style="margin-top:6px"></ul>
-
-            <div class="switch-row" style="margin-top:14px">
-              <p><b>Masa berlaku token</b><br><span class="muted small">Ponsel perlu pairing ulang setelah habis.</span></p>
-              <div class="seg" id="ttlSeg">
-                <button type="button" aria-pressed="false" data-days="3">3 hari</button>
-                <button type="button" aria-pressed="false" data-days="5">5 hari</button>
-                <button type="button" aria-pressed="true" data-days="7">7 hari</button>
+            <div class="card">
+              <h2 id="setBackupTitle">Backup &amp; Restore</h2>
+              <p class="muted small" id="setBackupSub" style="margin:4px 0 12px">
+                Your SQLite database is stored locally and auto-backed up before schema upgrades. Export or restore a full JSON snapshot anytime.
+              </p>
+              <div class="row" style="flex-wrap:wrap">
+                <button class="btn primary" id="exportJsonBtn" type="button">⬇ Export JSON Backup</button>
+                <button class="btn" id="importJsonBtn" type="button">⬆ Restore JSON Backup</button>
+                <input type="file" id="importJsonInput" accept="application/json,.json" hidden>
               </div>
-            </div>
-
-            <div class="switch-row" style="margin-top:14px">
-              <p><b>Sinkron otomatis</b><br><span class="muted small">Dua arah. Data terbaru yang dipakai.</span></p>
-              <button class="switch" role="switch" id="autoSyncSwitch" aria-checked="true" aria-label="Sinkron otomatis"></button>
+              <p class="muted small" id="backupStatusText" style="margin:8px 0 0"></p>
             </div>
           </div>
 
           <div class="col">
             <div class="card">
-              <h2>Desktop</h2>
-              <div class="switch-row" style="border:0;margin-top:6px;padding-top:0">
-                <p><b>Jalankan saat komputer menyala</b><br><span class="muted small">Mulai di latar belakang (baki sistem).</span></p>
-                <button class="switch" role="switch" id="autostartSwitch" aria-checked="false" aria-label="Jalankan saat startup"></button>
+              <div class="head">
+                <h2 id="setLanTitle">Local LAN Sync</h2>
+                <span class="pill" id="syncStatusBadge">Ready</span>
               </div>
-              <div class="switch-row">
-                <p><b>Tetap jalan saat jendela ditutup</b><br><span class="muted small">Menutup jendela hanya menyembunyikannya ke baki sistem.</span></p>
-                <button class="switch" role="switch" id="minimizeToTraySwitch" aria-checked="true" aria-label="Tetap di baki sistem"></button>
+              <p class="muted small" id="setLanSub" style="margin:0 0 8px">
+                Local-only sync server announced via mDNS and UDP 47899. Phone finds this Desktop automatically without manual cloud accounts.
+              </p>
+              <div style="background:var(--bg);padding:12px;border-radius:10px;margin-bottom:10px">
+                <div class="row" style="justify-content:space-between">
+                  <div>
+                    <p id="setIpPortLbl" style="margin:0;font-size:.78rem;color:var(--muted)">Desktop LAN IP &amp; Port:</p>
+                    <b class="num" id="desktopIpBadge">Detecting...</b>
+                  </div>
+                  <div style="text-align:right">
+                    <p id="setPairCodeLbl" style="margin:0;font-size:.78rem;color:var(--muted)">Pairing code:</p>
+                    <span style="font-family:var(--font-display);font-size:1.35rem;font-weight:700;letter-spacing:.1em" id="settingsPairingCode">------</span>
+                  </div>
+                </div>
+                <div class="row" style="justify-content:flex-end;margin-top:8px">
+                  <button class="btn" id="rotateCodeBtn" type="button">Rotate code</button>
+                </div>
               </div>
-              <div class="switch-row">
-                <p><b>Keluar sepenuhnya</b><br><span class="muted small">Menutup jendela serta menghentikan server sinkron.</span></p>
-                <button class="btn" id="settingsQuitBtn" type="button" style="color:var(--miss);border-color:var(--miss-soft)">Keluar</button>
+
+              <div style="background:var(--soft);border:1px solid var(--line);padding:12px;border-radius:12px;margin-bottom:10px">
+                <p id="setManualEndpointTitle" style="margin:0 0 8px;font-size:.8rem;font-weight:600">Manual Listen IP &amp; Port</p>
+                <div class="ws-form-row">
+                  <div class="field">
+                    <label for="settingsSyncHost" id="setBindIpLbl">Bind IP</label>
+                    <input type="text" id="settingsSyncHost" list="desktopIpSuggestions" placeholder="0.0.0.0">
+                    <datalist id="desktopIpSuggestions"></datalist>
+                  </div>
+                  <div class="field">
+                    <label for="settingsSyncPort" id="setBindPortLbl">Port</label>
+                    <input type="number" id="settingsSyncPort" min="1" max="65535" value="47800">
+                  </div>
+                </div>
+                <div class="row" style="justify-content:flex-end;margin-top:8px">
+                  <button class="btn" id="resetSyncNetBtn" type="button">Reset 47800</button>
+                  <button class="btn primary" id="saveSyncNetBtn" type="button">Apply</button>
+                </div>
               </div>
-              <p class="muted small" id="appVersionLabel" style="margin:12px 0 0">Versi 0.1.0</p>
+
+              <h3 id="setPairedTitle" style="margin-top:10px">Paired Devices</h3>
+              <ul class="list" id="pairedDevicesList" style="margin-top:6px"></ul>
+
+              <div class="switch-row" style="margin-top:14px">
+                <p><b id="setTokenTitle">Token lifetime</b><br><span class="muted small" id="setTokenSub">Phone re-pairs after expiry.</span></p>
+                <div class="seg" id="ttlSeg">
+                  <button type="button" aria-pressed="false" data-days="3">3d</button>
+                  <button type="button" aria-pressed="false" data-days="5">5d</button>
+                  <button type="button" aria-pressed="true" data-days="7">7d</button>
+                </div>
+              </div>
+
+              <div class="switch-row" style="margin-top:14px">
+                <p><b id="setAutoSyncTitle">Auto-sync on LAN</b><br><span class="muted small" id="setAutoSyncSub">Two-way LWW merge.</span></p>
+                <button class="switch" role="switch" id="autoSyncSwitch" aria-checked="true" aria-label="Auto sync"></button>
+              </div>
             </div>
 
             <div class="card">
-              <h2>Tampilan</h2>
-              <div class="seg" id="themeSeg" style="margin-top:10px">
-                <button aria-pressed="true" data-t="auto">Otomatis</button>
-                <button aria-pressed="false" data-t="light">Terang</button>
-                <button aria-pressed="false" data-t="dark">Gelap</button>
+              <h2 id="setBgTitle">Desktop Background</h2>
+              <div class="switch-row" style="border:0;margin-top:6px;padding-top:0">
+                <p><b id="setAutostartTitle">Launch on startup</b><br><span class="muted small" id="setAutostartSub">Starts minimized in system tray.</span></p>
+                <button class="switch" role="switch" id="autostartSwitch" aria-checked="false" aria-label="Launch on startup"></button>
               </div>
+              <div class="switch-row">
+                <p><b id="setTrayTitle">Keep running on close</b><br><span class="muted small" id="setTraySub">Keep sync server alive in tray.</span></p>
+                <button class="switch" role="switch" id="minimizeToTraySwitch" aria-checked="true" aria-label="Minimize to tray"></button>
+              </div>
+              <div class="switch-row">
+                <p><b id="setQuitTitle">Quit completely</b><br><span class="muted small" id="setQuitSub">Stops tray process and sync server.</span></p>
+                <button class="btn" id="settingsQuitBtn" type="button" style="color:var(--miss);border-color:var(--miss-soft)" data-i18n="quit_btn">Quit</button>
+              </div>
+              <p class="muted small" id="appVersionLabel" style="margin:12px 0 0">Version 0.3.1</p>
             </div>
           </div>
         </div>
@@ -353,33 +477,33 @@
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="schedModalTitle">
     <div class="head" style="margin:0">
       <div>
-        <p class="eyebrow">Atur Jadwal Aktivitas</p>
-        <h2 id="schedModalTitle">Nama Langkah</h2>
+        <p class="eyebrow" id="schedModalEyebrow">Task Schedule</p>
+        <h2 id="schedModalTitle">Step Name</h2>
       </div>
-      <button class="icon-btn" type="button" id="closeSchedModalBtn" aria-label="Tutup">×</button>
+      <button class="icon-btn" type="button" id="closeSchedModalBtn" aria-label="Close">×</button>
     </div>
 
-    <div class="seg" id="freqTypeSeg" role="group" aria-label="Frekuensi" style="display:grid;grid-template-columns:repeat(3,1fr)">
-      <button type="button" aria-pressed="true" data-f="daily">Harian</button>
-      <button type="button" aria-pressed="false" data-f="weekly">Mingguan</button>
-      <button type="button" aria-pressed="false" data-f="monthly">Bulanan</button>
+    <div class="seg" id="freqTypeSeg" role="group" aria-label="Frequency" style="display:grid;grid-template-columns:repeat(3,1fr)">
+      <button type="button" aria-pressed="true" data-f="daily" id="freqDailyBtn">Daily</button>
+      <button type="button" aria-pressed="false" data-f="weekly" id="freqWeeklyBtn">Weekly</button>
+      <button type="button" aria-pressed="false" data-f="monthly" id="freqMonthlyBtn">Monthly</button>
     </div>
 
     <div id="panelWeekly" hidden>
-      <p class="muted small" style="margin:0 0 8px">Pilih hari apa saja aktivitas ini muncul:</p>
+      <p class="muted small" id="schedWeeklyPrompt" style="margin:0 0 8px">Choose which days this step appears:</p>
       <div class="dow-grid" id="dowGrid"></div>
     </div>
 
     <div id="panelMonthly" hidden>
-      <p class="muted small" style="margin:0 0 8px">Pilih tanggal berapa saja setiap bulan:</p>
+      <p class="muted small" id="schedMonthlyPrompt" style="margin:0 0 8px">Choose which dates each month:</p>
       <div class="dom-grid" id="domGrid"></div>
     </div>
 
-    <div class="summary-box" id="schedSummary">Muncul setiap hari.</div>
+    <div class="summary-box" id="schedSummary">Appears every day.</div>
 
     <div class="row" style="justify-content:flex-end">
-      <button class="btn" type="button" id="cancelSchedModalBtn">Batal</button>
-      <button class="btn primary" type="button" id="saveSchedModalBtn">Simpan jadwal</button>
+      <button class="btn" type="button" id="cancelSchedModalBtn" data-i18n="cancel_btn">Cancel</button>
+      <button class="btn primary" type="button" id="saveSchedModalBtn">Save schedule</button>
     </div>
   </div>
 </div>
@@ -389,12 +513,12 @@
 </div>
 
 <button class="fab" id="globalQuickAddBtn" type="button" aria-label="Quick Add Global">
-  <span style="font-size:1.25rem;line-height:1">＋</span><span>Quick Add</span>
+  <span style="font-size:1.25rem;line-height:1">＋</span><span data-i18n="quick_add">Quick Add</span>
 </button>
 
 <div class="toast" id="toast" role="status" hidden>
   <span id="toastMsg"></span>
-  <button type="button" id="toastUndo">Urungkan</button>
+  <button type="button" id="toastUndo" data-i18n="undo_btn">Undo</button>
 </div>
 
 <script type="module" src="js/app.js"></script>

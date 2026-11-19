@@ -180,3 +180,136 @@
 - [v] Implement Customizable Dashboard (`Dasbor`) with add/remove, drag-and-drop, reorder, visibility, resize (Desktop `S/M/L`), persistence, and reset across all 7 modules.
 - [v] Implement Individual Module Reports (Productivity, Finance, Health, Wellness, Menstrual, Notes & Journal) with Weekly/Monthly/Yearly/Custom filters computed strictly from stored rows.
 - [v] Implement per-device Audit Log (`audit_logs`) with token redaction and automatic API/sync error capture.
+
+---
+
+## Milestone 5: Phone Local IP & Sync Network Diagnostics (Completed — V0.3.0)
+**Goal:** Display the phone's current local Wi-Fi/LAN IP address inside Mobile's **Sinkronisasi** card (in `Lainnya`) and refresh it cleanly so users can verify both Desktop and Mobile are on the same subnet when troubleshooting discovery or firewall issues.
+
+### 1. Permissions Assessment
+- **Android:** **No new permissions required.** Reading local non-loopback IPv4 addresses via `NetworkInterface.list()` only requires the install-time network permissions already declared in `mobile/android/app/src/main/AndroidManifest.xml` (`INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`). Runtime Location (`ACCESS_FINE_LOCATION`) or Nearby Wi-Fi permissions are *not* required because only the IP address is read (not the Wi-Fi SSID/BSSID).
+- **iOS:** **No new permissions required.** `NSLocalNetworkUsageDescription` is already declared in `mobile/ios/Runner/Info.plist`.
+
+### 2. Proposed Changes
+- **Mobile IP Helper (`SyncService` / `ChecklistProvider`):** Read non-loopback IPv4 addresses via `NetworkInterface.list(type: InternetAddressType.IPv4)`, prioritizing Wi-Fi/LAN interfaces (`wlan*`, `en*`) and falling back cleanly when offline (`Tidak terhubung ke Wi-Fi/LAN`).
+- **Mobile Sync Card (`more_view.dart`):** Add an **IP Ponsel** row (plus discovered Desktop `host:port` when connected) and refresh on app resume / manual sync.
+- **(Optional) Audit Log Context:** Include the phone's local IPv4 address (if available) in failed discovery/sync `audit_logs` details for faster subnet mismatch diagnosis.
+
+### 3. Acceptance Criteria
+- [v] Mobile displays current non-loopback LAN IPv4 address in the **Sinkronisasi** card without requesting any runtime permission dialogs.
+- [v] Displays a clean fallback label when offline/disconnected and updates on refresh/resume.
+- [v] Unit tests cover interface selection (Wi-Fi preference, offline fallback, cellular/VPN exclusion or ordering).
+
+---
+
+## Milestone 6: Personal Life OS Redesign v3 & Complete Module Workspaces (Completed — V0.3.0)
+**References:** [Progress/Milestone6Draft.md](Progress/Milestone6Draft.md) and [Design/DesignRevisionM6.html](Design/DesignRevisionM6.html).
+
+### 1. Visual System & Color Palette Picker (Default = M6 White & Pink)
+- **Default Design Revision Palette (`White & Pink` v3):**
+  - Background: `#FFFFFF`, Card: `#FFFFFF`, Soft surface: `#FFF7FA`, Primary pink button/accent: `#ED9FBD`, Pink highlight: `#FFF0F5`, Rose active/dark: `#B85F83`, Text: `#493640`, Muted text: `#A18C96`, Border: `#F2E5EB`, subtle shadow `0 3px 14px rgba(141,96,112,0.03)`.
+- **Color Palette Picker in Settings (`Appearance` / `Options`):**
+  - Persisted user preference (`color_palette` in `meta`, defaulting to `'pink'`) allowing instant switching across:
+    1. **White & Pink (Default — M6 Revision):** `#FFFFFF` bg, `#ED9FBD` accent, `#FFF0F5` highlight, `#493640` ink
+    2. **Soft Pastel Sage (V0.2):** `#F8F7F4` bg, `#3F7E68` accent, `#DCECE4` highlight, `#242A30` ink
+    3. **Calm Slate Teal (V0.1):** `#F2F5F7` bg, `#1D7487` accent, `#DDEEF2` highlight, `#1B2730` ink
+    4. **Lavender Mist:** `#FAF8FF` bg, `#8E7AB5` accent, `#EFEAF9` highlight, `#2F283D` ink
+    5. **Warm Peach:** `#FFFDF9` bg, `#E29578` accent, `#FBECE6` highlight, `#3D2C26` ink
+  - Supports Light mode (white cards) and Dark mode variants.
+
+### 2. Core Interaction Principle — Full Category Workspaces
+Each category is a self-contained workspace combining **inline input/edit controls**, **current data**, **searchable/editable history**, and **embedded module reports** on a single coherent page (Quick Add `+` remains an optional shortcut, never the only way to enter or edit data):
+1. **Home / Dashboard:**
+   - PC: Left sidebar (`Home`, `Productivity`, `Finance`, `Health`, `Wellness`, `Menstrual`, `Notes & Journal`, `Rewards`, `Settings`), greeting header + search, gentle banner, 3-column `Your spaces` category shortcut grid, `Today's tasks`, month calendar, quick mood check-in, and `Little note` quick save.
+   - HP: Preserves mobile stacked cards and fixed bottom navigation (`Home`, `Tasks`, `Money`, `Health`, `More` sheet).
+   - Direct inline dashboard editing (reorder, resize, show/hide, add/restore widgets without visiting Settings).
+2. **Productivity Workspace:**
+   - Task list with checkboxes, **priority badge**, **due date**, and inline add/edit/remove.
+   - Calendar view + daily routines grouped by Morning / Afternoon / Evening (*Pagi / Siang / Malam*).
+   - Project tracker (`In progress` / `Someday` backlog) and interactive **25:00 Focus / Pomodoro timer**.
+   - Embedded *Insights & review* report (completion rate, most productive day, active projects, optional charts).
+3. **Finance Workspace:**
+   - Available balance, monthly income, and monthly expenses stat strip.
+   - Inline *New transaction* form (`Expense`/`Income`, amount, description, category/envelope) + *Recent transactions* with search/filter and edit/delete.
+   - Editable *Envelope budget* allocations, *Savings goals* with target progress bar, and *Bills & debt* tracker (recurring bills & installments).
+   - Embedded *Monthly report* (income vs expense, envelope breakdown, savings & debt progress).
+4. **Health Workspace:**
+   - Current weight, water today, and movement minutes stat strip.
+   - *Weight progress* (current vs goal weight) + *Body measurements* (`Waist`, `Hip`, `Chest`, `Arm`, `Thigh`).
+   - *Food diary* by meal (`Breakfast`, `Lunch`, `Dinner`, `Snacks`) with calorie estimates.
+   - Interactive *Water tracker* (`+ Add a glass` / target glasses) and *Workout* log.
+   - Embedded *Health insights* report (weight change, average calories, workout time, optional charts).
+5. **Wellness Workspace:**
+   - Emoji mood check-in + Energy (`Low`/`Medium`/`High`) and Stress (`Low`/`Medium`/`High`) selectors.
+   - *Daily journal*, *Sleep* hours logger, *Emotional triggers* reflection, and *Small gratitude* note.
+   - Embedded *Weekly mental wellness review* (common mood, average energy, average sleep; gentle non-judgmental summaries).
+6. **Menstrual Cycle Workspace:**
+   - *Cycle calendar* highlighting period days and today, clearly labeling predictions as estimates (`Predictions are estimates, not medical certainty`).
+   - *Next period estimate* card, *Cycle history* (average cycle length, average period length, recorded cycles), selectable *Today's symptoms* chips (`cramps`, `bloating`, `headache`, `fatigue`, `acne` + custom notes), and *Mood during cycle*.
+   - Embedded *Cycle insights* & configurable reminder preferences.
+7. **Notes & Journal Workspace:**
+   - Search bar, category filters (`All notes`, `Daily journal`, `Brain dump`, `Gratitude`, `Pinned`), *Pinned notes* cards, and PC split-view / Mobile simple screen *Quick editor* (title, body, category, pin/unpin, archive/delete).
+8. **Rewards Workspace:**
+   - Points banner (`Missed days never take points away`), 3-column reward cards with `Redeem` button, *Achievements* milestones (`First step`, `Consistency week`, `Little by little`), and *Reward history*.
+9. **Settings:**
+   - App-level preferences only: **Profile & Appearance** (**Display Name (`user_name`)** updating the top `Hello, <Name> ♡` greeting, Theme mode, **Color Palette Picker** defaulting to *White & Pink*, Language selector, Dashboard density), **Reports & data** (`Show charts in reports` optional toggle, Local LAN Sync status, Automatic backup, Export/Restore data).
+
+### 3. Confirmed Revision Decisions
+- [v] **Revision Check 1 — Sync & Storage Architecture:** Keep local SQLite + zero-config LAN auto-discovery (`mDNS` / `UDP` per `CLAUDE.md`) and add local automatic pre-migration backup + JSON export/restore in Settings.
+- [v] **Revision Check 2 — UI Language:** Add a Language selector in Settings (`English` / `Bahasa Indonesia`, persisted in `meta`).
+- [v] **Revision Check 3 — Mobile Bottom Navigation Tabs:** Use the 5-tab layout from [Design/DesignRevisionM6.html](Design/DesignRevisionM6.html) (`Home`, `Tasks`, `Money`, `Health`, `More` bottom sheet with `Wellness`, `Menstrual`, `Notes`, `Rewards`, `Audit Log`, `Settings`).
+
+---
+
+## Milestone 7: Manual Sync IP Address & Port Connection (Completed — V0.3.1)
+**Goal:** Enable users to manually configure and connect to an explicit sync IP address and port when mDNS/UDP broadcast is restricted by routers, VPNs, guest networks, or custom firewall ports—while keeping zero-config LAN auto-discovery as the default.
+
+### 1. Mobile Sync Client Override
+- **Local Endpoint Storage (`meta` table):** Store local-only `manual_sync_enabled` (`'true'`/`'false'`), `manual_sync_host` (normalized IPv4/host), and `manual_sync_port` (integer `1..65535`, default `47800`) without modifying synced tables.
+- **`SyncService` Direct Verification & Discovery Override:**
+  - `SyncService.setManualEndpoint(...)` and `SyncService.connectManual(...)` sanitize pasted URLs/hosts (`http://host:port` -> `host`), validate port `1..65535`, verify `/api/v1/ping`, persist `last_sync_host`/`last_sync_port`/`last_sync_device_id`, and log `MANUAL_UNREACHABLE` audit diagnostics if unreachable.
+  - `discoverDesktop()` routes straight to `connectManual()` when `manual_sync_enabled` is active so both `pair()` and `sync()` use the configured endpoint deterministically.
+- **Mobile Settings UI (`MoreView` -> Network & Sync card):** Add *Manual IP & Port* switch, `Desktop IP` input, `Port` input (`47800`), **Save & Connect** action (triggering pairing dialog automatically if unpaired), and **Use Auto LAN** reset.
+
+### 2. Desktop Sync Server Listen IP & Port
+- **Configurable Bind IP & Port (`meta` table + `SyncServer` / `DiscoveryService`):**
+  - Store `sync_bind_ip` (default `'0.0.0.0'`) and `sync_port` (default `'47800'`), validate bind IP (`0.0.0.0`, `localhost`, or IPv4) and port (`1..65535`), gracefully restart `SyncServer` live without app restart (`settings:set-network`), and update mDNS/UDP discovery announcements (`DiscoveryService.updatePort()`).
+- **Desktop Settings UI (`Settings` -> Local LAN Sync card):** Add *Manual Listen IP & Port* (`Bind IP` with LAN interface suggestions + `Port` + **Apply** + **Reset 47800**).
+
+### 3. Acceptance Criteria
+- [v] Mobile can save an explicit IP & port, connect directly to `/api/v1/ping`, pair with the 6-digit code, and complete two-way LWW sync without relying on mDNS or UDP broadcast.
+- [v] Desktop can reconfigure its Sync Server bind IP and port live in Settings, persist across restarts, and roll back cleanly on bind failure.
+- [v] Invalid ports or empty hosts are rejected safely without breaking local auto-discovery mode.
+
+---
+
+## Milestone 8: Bug Fixes, QoL & Indonesian Language Audit (Completed — V0.3.1)
+**Goal:** Improve daily usability and visual comfort across Desktop and Mobile through pinned motivational reminders, full Envelope Budget management, newest-first comfortable Mobile Notes, permanent task step cleanup, and a complete Bahasa Indonesia consistency audit.
+
+### 1. Priorities & Improvements
+1. **Little Note as Pinned Motivational Reminder:**
+   - Transform Home's **Little Note** (*Catatan Kecil*) into a persistent **Pinned Motivational Reminder** stored in SQLite (`notes` with `is_pinned = 1`, synced across Desktop & Mobile).
+   - prominently display the saved motivational quote inside a soft pink pinned reminder card (with a calm default fallback until customized) and allow editing/updating it inline without clutter.
+2. **Envelope Budget Edit & Delete:**
+   - Enable inline editing (name & monthly budget limit) and soft deletion of **Envelope Budget** items on both **Desktop** (`Finance` workspace) and **Mobile** (`FinanceWorkspaceView`), preserving existing transaction references cleanly.
+3. **Mobile Notes Ordering & Readable Typography:**
+   - Sort notes strictly newest-saved first (`updated_at DESC, day DESC`) so newly created or edited notes immediately appear at position #1 at the top of the list regardless of pinned status.
+   - Increase font sizes, line height, and input comfort in `NotesWorkspaceView` (editor title/body fields, pinned reminder box, and saved note preview cards).
+4. **Restore & Delete Permanently for Deactivated Task Steps:**
+   - Add **Delete Permanently** (*Hapus Permanen*) alongside **Restore** (*Pulihkan*) for deactivated task steps in **Inactive** views on both Desktop (`#v-off`) and Mobile (`MoreView`), complete with confirmation prompts, check cleanup, and sync tombstone propagation (`deleted_tasks`) so permanently deleted steps do not reappear on subsequent LAN syncs.
+5. **Bahasa Indonesia & Bilingual Consistency Audit:**
+   - Audit and complete English (`en`) and Bahasa Indonesia (`id`) copy across all Desktop (`lifeos.js`, `app.js`, `index.html`) and Mobile (`AppStrings`, workspaces, Home, Tasks, Trail, Rewards, Settings, Quick Add, Audit Log) views so zero untranslated mixed strings remain in either language.
+
+### 2. Acceptance Criteria
+- [v] Home Little Note displays and persists a pinned motivational reminder across reloads and LAN sync.
+- [v] Envelopes can be created, edited (name & monthly budget), and deleted on both Desktop and Mobile.
+- [v] Saving/editing a note on Mobile places it at the top of the notes list with comfortable readable typography.
+- [v] Deactivated task steps support both Restore and confirmed Delete Permanently across Desktop, Mobile, and LAN sync tombstones.
+- [v] Switching language between English (`EN`) and Bahasa Indonesia (`ID`) updates headers, workspaces, buttons, dialogs, and status messages consistently across both platforms.
+- [v] **Revision Check 4 — Color Palette Picker Options:** Approved the 5 palettes in [Design/DesignRevisionM6.html](Design/DesignRevisionM6.html) (*White & Pink* default, *Soft Pastel Sage*, *Calm Slate Teal*, *Lavender Mist*, *Warm Peach*) + Light/Dark mode.
+
+### 4. Proposed Phased Implementation Plan (Once Revisions Confirmed)
+- **Phase 6A — Backup, Schema Migration & Theme/Palette Engine:** Automatic SQLite backup before migration; add fields/tables for task priority/due-date, savings goals, recurring bills, meal slots, body measurements (`waist/hip/chest/arm/thigh`), note categories/pinned state, and achievements; implement `color_palette` & `show_report_charts` preferences across Desktop and Mobile.
+- **Phase 6B — Home Dashboard v3 & Full Productivity/Rewards Workspaces:** Update Desktop & Mobile navigation shells, `Your spaces` shortcuts, inline task/routine/project/Pomodoro workspace, and Rewards + Achievements.
+- **Phase 6C — Full Finance, Health, Wellness, Menstrual & Notes Workspaces:** Replace report-only views with complete inline-entry + history + embedded report workspaces for all remaining modules, honoring the optional charts toggle.
+- **Phase 6D — Data Export/Backup & End-to-End Verification:** JSON/SQLite backup & export in Settings, plus Desktop (`node --test`) and Mobile (`flutter analyze` / `flutter test`) verification.

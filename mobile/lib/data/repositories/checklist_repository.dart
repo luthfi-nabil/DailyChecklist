@@ -37,11 +37,15 @@ const _lifeOsSyncTables = [
   'focus_sessions',
   'finance_envelopes',
   'finance_entries',
+  'savings_goals',
+  'recurring_bills',
   'health_entries',
   'wellness_entries',
   'menstrual_entries',
   'notes',
 ];
+
+const _validPalettes = ['pink', 'sage', 'teal', 'lavender', 'peach'];
 
 final _sensitiveAuditKeyRe =
     RegExp(r'^(authorization|token|paired_token|code|pairing_code|secret)$', caseSensitive: false);
@@ -198,6 +202,8 @@ class ChecklistRepository {
     final freqDaysStr = (freq == 'weekly' || freq == 'monthly')
         ? json.encode((task.freqDays.toSet().toList()..sort()))
         : null;
+    final priority = (task.priority == 'low' || task.priority == 'high') ? task.priority : 'normal';
+    final dueDate = (task.dueDate != null && task.dueDate!.isNotEmpty) ? task.dueDate!.substring(0, min(10, task.dueDate!.length)) : null;
 
     final existing = await db.query('tasks', where: 'id = ?', whereArgs: [id]);
     if (existing.isNotEmpty) {
@@ -210,6 +216,8 @@ class ChecklistRepository {
           'sort': task.sort,
           'freq': freq,
           'freq_days': freqDaysStr,
+          'priority': priority,
+          'due_date': dueDate,
           'is_active': task.isActive ? 1 : 0,
           'deactivated_at': task.deactivatedAt,
           'updated_at': now,
@@ -227,6 +235,8 @@ class ChecklistRepository {
         'sort': task.sort,
         'freq': freq,
         'freq_days': freqDaysStr,
+        'priority': priority,
+        'due_date': dueDate,
         'is_active': task.isActive ? 1 : 0,
         'deactivated_at': task.deactivatedAt,
         'updated_at': now,
@@ -258,6 +268,36 @@ class ChecklistRepository {
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  Future<Map<String, Map<String, dynamic>>> _readDeletedTaskTombstones() async {
+    final raw = await getMeta('deleted_task_tombstones_v1');
+    if (raw == null || raw.isEmpty) return {};
+    try {
+      final decoded = json.decode(raw) as Map<String, dynamic>;
+      return decoded.map((k, v) => MapEntry(k, Map<String, dynamic>.from(v as Map)));
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> _writeDeletedTaskTombstones(Map<String, Map<String, dynamic>> tombs) async {
+    final sorted = tombs.entries.toList()
+      ..sort((a, b) => ((b.value['deleted_at'] as num?) ?? 0).compareTo((a.value['deleted_at'] as num?) ?? 0));
+    final bounded = Map<String, Map<String, dynamic>>.fromEntries(sorted.take(500));
+    await setMeta('deleted_task_tombstones_v1', json.encode(bounded));
+  }
+
+  Future<bool> deleteTaskPermanently(String id) async {
+    if (id.isEmpty) return false;
+    final db = await _db;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final tombs = await _readDeletedTaskTombstones();
+    tombs[id] = {'deleted_at': now, 'dirty': 1};
+    await _writeDeletedTaskTombstones(tombs);
+    await db.delete('checks', where: 'task_id = ?', whereArgs: [id]);
+    await db.delete('tasks', where: 'id = ?', whereArgs: [id]);
+    return true;
   }
 
   // --- CHECKS ---
@@ -781,6 +821,14 @@ class ChecklistRepository {
       final rows = await db.query(tbl, where: 'dirty = 1');
       out[tbl] = rows.map((r) => Map<String, dynamic>.from(r)..remove('dirty')).toList();
     }
+    final tombs = await _readDeletedTaskTombstones();
+    final dirtyTombs = tombs.entries
+        .where((e) => (e.value['dirty'] as num?)?.toInt() == 1)
+        .map((e) => {'id': e.key, 'deleted_at': (e.value['deleted_at'] as num?)?.toInt() ?? 0})
+        .toList();
+    if (dirtyTombs.isNotEmpty) {
+      out['deleted_tasks'] = dirtyTombs;
+    }
     return out;
   }
 
@@ -810,11 +858,45 @@ class ChecklistRepository {
     }
 
     await batch.commit(noResult: true);
+
+    final sentTombs = sentChanges['deleted_tasks'] as List? ?? [];
+    if (sentTombs.isNotEmpty) {
+      final tombs = await _readDeletedTaskTombstones();
+      bool changed = false;
+      for (final d in sentTombs) {
+        final id = d['id'] as String?;
+        final ts = (d['deleted_at'] as num?)?.toInt() ?? 0;
+        if (id != null && tombs.containsKey(id)) {
+          final curTs = (tombs[id]!['deleted_at'] as num?)?.toInt() ?? 0;
+          if (curTs <= ts) {
+            tombs[id]!['dirty'] = 0;
+            changed = true;
+          }
+        }
+      }
+      if (changed) await _writeDeletedTaskTombstones(tombs);
+    }
   }
 
   Future<void> applyIncomingChanges(Map<String, dynamic> changes, String serverDeviceId) async {
     final db = await _db;
     final myDeviceId = await getMeta('device_id') ?? '';
+    final tombs = await _readDeletedTaskTombstones();
+    bool tombsChanged = false;
+
+    for (final d in (changes['deleted_tasks'] as List? ?? [])) {
+      final id = d['id'] as String?;
+      if (id == null) continue;
+      final delAt = (d['deleted_at'] as num?)?.toInt() ?? 0;
+      final existing = await db.query('tasks', where: 'id = ?', whereArgs: [id]);
+      if (existing.isEmpty || delAt >= ((existing.first['updated_at'] as num?)?.toInt() ?? 0)) {
+        await db.delete('checks', where: 'task_id = ?', whereArgs: [id]);
+        await db.delete('tasks', where: 'id = ?', whereArgs: [id]);
+        final prevTs = (tombs[id]?['deleted_at'] as num?)?.toInt() ?? 0;
+        tombs[id] = {'deleted_at': max(prevTs, delAt), 'dirty': 0};
+        tombsChanged = true;
+      }
+    }
 
     bool shouldOverwrite(int incUpdatedAt, int existUpdatedAt) {
       if (incUpdatedAt > existUpdatedAt) return true;
@@ -838,6 +920,14 @@ class ChecklistRepository {
     }
 
     for (final t in (changes['tasks'] as List? ?? [])) {
+      final tId = t['id'] as String?;
+      final tUpd = (t['updated_at'] as num?)?.toInt() ?? 0;
+      if (tId != null && tombs.containsKey(tId)) {
+        final delTs = (tombs[tId]!['deleted_at'] as num?)?.toInt() ?? 0;
+        if (delTs >= tUpd) continue;
+        tombs.remove(tId);
+        tombsChanged = true;
+      }
       final existing = await db.query('tasks', where: 'id = ?', whereArgs: [t['id']]);
       if (existing.isEmpty || shouldOverwrite((t['updated_at'] as num).toInt(), (existing.first['updated_at'] as num).toInt())) {
         final freqRaw = t['freq'] as String?;
@@ -855,6 +945,8 @@ class ChecklistRepository {
           'sort': t['sort'] ?? 0,
           'freq': freq,
           'freq_days': freqDaysStr,
+          'priority': (t['priority'] == 'low' || t['priority'] == 'high') ? t['priority'] : 'normal',
+          'due_date': t['due_date'],
           'is_active': t['is_active'],
           'deactivated_at': t['deactivated_at'],
           'updated_at': t['updated_at'],
@@ -862,6 +954,7 @@ class ChecklistRepository {
         }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
     }
+    if (tombsChanged) await _writeDeletedTaskTombstones(tombs);
 
     for (final r in (changes['rewards'] as List? ?? [])) {
       final existing = await db.query('rewards', where: 'id = ?', whereArgs: [r['id']]);
@@ -913,6 +1006,12 @@ class ChecklistRepository {
         final m = Map<String, dynamic>.from(row as Map);
         final id = m['id'] as String?;
         if (id == null) continue;
+        if (tbl == 'projects') {
+          m['is_someday'] ??= 0;
+        } else if (tbl == 'notes') {
+          m['category'] ??= 'journal';
+          m['is_pinned'] ??= 0;
+        }
         final existing = await db.query(tbl, where: 'id = ?', whereArgs: [id]);
         if (existing.isEmpty ||
             shouldOverwrite((m['updated_at'] as num).toInt(), (existing.first['updated_at'] as num).toInt())) {
@@ -948,9 +1047,84 @@ class ChecklistRepository {
     return def;
   }
 
+  Future<AppPreferences> getAppPreferences() async {
+    final palette = await getMeta('color_palette');
+    final userName = (await getMeta('user_name') ?? 'User').trim();
+    final lang = await getMeta('language');
+    final showCharts = await getMeta('show_report_charts');
+    final periodRem = await getMeta('period_reminders');
+    final waterGoal = int.tryParse(await getMeta('water_goal_glasses') ?? '8') ?? 8;
+    final weightGoal = await getMeta('weight_goal_kg') ?? '';
+    return AppPreferences(
+      colorPalette: _validPalettes.contains(palette) ? palette! : 'pink',
+      userName: userName.isNotEmpty ? userName : 'User',
+      language: lang == 'id' ? 'id' : 'en',
+      showReportCharts: showCharts != 'false',
+      periodReminders: periodRem == 'true',
+      waterGoalGlasses: waterGoal.clamp(1, 30),
+      weightGoalKg: weightGoal,
+    );
+  }
+
+  Future<AppPreferences> saveAppPreferences({
+    String? colorPalette,
+    String? userName,
+    String? language,
+    bool? showReportCharts,
+    bool? periodReminders,
+    int? waterGoalGlasses,
+    String? weightGoalKg,
+  }) async {
+    if (colorPalette != null && _validPalettes.contains(colorPalette)) {
+      await setMeta('color_palette', colorPalette);
+    }
+    if (userName != null) {
+      final clean = userName.trim();
+      if (clean.isNotEmpty) {
+        await setMeta('user_name', clean.length > 40 ? clean.substring(0, 40) : clean);
+        await setMeta('user_name_customized', 'true');
+      }
+    }
+    if (language == 'en' || language == 'id') {
+      await setMeta('language', language!);
+    }
+    if (showReportCharts != null) {
+      await setMeta('show_report_charts', showReportCharts ? 'true' : 'false');
+    }
+    if (periodReminders != null) {
+      await setMeta('period_reminders', periodReminders ? 'true' : 'false');
+    }
+    if (waterGoalGlasses != null) {
+      await setMeta('water_goal_glasses', waterGoalGlasses.clamp(1, 30).toString());
+    }
+    if (weightGoalKg != null) {
+      await setMeta('weight_goal_kg', weightGoalKg.trim());
+    }
+    return getAppPreferences();
+  }
+
+  Future<bool> softDeleteItem(String table, String id) async {
+    const allowed = {
+      'projects',
+      'finance_envelopes',
+      'finance_entries',
+      'savings_goals',
+      'recurring_bills',
+      'health_entries',
+      'wellness_entries',
+      'menstrual_entries',
+      'notes',
+    };
+    if (!allowed.contains(table) || id.isEmpty) return false;
+    final db = await _db;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await db.update(table, {'is_active': 0, 'updated_at': now, 'dirty': 1}, where: 'id = ?', whereArgs: [id]);
+    return true;
+  }
+
   Future<List<Map<String, dynamic>>> getProjects() async {
     final db = await _db;
-    return db.query('projects', where: 'is_active = 1', orderBy: 'updated_at DESC');
+    return db.query('projects', where: 'is_active = 1', orderBy: 'is_someday ASC, updated_at DESC');
   }
 
   Future<List<Map<String, dynamic>>> getEnvelopes() async {
@@ -958,21 +1132,36 @@ class ChecklistRepository {
     return db.query('finance_envelopes', where: 'is_active = 1', orderBy: 'name ASC');
   }
 
+  Future<List<Map<String, dynamic>>> getSavingsGoals() async {
+    final db = await _db;
+    return db.query('savings_goals', where: 'is_active = 1', orderBy: 'updated_at DESC');
+  }
+
+  Future<List<Map<String, dynamic>>> getRecurringBills() async {
+    final db = await _db;
+    return db.query('recurring_bills', where: 'is_active = 1', orderBy: 'due_day ASC, updated_at DESC');
+  }
+
   Future<void> quickAdd(String kind, Map<String, dynamic> data) async {
     final db = await _db;
     final now = DateTime.now().millisecondsSinceEpoch;
     final day = (data['day'] as String?) ?? formatLocalDay(DateTime.now());
-    final id = (data['id'] as String?) ?? const Uuid().v4();
+    final rawId = data['id'] as String?;
+    final id = (rawId != null && rawId.isNotEmpty) ? rawId : const Uuid().v4();
 
     if (kind == 'task') {
       final groups = await getGroups();
       final gid = (data['group_id'] as String?) ?? (groups.isNotEmpty ? groups.first.id : 'seed-group-pagi');
       await saveTask(TaskItem(
-        id: '',
+        id: rawId ?? '',
         groupId: gid,
-        name: (data['name'] as String?)?.trim().isNotEmpty == true ? (data['name'] as String).trim() : 'Langkah baru',
+        name: (data['name'] as String?)?.trim().isNotEmpty == true ? (data['name'] as String).trim() : 'New step',
         core: data['core'] == true,
-        sort: 99,
+        sort: (data['sort'] as num?)?.toInt() ?? 99,
+        freq: (data['freq'] as String?) ?? 'daily',
+        freqDays: parseFreqDays(data['freq_days']),
+        priority: (data['priority'] as String?) ?? 'normal',
+        dueDate: data['due_date'] as String?,
         updatedAt: now,
       ));
       return;
@@ -982,9 +1171,10 @@ class ChecklistRepository {
       final progress = ((data['progress'] as num?)?.toInt() ?? 0).clamp(0, 100);
       await db.insert('projects', {
         'id': id,
-        'name': (data['name'] as String?) ?? 'Proyek',
+        'name': (data['name'] as String?) ?? 'Project',
         'status': progress >= 100 ? 'done' : 'active',
         'progress': progress,
+        'is_someday': (data['is_someday'] == true || data['is_someday'] == 1) ? 1 : 0,
         'is_active': 1,
         'updated_at': now,
         'dirty': 1,
@@ -1009,7 +1199,7 @@ class ChecklistRepository {
     if (kind == 'envelope') {
       await db.insert('finance_envelopes', {
         'id': id,
-        'name': (data['name'] as String?) ?? 'Amplop',
+        'name': (data['name'] as String?) ?? 'Envelope',
         'monthly_budget': (data['monthly_budget'] as num?)?.toInt() ?? 0,
         'is_active': 1,
         'updated_at': now,
@@ -1036,12 +1226,44 @@ class ChecklistRepository {
       return;
     }
 
+    if (kind == 'savings_goal') {
+      await db.insert('savings_goals', {
+        'id': id,
+        'name': (data['name'] as String?) ?? 'Savings Goal',
+        'target_amount': ((data['target_amount'] as num?)?.round() ?? 0).clamp(0, 1000000000),
+        'current_amount': ((data['current_amount'] as num?)?.round() ?? 0).clamp(0, 1000000000),
+        'deadline': data['deadline'],
+        'is_active': 1,
+        'updated_at': now,
+        'dirty': 1,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      return;
+    }
+
+    if (kind == 'recurring_bill') {
+      await db.insert('recurring_bills', {
+        'id': id,
+        'name': (data['name'] as String?) ?? 'Recurring',
+        'kind': data['kind'] == 'debt' ? 'debt' : 'bill',
+        'amount': ((data['amount'] as num?)?.round() ?? 0).clamp(0, 1000000000),
+        'due_day': ((data['due_day'] as num?)?.toInt() ?? 1).clamp(1, 31),
+        'is_paid': (data['is_paid'] == true || data['is_paid'] == 1) ? 1 : 0,
+        'last_paid_month': data['last_paid_month'],
+        'is_active': 1,
+        'updated_at': now,
+        'dirty': 1,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      return;
+    }
+
     if (['food', 'weight', 'water', 'workout', 'measurement'].contains(kind)) {
+      final slot = ['breakfast', 'lunch', 'dinner', 'snacks'].contains(data['meal_slot']) ? data['meal_slot'] : null;
       await db.insert('health_entries', {
         'id': id,
         'day': day,
         'kind': kind,
         'name': data['name'],
+        'meal_slot': slot,
         'value_num': (data['value_num'] as num?)?.toDouble() ?? 0.0,
         'value_num2': (data['value_num2'] as num?)?.toDouble(),
         'unit': data['unit'],
@@ -1057,12 +1279,13 @@ class ChecklistRepository {
       await db.insert('wellness_entries', {
         'id': id,
         'day': day,
-        'mood': (data['mood'] as String?) ?? 'Tenang',
+        'mood': (data['mood'] as String?) ?? 'Calm',
         'mood_score': ((data['mood_score'] as num?)?.toInt() ?? 4).clamp(1, 5),
         'energy': ((data['energy'] as num?)?.toInt() ?? 3).clamp(1, 5),
         'stress': ((data['stress'] as num?)?.toInt() ?? 2).clamp(1, 5),
         'sleep_hours': (data['sleep_hours'] as num?)?.toDouble() ?? 7.0,
         'triggers_text': data['triggers_text'],
+        'gratitude_text': data['gratitude_text'],
         'note': data['note'],
         'is_active': 1,
         'updated_at': now,
@@ -1076,7 +1299,7 @@ class ChecklistRepository {
       await db.insert('menstrual_entries', {
         'id': id,
         'day': day,
-        'phase': (data['phase'] as String?) ?? 'Menstruasi',
+        'phase': (data['phase'] as String?) ?? 'Menstrual',
         'cycle_day': ((data['cycle_day'] as num?)?.toInt() ?? 1).clamp(1, 90),
         'flow': data['flow'],
         'symptoms_json': syms,
@@ -1096,13 +1319,19 @@ class ChecklistRepository {
         tagsJson = json.encode((data['tags'] as List).map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList());
       } else if (data['tags_text'] is String) {
         tagsJson = json.encode((data['tags_text'] as String).split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList());
+      } else if (data['tags_json'] is String) {
+        tagsJson = data['tags_json'] as String;
       }
+      final cat = ['journal', 'braindump', 'gratitude', 'quick'].contains(data['category']) ? data['category'] : 'journal';
+      final isPinned = (data['is_pinned'] == true || data['is_pinned'] == 1) ? 1 : 0;
       await db.insert('notes', {
         'id': id,
         'day': day,
-        'title': (data['title'] as String?)?.trim().isNotEmpty == true ? (data['title'] as String).trim() : 'Catatan cepat',
+        'title': (data['title'] as String?)?.trim().isNotEmpty == true ? (data['title'] as String).trim() : 'Quick Note',
         'body': (data['body'] as String?) ?? '',
         'tags_json': tagsJson,
+        'category': cat,
+        'is_pinned': isPinned,
         'is_active': 1,
         'updated_at': now,
         'dirty': 1,
@@ -1128,6 +1357,80 @@ class ChecklistRepository {
     return (start: formatLocalDay(dt.subtract(Duration(days: back))), end: end);
   }
 
+  Future<List<AchievementItem>> getDerivedAchievements(String dayStr) async {
+    final db = await _db;
+    final checksRow = await db.rawQuery('SELECT COUNT(*) as c FROM checks WHERE checked = 1');
+    final claimsRow = await db.rawQuery('SELECT COUNT(*) as c FROM claims');
+    final focusRow = await db.rawQuery('SELECT COALESCE(SUM(minutes), 0) as m FROM focus_sessions');
+    final stats = await getDashboardStats('week', dayStr);
+    final totalChecks = (checksRow.first['c'] as num).toInt();
+    final totalClaims = (claimsRow.first['c'] as num).toInt();
+    final focusMin = (focusRow.first['m'] as num).toInt();
+    return [
+      AchievementItem(id: 'first-step', unlocked: totalChecks >= 1, progress: min(1, totalChecks), target: 1),
+      AchievementItem(id: 'streak-7', unlocked: stats.currentStreak >= 7, progress: min(7, stats.currentStreak), target: 7),
+      AchievementItem(id: 'checks-25', unlocked: totalChecks >= 25, progress: min(25, totalChecks), target: 25),
+      AchievementItem(id: 'focus-60', unlocked: focusMin >= 60, progress: min(60, focusMin), target: 60),
+      AchievementItem(id: 'self-care-1', unlocked: totalClaims >= 1, progress: min(1, totalClaims), target: 1),
+    ];
+  }
+
+  Future<Map<String, dynamic>> exportAllDataJson() async {
+    final db = await _db;
+    Future<List<Map<String, dynamic>>> dump(String table) async {
+      final rows = await db.query(table);
+      return rows.map((r) => Map<String, dynamic>.from(r)..remove('dirty')).toList();
+    }
+    final prefs = await getAppPreferences();
+    final layout = await getDashboardLayout();
+    return {
+      'version': '0.3.1',
+      'exportedAt': DateTime.now().millisecondsSinceEpoch,
+      'prefs': {
+        'colorPalette': prefs.colorPalette,
+        'userName': prefs.userName,
+        'language': prefs.language,
+        'showReportCharts': prefs.showReportCharts,
+        'periodReminders': prefs.periodReminders,
+        'waterGoalGlasses': prefs.waterGoalGlasses,
+        'weightGoalKg': prefs.weightGoalKg,
+      },
+      'dashboardLayout': layout.map((w) => w.toJson()).toList(),
+      'changes': {
+        'groups': await dump('groups'),
+        'tasks': await dump('tasks'),
+        'rewards': await dump('rewards'),
+        'checks': await dump('checks'),
+        'claims': await dump('claims'),
+        for (final tbl in _lifeOsSyncTables) tbl: await dump(tbl),
+      },
+    };
+  }
+
+  Future<void> importAllDataJson(Map<String, dynamic> payload) async {
+    final changes = payload['changes'];
+    if (changes is! Map) throw Exception('Invalid backup JSON');
+    await applyIncomingChanges(Map<String, dynamic>.from(changes), 'import-restore');
+    final prefs = payload['prefs'];
+    if (prefs is Map) {
+      await saveAppPreferences(
+        colorPalette: prefs['colorPalette'] as String?,
+        userName: prefs['userName'] as String?,
+        language: prefs['language'] as String?,
+        showReportCharts: prefs['showReportCharts'] as bool?,
+        periodReminders: prefs['periodReminders'] as bool?,
+        waterGoalGlasses: (prefs['waterGoalGlasses'] as num?)?.toInt(),
+        weightGoalKg: prefs['weightGoalKg']?.toString(),
+      );
+    }
+    final layout = payload['dashboardLayout'];
+    if (layout is List && layout.isNotEmpty) {
+      await saveDashboardLayout(
+        layout.map((e) => DashboardWidgetConfig.fromJson(Map<String, dynamic>.from(e as Map))).toList(),
+      );
+    }
+  }
+
   Future<LifeOsSummary> getLifeOsSummary(String dayStr) async {
     final db = await _db;
     final layout = await getDashboardLayout();
@@ -1140,6 +1443,8 @@ class ChecklistRepository {
     final incRow = await db.rawQuery("SELECT COALESCE(SUM(amount), 0) as s FROM finance_entries WHERE is_active = 1 AND type = 'income'");
     final expRow = await db.rawQuery("SELECT COALESCE(SUM(amount), 0) as s FROM finance_entries WHERE is_active = 1 AND type = 'expense'");
     final cntRow = await db.rawQuery('SELECT COUNT(*) as c FROM finance_entries WHERE is_active = 1');
+    final billsRow = await db.rawQuery('SELECT COUNT(*) as c FROM recurring_bills WHERE is_active = 1 AND is_paid = 0');
+    final goalsRow = await db.rawQuery('SELECT COUNT(*) as c FROM savings_goals WHERE is_active = 1');
     final finInc = (incRow.first['s'] as num).toInt();
     final finExp = (expRow.first['s'] as num).toInt();
     final finCount = (cntRow.first['c'] as num).toInt();
@@ -1151,7 +1456,10 @@ class ChecklistRepository {
     final wellRows = await db.query('wellness_entries', where: 'is_active = 1', orderBy: 'day DESC, updated_at DESC', limit: 1);
     final mensRows = await db.query('menstrual_entries', where: 'is_active = 1', orderBy: 'day DESC, updated_at DESC', limit: 1);
     final notesCntRow = await db.rawQuery('SELECT COUNT(*) as c FROM notes WHERE is_active = 1');
-    final noteLatest = await db.query('notes', where: 'is_active = 1', orderBy: 'day DESC, updated_at DESC', limit: 1);
+    final noteLatest = await db.query('notes', where: 'is_active = 1', orderBy: 'updated_at DESC, day DESC', limit: 1);
+    final pinnedReminderRows = await db.rawQuery(
+      "SELECT id, title, body FROM notes WHERE is_active = 1 AND is_pinned = 1 ORDER BY (id = 'little-note-motivation') DESC, updated_at DESC LIMIT 1",
+    );
     final rewCntRow = await db.rawQuery('SELECT COUNT(*) as c FROM rewards WHERE is_active = 1');
     final audCntRow = await db.rawQuery("SELECT COUNT(*) as c FROM audit_logs WHERE level IN ('error', 'warn')");
 
@@ -1171,6 +1479,8 @@ class ChecklistRepository {
       financeExpense: finExp,
       financeBalance: finInc - finExp,
       financeCount: finCount,
+      unpaidBillsCount: (billsRow.first['c'] as num).toInt(),
+      savingsGoalsCount: (goalsRow.first['c'] as num).toInt(),
       latestWeight: weightRows.isNotEmpty ? (weightRows.first['value_num'] as num).toDouble() : null,
       waterTodayMl: (waterRow.first['s'] as num).toDouble(),
       kcalToday: (kcalRow.first['s'] as num).toDouble(),
@@ -1178,14 +1488,19 @@ class ChecklistRepository {
       latestEnergy: wellRows.isNotEmpty ? (wellRows.first['energy'] as num).toInt() : null,
       latestStress: wellRows.isNotEmpty ? (wellRows.first['stress'] as num).toInt() : null,
       latestSleepHours: wellRows.isNotEmpty ? (wellRows.first['sleep_hours'] as num).toDouble() : null,
+      latestGratitude: wellRows.isNotEmpty ? wellRows.first['gratitude_text'] as String? : null,
       latestMenstrualPhase: mensRows.isNotEmpty ? mensRows.first['phase'] as String : null,
       latestCycleDay: mensRows.isNotEmpty ? (mensRows.first['cycle_day'] as num).toInt() : null,
       latestSymptoms: syms,
       notesCount: (notesCntRow.first['c'] as num).toInt(),
       latestNoteTitle: noteLatest.isNotEmpty ? noteLatest.first['title'] as String : null,
+      pinnedNoteId: pinnedReminderRows.isNotEmpty ? pinnedReminderRows.first['id'] as String : null,
+      pinnedNoteTitle: pinnedReminderRows.isNotEmpty ? pinnedReminderRows.first['title'] as String : null,
+      pinnedNoteBody: pinnedReminderRows.isNotEmpty ? pinnedReminderRows.first['body'] as String : null,
       rewardsBalance: await getPointsBalance(),
       activeRewardsCount: (rewCntRow.first['c'] as num).toInt(),
       errorAuditCount: (audCntRow.first['c'] as num).toInt(),
+      achievements: await getDerivedAchievements(dayStr),
     );
   }
 
@@ -1236,6 +1551,8 @@ class ChecklistRepository {
     if (module == 'finance') {
       final entries = await db.query('finance_entries', where: 'is_active = 1 AND day >= ? AND day <= ?', whereArgs: [b.start, b.end], orderBy: 'day DESC, updated_at DESC');
       final envs = await getEnvelopes();
+      final goals = await getSavingsGoals();
+      final bills = await getRecurringBills();
       int inc = 0, exp = 0, sav = 0, debt = 0;
       for (final e in entries) {
         final amt = (e['amount'] as num).toInt();
@@ -1251,13 +1568,20 @@ class ChecklistRepository {
         final used = entries.where((e) => e['type'] == 'expense' && e['envelope_id'] == env['id']).fold<int>(0, (s, e) => s + (e['amount'] as num).toInt());
         final bud = (env['monthly_budget'] as num).toInt();
         final pct = bud > 0 ? ((used / bud) * 100).round().clamp(0, 100) : 0;
-        return {'name': env['name'], 'used': used, 'budget': bud, 'pct': pct};
+        return {'id': env['id'], 'name': env['name'], 'used': used, 'budget': bud, 'pct': pct};
       }).toList();
       return ModuleReportData(
         module: module,
         start: b.start,
         end: b.end,
-        metrics: {'income': inc, 'expense': exp, 'savings': sav, 'debt': debt},
+        metrics: {
+          'income': inc,
+          'expense': exp,
+          'savings': sav,
+          'debt': debt,
+          'savingsGoals': goals,
+          'recurringBills': bills,
+        },
         breakdown: envUsage,
         entries: entries,
       );
@@ -1265,19 +1589,28 @@ class ChecklistRepository {
 
     if (module == 'health') {
       final rows = await db.query('health_entries', where: 'is_active = 1 AND day >= ? AND day <= ?', whereArgs: [b.start, b.end], orderBy: 'day DESC, updated_at DESC');
+      final prefs = await getAppPreferences();
       final weights = rows.where((r) => r['kind'] == 'weight').toList();
       final kcal = rows.where((r) => r['kind'] == 'food').fold<double>(0, (s, r) => s + (r['value_num'] as num).toDouble()).round();
       final water = rows.where((r) => r['kind'] == 'water').fold<double>(0, (s, r) => s + (r['value_num'] as num).toDouble()).round();
       final woMin = rows.where((r) => r['kind'] == 'workout').fold<double>(0, (s, r) => s + (r['value_num'] as num).toDouble()).round();
+      final latestMeas = <String, Map<String, dynamic>>{};
+      for (final m in rows.where((r) => r['kind'] == 'measurement')) {
+        final k = (m['name'] as String? ?? 'Other').trim();
+        latestMeas.putIfAbsent(k, () => m);
+      }
       return ModuleReportData(
         module: module,
         start: b.start,
         end: b.end,
         metrics: {
           'latestWeight': weights.isNotEmpty ? (weights.first['value_num'] as num).toDouble() : null,
+          'weightGoalKg': prefs.weightGoalKg,
+          'waterGoalGlasses': prefs.waterGoalGlasses,
           'totalCalories': kcal,
           'totalWaterMl': water,
           'totalWorkoutMin': woMin,
+          'latestMeasurements': latestMeas,
         },
         breakdown: weights,
         entries: rows,
@@ -1315,9 +1648,24 @@ class ChecklistRepository {
 
     if (module == 'menstrual') {
       final rows = await db.query('menstrual_entries', where: 'is_active = 1 AND day >= ? AND day <= ?', whereArgs: [b.start, b.end], orderBy: 'day DESC, updated_at DESC');
+      final allStarts = await db.query('menstrual_entries', where: 'is_active = 1 AND is_period_start = 1', orderBy: 'day DESC');
       final periods = rows.where((r) => r['is_period_start'] == 1).length;
       final lens = rows.map((r) => r['cycle_length']).whereType<num>().where((n) => n > 0).map((n) => n.toInt()).toList();
       final avgDur = lens.isEmpty ? null : (lens.reduce((a, b) => a + b) / lens.length).round();
+      Map<String, dynamic>? nextEstimate;
+      if (allStarts.isNotEmpty) {
+        final lastStart = parseLocalDay(allStarts.first['day'] as String);
+        final cycLen = ((allStarts.first['cycle_length'] as num?)?.toInt()) ?? avgDur ?? 28;
+        final estNext = lastStart.add(Duration(days: cycLen));
+        final estOv = estNext.subtract(const Duration(days: 14));
+        nextEstimate = {
+          'lastStartDay': allStarts.first['day'],
+          'estimatedStartDay': formatLocalDay(estNext),
+          'estimatedOvulationDay': formatLocalDay(estOv),
+          'cycleLengthUsed': cycLen,
+          'isEstimate': true,
+        };
+      }
       final symMap = <String, int>{};
       for (final r in rows) {
         final raw = r['symptoms_json'] as String?;
@@ -1339,6 +1687,7 @@ class ChecklistRepository {
           'avgCycleDuration': avgDur,
           'periodCount': periods,
           'latestPhase': rows.isNotEmpty ? rows.first['phase'] : null,
+          'nextPeriodEstimate': nextEstimate,
         },
         entries: rows,
         tagsOrTriggers: syms,
@@ -1346,7 +1695,7 @@ class ChecklistRepository {
     }
 
     // notes
-    final rows = await db.query('notes', where: 'is_active = 1 AND day >= ? AND day <= ?', whereArgs: [b.start, b.end], orderBy: 'day DESC, updated_at DESC');
+    final rows = await db.query('notes', where: 'is_active = 1 AND day >= ? AND day <= ?', whereArgs: [b.start, b.end], orderBy: 'updated_at DESC, day DESC');
     int words = 0;
     final tagMap = <String, int>{};
     for (final r in rows) {

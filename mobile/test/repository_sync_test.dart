@@ -519,11 +519,265 @@ void main() {
         message: 'Failed auth with Bearer mysecrettoken999',
         details: {'token': 'secret-val', 'host': '192.168.1.9'},
       );
-      final logs = await repo.getAuditLogs(todayStr: today);
+      final logs = await repo.getAuditLogs();
       expect(logs.length, 1);
       expect(logs.first.message.contains('mysecrettoken999'), false);
       expect(logs.first.details?['token'], '[REDACTED]');
       expect(logs.first.details?['host'], '192.168.1.9');
+
+      await db.close();
+    });
+
+    test('Milestone 5 & 6: preferences, M6 workspaces, menstrual estimate, JSON export/restore & local IP lookup', () async {
+      final db = await createInMemoryDb();
+      final repo = ChecklistRepository(dbHelper: DatabaseHelper(customDb: db));
+      const today = '2026-11-18';
+
+      // Default White & Pink palette + User
+      final defPrefs = await repo.getAppPreferences();
+      expect(defPrefs.colorPalette, 'pink');
+      expect(defPrefs.userName, 'User');
+      expect(defPrefs.language, 'en');
+      expect(defPrefs.showReportCharts, true);
+
+      // Editable Your spaces custom labels persist in dashboard layout
+      final savedSpaces = await repo.saveDashboardLayout([
+        const DashboardWidgetConfig(id: 'w-fin', visible: true, label: 'My Money'),
+        const DashboardWidgetConfig(id: 'w-hlth', visible: false, label: 'Wellness'),
+      ]);
+      expect(savedSpaces[0].label, 'My Money');
+      final loadedSpaces = await repo.getDashboardLayout();
+      expect(loadedSpaces[0].label, 'My Money');
+      expect(loadedSpaces[1].visible, false);
+
+      final savedPrefs = await repo.saveAppPreferences(
+        colorPalette: 'teal',
+        userName: 'Luthfi',
+        language: 'id',
+        showReportCharts: false,
+      );
+      expect(savedPrefs.colorPalette, 'teal');
+      expect(savedPrefs.userName, 'Luthfi');
+      expect(savedPrefs.language, 'id');
+      expect(savedPrefs.showReportCharts, false);
+
+      // Tasks priority & due_date + M6 workspaces
+      final t = await repo.saveTask(TaskItem(
+        id: 'm6-task-1',
+        groupId: 'seed-group-pagi',
+        name: 'Priority task',
+        priority: 'high',
+        dueDate: '2026-11-20',
+        updatedAt: DateTime.now().millisecondsSinceEpoch,
+      ));
+      expect(t.priority, 'high');
+      expect(t.dueDate, '2026-11-20');
+
+      await repo.quickAdd('savings_goal', {'name': 'Vacation', 'target_amount': 5000000, 'current_amount': 1200000});
+      await repo.quickAdd('recurring_bill', {'name': 'Electric', 'kind': 'bill', 'amount': 250000, 'due_day': 15});
+      await repo.quickAdd('food', {'day': today, 'meal_slot': 'lunch', 'name': 'Bento', 'value_num': 550});
+      await repo.quickAdd('measurement', {'day': today, 'name': 'Waist', 'value_num': 72, 'unit': 'cm'});
+      await repo.quickAdd('mood', {'day': today, 'mood': 'Happy', 'mood_score': 5, 'gratitude_text': 'Coffee'});
+      await repo.quickAdd('menstrual', {'day': today, 'phase': 'Menstrual', 'cycle_day': 1, 'is_period_start': 1, 'cycle_length': 28});
+      await repo.quickAdd('note', {'day': today, 'title': 'Idea', 'body': 'Build calm tools', 'category': 'braindump', 'is_pinned': true});
+
+      final finRep = await repo.getModuleReport(module: 'finance', range: 'week', todayStr: today);
+      expect((finRep.metrics['savingsGoals'] as List).length, 1);
+      expect((finRep.metrics['recurringBills'] as List).length, 1);
+
+      final mensRep = await repo.getModuleReport(module: 'menstrual', range: 'week', todayStr: today);
+      final est = mensRep.metrics['nextPeriodEstimate'] as Map<String, dynamic>?;
+      expect(est?['isEstimate'], true);
+      expect(est?['estimatedStartDay'], '2026-12-16');
+
+      // JSON export + restore
+      final backup = await repo.exportAllDataJson();
+      final db2 = await createInMemoryDb();
+      final repo2 = ChecklistRepository(dbHelper: DatabaseHelper(customDb: db2));
+      await repo2.importAllDataJson(backup);
+      expect((await repo2.getAppPreferences()).userName, 'Luthfi');
+      expect((await repo2.getSavingsGoals()).length, 1);
+      await db2.close();
+
+      // Local IP enumeration executes cleanly without throwing
+      final sync = SyncService(repository: repo);
+      final ips = await sync.getLocalIpAddresses();
+      expect(ips, isA<List<({String iface, String address})>>());
+      sync.dispose();
+
+      await db.close();
+    });
+
+    test('Milestone 7: Manual IP address & port configuration pairs and syncs without auto-discovery', () async {
+      expect(SyncService.normalizeHost('http://192.168.1.50:47850/'), '192.168.1.50');
+      expect(SyncService.parsePort('47850'), 47850);
+      expect(SyncService.parsePort('99999'), isNull);
+      expect(SyncService.parsePort('abc'), isNull);
+
+      final db = await createInMemoryDb();
+      final repo = ChecklistRepository(dbHelper: DatabaseHelper(customDb: db));
+
+      var reachable = true;
+      final requestedEndpoints = <String>[];
+      final mockClient = MockClient((req) async {
+        requestedEndpoints.add('${req.url.host}:${req.url.port}${req.url.path}');
+        if (!reachable) return http.Response('unreachable', 503);
+        if (req.url.path == '/api/v1/ping') {
+          return http.Response(
+            json.encode({'app': 'langkah-kecil', 'device_id': 'desk-m7', 'device_name': 'Desktop M7'}),
+            200,
+          );
+        }
+        if (req.url.path == '/api/v1/pair') {
+          return http.Response(json.encode({'token': 'm7-token'}), 200);
+        }
+        if (req.url.path == '/api/v1/sync') {
+          return http.Response(
+            json.encode({
+              'cursor': 10,
+              'server_time': DateTime.now().millisecondsSinceEpoch,
+              'changes': {'groups': [], 'tasks': [], 'rewards': [], 'checks': [], 'claims': []},
+            }),
+            200,
+          );
+        }
+        return http.Response('not found', 404);
+      });
+
+      final sync = SyncService(repository: repo, httpClient: mockClient);
+      await sync.init();
+
+      await expectLater(
+        sync.setManualEndpoint(enabled: true, host: '', port: 47800),
+        throwsArgumentError,
+      );
+      await expectLater(
+        sync.setManualEndpoint(enabled: true, host: '192.168.50.10', port: 70000),
+        throwsArgumentError,
+      );
+
+      await sync.setManualEndpoint(enabled: true, host: 'http://192.168.50.10/', port: 47855);
+      expect(sync.useManualEndpoint, true);
+      expect(sync.manualHost, '192.168.50.10');
+      expect(sync.manualPort, 47855);
+      expect(await repo.getMeta(SyncService.metaManualEnabled), 'true');
+      expect(await repo.getMeta(SyncService.metaManualHost), '192.168.50.10');
+      expect(await repo.getMeta(SyncService.metaManualPort), '47855');
+
+      final verified = await sync.connectManual();
+      expect(verified, isNotNull);
+      expect(verified!.host, '192.168.50.10');
+      expect(verified.port, 47855);
+      expect(requestedEndpoints.contains('192.168.50.10:47855/api/v1/ping'), true);
+
+      final paired = await sync.pair('654321');
+      expect(paired, true);
+      expect(sync.status, SyncStatus.connected);
+      expect(requestedEndpoints.contains('192.168.50.10:47855/api/v1/pair'), true);
+      expect(requestedEndpoints.contains('192.168.50.10:47855/api/v1/sync'), true);
+
+      // Unreachable manual endpoint reports error cleanly & logs discovery audit entry
+      reachable = false;
+      sync.currentServer = null;
+      final unreachable = await sync.connectManual(host: '192.168.50.10', port: 47855);
+      expect(unreachable, isNull);
+      expect(sync.status, SyncStatus.notFound);
+      final logs = await repo.getAuditLogs(category: 'discovery');
+      expect(logs.any((l) => l.errorCode == 'MANUAL_UNREACHABLE'), true);
+
+      sync.dispose();
+      await db.close();
+    });
+
+    test('Milestone 8: pinned motivational reminder, envelope edit/delete, notes newest-first & task permanent deletion tombstone', () async {
+      final db = await createInMemoryDb();
+      final repo = ChecklistRepository(dbHelper: DatabaseHelper(customDb: db));
+      const today = '2026-11-19';
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+
+      // 1. Pinned motivational reminder + newest note always #1
+      await repo.quickAdd('note', {
+        'id': 'little-note-motivation',
+        'day': '2026-11-10',
+        'title': 'Motivational Reminder ♡',
+        'body': 'Calm & steady progress',
+        'category': 'gratitude',
+        'is_pinned': true,
+      });
+      await repo.quickAdd('note', {
+        'id': 'm8-top-note',
+        'day': today,
+        'title': 'Brand New Note',
+        'body': 'Saved just now',
+        'category': 'journal',
+        'is_pinned': false,
+      });
+      await db.update('notes', {'updated_at': nowMs - 60000}, where: 'id = ?', whereArgs: ['little-note-motivation']);
+      await db.update('notes', {'updated_at': nowMs + 60000}, where: 'id = ?', whereArgs: ['m8-top-note']);
+
+      final sum = await repo.getLifeOsSummary(today);
+      expect(sum.pinnedNoteId, 'little-note-motivation');
+      expect(sum.pinnedNoteBody, 'Calm & steady progress');
+      expect(sum.latestNoteTitle, 'Brand New Note');
+      final rep = await repo.getModuleReport(module: 'notes', range: 'month', todayStr: today);
+      expect(rep.entries.first['id'], 'm8-top-note');
+
+      // 2. Envelope edit & delete
+      await repo.quickAdd('envelope', {'id': 'm8-env', 'name': 'Transport', 'monthly_budget': 200000});
+      await repo.quickAdd('envelope', {'id': 'm8-env', 'name': 'Commute', 'monthly_budget': 350000});
+      final envsAfterEdit = await repo.getEnvelopes();
+      expect(envsAfterEdit.where((e) => e['id'] == 'm8-env').length, 1);
+      expect(envsAfterEdit.firstWhere((e) => e['id'] == 'm8-env')['name'], 'Commute');
+      expect(envsAfterEdit.firstWhere((e) => e['id'] == 'm8-env')['monthly_budget'], 350000);
+      await repo.softDeleteItem('finance_envelopes', 'm8-env');
+      expect((await repo.getEnvelopes()).any((e) => e['id'] == 'm8-env'), false);
+
+      // 3. Deactivate -> Delete Permanently + deleted_tasks sync tombstone
+      await repo.saveGroup(GroupItem(id: 'm8-g', name: 'M8 Group', updatedAt: nowMs));
+      const tid = 'm8-t-del';
+      await repo.saveTask(TaskItem(id: tid, groupId: 'm8-g', name: 'Permanent Del Step', updatedAt: nowMs));
+      await repo.toggleCheck(tid, today, true);
+      await repo.deactivateTask(tid);
+      expect((await repo.getInactiveItems()).tasks.any((t) => t.id == tid), true);
+
+      await repo.deleteTaskPermanently(tid);
+      expect((await repo.getInactiveItems()).tasks.any((t) => t.id == tid), false);
+      expect((await db.query('checks', where: 'task_id = ?', whereArgs: [tid])).isEmpty, true);
+
+      final dirty = await repo.getDirtyChanges();
+      final deletedList = List<Map<String, dynamic>>.from(dirty['deleted_tasks'] as List);
+      expect(deletedList.any((d) => d['id'] == tid), true);
+
+      // Tombstone blocks older peer snapshot from resurrecting permanently deleted step
+      await repo.applyIncomingChanges({
+        'groups': [
+          {'id': 'm8-g', 'name': 'M8 Group', 'sort_order': 0, 'is_active': 1, 'updated_at': nowMs}
+        ],
+        'tasks': [
+          {
+            'id': tid,
+            'group_id': 'm8-g',
+            'name': 'Resurrected',
+            'is_core': 0,
+            'sort_order': 0,
+            'is_active': 0,
+            'updated_at': nowMs - 50000,
+          }
+        ],
+      }, 'peer-desk');
+      expect((await db.query('tasks', where: 'id = ?', whereArgs: [tid])).isEmpty, true);
+
+      // Receiving deleted_tasks removes an existing local task & its checks
+      const peerTid = 'm8-t-peer';
+      await repo.saveTask(TaskItem(id: peerTid, groupId: 'm8-g', name: 'Peer Deleted Step', updatedAt: nowMs));
+      await repo.toggleCheck(peerTid, today, true);
+      await repo.applyIncomingChanges({
+        'deleted_tasks': [
+          {'id': peerTid, 'deleted_at': nowMs + 5000}
+        ],
+      }, 'peer-desk');
+      expect((await db.query('tasks', where: 'id = ?', whereArgs: [peerTid])).isEmpty, true);
+      expect((await db.query('checks', where: 'task_id = ?', whereArgs: [peerTid])).isEmpty, true);
 
       await db.close();
     });

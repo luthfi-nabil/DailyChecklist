@@ -40,6 +40,34 @@ class SyncService {
   int? tokenExpiresAt;
   String? errorMessage;
   bool autoSyncEnabled = true;
+  bool useManualEndpoint = false;
+  String manualHost = '';
+  int manualPort = 47800;
+
+  static const String metaManualEnabled = 'manual_sync_enabled';
+  static const String metaManualHost = 'manual_sync_host';
+  static const String metaManualPort = 'manual_sync_port';
+
+  static String normalizeHost(String raw) {
+    var h = raw.trim();
+    h = h.replaceFirst(RegExp(r'^https?://', caseSensitive: false), '');
+    final slash = h.indexOf('/');
+    if (slash >= 0) h = h.substring(0, slash);
+    final colon = h.lastIndexOf(':');
+    if (colon > 0 && !h.contains(']')) {
+      final maybePort = int.tryParse(h.substring(colon + 1));
+      if (maybePort != null && maybePort >= 1 && maybePort <= 65535) {
+        h = h.substring(0, colon);
+      }
+    }
+    return h.trim();
+  }
+
+  static int? parsePort(String raw) {
+    final p = int.tryParse(raw.trim());
+    if (p == null || p < 1 || p > 65535) return null;
+    return p;
+  }
 
   Timer? _periodicTimer;
   Timer? _debounceTimer;
@@ -54,6 +82,40 @@ class SyncService {
     this.customDiscovery,
   }) : httpClient = httpClient ?? http.Client();
 
+  /// Returns local non-loopback IPv4 interfaces (Wi-Fi/LAN prioritized).
+  /// Uses OS socket interface enumeration and requires no extra permissions.
+  Future<List<({String iface, String address})>> getLocalIpAddresses() async {
+    try {
+      final ifaces = await NetworkInterface.list(
+        type: InternetAddressType.IPv4,
+        includeLoopback: false,
+      );
+      final list = <({String iface, String address})>[];
+      for (final nic in ifaces) {
+        for (final addr in nic.addresses) {
+          if (!addr.isLoopback && addr.type == InternetAddressType.IPv4) {
+            list.add((iface: nic.name, address: addr.address));
+          }
+        }
+      }
+      int score(String name) {
+        final low = name.toLowerCase();
+        if (low.contains('wlan') || low.contains('wi-fi') || low.contains('wifi')) return 0;
+        if (low.startsWith('en') || low.startsWith('eth')) return 1;
+        return 2;
+      }
+      list.sort((a, b) => score(a.iface).compareTo(score(b.iface)));
+      return list;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<String?> primaryLocalIp() async {
+    final ips = await getLocalIpAddresses();
+    return ips.isNotEmpty ? ips.first.address : null;
+  }
+
   Future<void> init() async {
     final savedAuto = await repository.getMeta('auto_sync');
     autoSyncEnabled = savedAuto != 'false';
@@ -65,7 +127,59 @@ class SyncService {
     if (savedExp != null && savedExp.isNotEmpty) {
       tokenExpiresAt = int.tryParse(savedExp);
     }
+    useManualEndpoint = (await repository.getMeta(metaManualEnabled)) == 'true';
+    manualHost = (await repository.getMeta(metaManualHost)) ?? '';
+    manualPort = parsePort((await repository.getMeta(metaManualPort)) ?? '') ?? 47800;
     _startPeriodicSync();
+  }
+
+  Future<void> setManualEndpoint({
+    required bool enabled,
+    required String host,
+    required int port,
+  }) async {
+    if (port < 1 || port > 65535) {
+      throw ArgumentError.value(port, 'port', 'Port must be between 1 and 65535');
+    }
+    final cleanHost = normalizeHost(host);
+    if (enabled && cleanHost.isEmpty) {
+      throw ArgumentError.value(host, 'host', 'IP address or host cannot be empty');
+    }
+    useManualEndpoint = enabled;
+    manualHost = cleanHost;
+    manualPort = port;
+    await repository.setMeta(metaManualEnabled, enabled ? 'true' : 'false');
+    await repository.setMeta(metaManualHost, cleanHost);
+    await repository.setMeta(metaManualPort, port.toString());
+    currentServer = null;
+    errorMessage = null;
+  }
+
+  Future<DiscoveredServer?> connectManual({String? host, int? port}) async {
+    final targetHost = normalizeHost(host ?? manualHost);
+    final targetPort = port ?? manualPort;
+    if (targetHost.isEmpty || targetPort < 1 || targetPort > 65535) {
+      _setStatus(SyncStatus.notFound, error: 'Invalid IP or port');
+      return null;
+    }
+    _setStatus(SyncStatus.discovering);
+    final verified = await _verifyServer(targetHost, targetPort);
+    if (verified != null) {
+      currentServer = verified;
+      await _saveDiscoveredServer(verified);
+      _setStatus(SyncStatus.connected);
+      return verified;
+    }
+    _setStatus(SyncStatus.notFound, error: 'Cannot reach $targetHost:$targetPort');
+    await repository.logAudit(
+      category: 'discovery',
+      level: 'error',
+      endpoint: '$targetHost:$targetPort',
+      errorCode: 'MANUAL_UNREACHABLE',
+      message: 'Server Desktop tidak dapat dijangkau pada $targetHost:$targetPort.',
+      details: {'host': targetHost, 'port': targetPort, 'manual': true},
+    );
+    return null;
   }
 
   void dispose() {
@@ -120,6 +234,11 @@ class SyncService {
       }
       _setStatus(SyncStatus.notFound);
       return null;
+    }
+
+    // 0. Manual IP & Port override when enabled (Milestone 7)
+    if (useManualEndpoint && manualHost.isNotEmpty) {
+      return await connectManual(host: manualHost, port: manualPort);
     }
 
     // 1. Try remembered host & port first

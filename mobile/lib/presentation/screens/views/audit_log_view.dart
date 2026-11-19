@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/l10n/app_strings.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../providers/checklist_provider.dart';
 import '../../widgets/calm_widgets.dart';
@@ -18,6 +19,7 @@ class AuditLogView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ChecklistProvider>();
+    final s = AppStrings(provider.prefs.language);
     final logs = provider.auditLogs;
     final syncFail = logs
         .where((l) =>
@@ -38,7 +40,7 @@ class AuditLogView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Sync Failed',
+                    Text(s.tr('Sync Failed', 'Gagal Sinkron'),
                         style: TextStyle(
                             fontSize: 12, color: AppColors.muted(context))),
                     const SizedBox(height: 4),
@@ -55,7 +57,7 @@ class AuditLogView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Auth / 401',
+                    Text(s.tr('Auth / 401', 'Autentikasi'),
                         style: TextStyle(
                             fontSize: 12, color: AppColors.muted(context))),
                     const SizedBox(height: 4),
@@ -70,11 +72,11 @@ class AuditLogView extends StatelessWidget {
         const SizedBox(height: 12),
 
         CalmSegmentedControl<String>(
-          items: const [
-            (value: 'all', label: 'Semua'),
-            (value: 'sync', label: 'Sync Failed'),
+          items: [
+            (value: 'all', label: s.tr('All', 'Semua')),
+            (value: 'sync', label: s.tr('Sync Failed', 'Gagal')),
             (value: 'auth', label: 'Auth/401'),
-            (value: 'info', label: 'Pulih'),
+            (value: 'info', label: s.tr('Recovered', 'Pulih')),
           ],
           selected: provider.auditFilter,
           onChanged: (v) => provider.setAuditFilter(v),
@@ -84,12 +86,12 @@ class AuditLogView extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Total ${logs.length} entri lokal',
+            Text(s.tr('Total ${logs.length} local entries', 'Total ${logs.length} entri lokal'),
                 style: TextStyle(fontSize: 12, color: AppColors.muted(context))),
             if (logs.isNotEmpty)
               TextButton(
                 onPressed: () => provider.clearAuditLogs(),
-                child: const Text('Bersihkan Log'),
+                child: Text(s.tr('Clear Logs', 'Bersihkan Log')),
               ),
           ],
         ),
@@ -97,7 +99,7 @@ class AuditLogView extends StatelessWidget {
         if (logs.isEmpty)
           CalmCard(
             child: Text(
-              'Tidak ada log error API atau sinkronisasi.',
+              s.tr('No API or sync error logs.', 'Tidak ada log error API atau sinkronisasi.'),
               style: TextStyle(color: AppColors.muted(context)),
             ),
           )

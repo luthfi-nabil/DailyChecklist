@@ -8,15 +8,19 @@ const DEFAULT_DASHBOARD_LAYOUT = [
   { id: 'w-rew', visible: true, size: 'm' },
 ];
 
+const VALID_PALETTES = ['pink', 'sage', 'teal', 'lavender', 'peach'];
+
 const LIFEOS_SYNC_TABLES = [
-  { name: 'projects', cols: ['id', 'name', 'status', 'progress', 'is_active', 'updated_at'] },
+  { name: 'projects', cols: ['id', 'name', 'status', 'progress', 'is_someday', 'is_active', 'updated_at'] },
   { name: 'focus_sessions', cols: ['id', 'task_id', 'project_id', 'day', 'minutes', 'note', 'updated_at'] },
   { name: 'finance_envelopes', cols: ['id', 'name', 'monthly_budget', 'is_active', 'updated_at'] },
   { name: 'finance_entries', cols: ['id', 'day', 'type', 'category', 'amount', 'envelope_id', 'note', 'is_active', 'updated_at'] },
-  { name: 'health_entries', cols: ['id', 'day', 'kind', 'name', 'value_num', 'value_num2', 'unit', 'note', 'is_active', 'updated_at'] },
-  { name: 'wellness_entries', cols: ['id', 'day', 'mood', 'mood_score', 'energy', 'stress', 'sleep_hours', 'triggers_text', 'note', 'is_active', 'updated_at'] },
+  { name: 'savings_goals', cols: ['id', 'name', 'target_amount', 'current_amount', 'deadline', 'is_active', 'updated_at'] },
+  { name: 'recurring_bills', cols: ['id', 'name', 'kind', 'amount', 'due_day', 'is_paid', 'last_paid_month', 'is_active', 'updated_at'] },
+  { name: 'health_entries', cols: ['id', 'day', 'kind', 'name', 'meal_slot', 'value_num', 'value_num2', 'unit', 'note', 'is_active', 'updated_at'] },
+  { name: 'wellness_entries', cols: ['id', 'day', 'mood', 'mood_score', 'energy', 'stress', 'sleep_hours', 'triggers_text', 'gratitude_text', 'note', 'is_active', 'updated_at'] },
   { name: 'menstrual_entries', cols: ['id', 'day', 'phase', 'cycle_day', 'flow', 'symptoms_json', 'is_period_start', 'cycle_length', 'note', 'is_active', 'updated_at'] },
-  { name: 'notes', cols: ['id', 'day', 'title', 'body', 'tags_json', 'is_active', 'updated_at'] },
+  { name: 'notes', cols: ['id', 'day', 'title', 'body', 'tags_json', 'category', 'is_pinned', 'is_active', 'updated_at'] },
 ];
 
 const SENSITIVE_KEY_RE = /^(authorization|token|paired_token|code|pairing_code|secret)$/i;
@@ -72,6 +76,7 @@ function resolveReportBounds(range, customStart, customEnd, todayStr) {
 
 module.exports = {
   DEFAULT_DASHBOARD_LAYOUT,
+  VALID_PALETTES,
   LIFEOS_SYNC_TABLES,
   sanitizeAuditDetails,
   parseJsonArray,

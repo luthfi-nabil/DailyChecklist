@@ -469,3 +469,200 @@ test('Milestone 4: Personal Life OS dashboard layout, quickAdd, module reports, 
   await server.stop();
   db.close();
 });
+
+test('Milestone 5 & 6: Palette defaults, preferences, v3 workspaces, pre-M6 backup & JSON export/restore', async (t) => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lk-m6-test-'));
+  const dbPath = path.join(tmpDir, 'test.db');
+
+  // Create a minimal pre-M6 database first to verify automatic backup & column migration
+  const { DatabaseSync } = require('node:sqlite');
+  const oldSqlite = new DatabaseSync(dbPath);
+  oldSqlite.exec(`
+    CREATE TABLE groups (id TEXT PRIMARY KEY, name TEXT NOT NULL, sort INTEGER NOT NULL DEFAULT 0, is_active INTEGER NOT NULL DEFAULT 1, deactivated_at INTEGER, updated_at INTEGER NOT NULL, seq INTEGER NOT NULL DEFAULT 0);
+    CREATE TABLE tasks (id TEXT PRIMARY KEY, group_id TEXT NOT NULL, name TEXT NOT NULL, core INTEGER NOT NULL DEFAULT 0, sort INTEGER NOT NULL DEFAULT 0, is_active INTEGER NOT NULL DEFAULT 1, deactivated_at INTEGER, updated_at INTEGER NOT NULL, seq INTEGER NOT NULL DEFAULT 0);
+    CREATE TABLE rewards (id TEXT PRIMARY KEY, name TEXT NOT NULL, cost INTEGER NOT NULL, sort INTEGER NOT NULL DEFAULT 0, is_active INTEGER NOT NULL DEFAULT 1, deactivated_at INTEGER, updated_at INTEGER NOT NULL, seq INTEGER NOT NULL DEFAULT 0);
+    CREATE TABLE checks (task_id TEXT NOT NULL, day TEXT NOT NULL, checked INTEGER NOT NULL, updated_at INTEGER NOT NULL, seq INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (task_id, day));
+    CREATE TABLE claims (id TEXT PRIMARY KEY, reward_id TEXT, name TEXT NOT NULL, cost INTEGER NOT NULL, day TEXT NOT NULL, claimed_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, seq INTEGER NOT NULL DEFAULT 0);
+    CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
+  `);
+  oldSqlite.prepare("INSERT INTO groups (id, name, sort, is_active, updated_at, seq) VALUES ('g1', 'Morning', 0, 1, 100, 1)").run();
+  oldSqlite.close();
+
+  const db = new Database(dbPath);
+  const repo = new Repository(db);
+
+  await t.test('creates pre-migration backup once and migrates M6 columns + tables', () => {
+    assert.strictEqual(fs.existsSync(`${dbPath}.pre-m6.bak`), true);
+    const taskCols = db.sqlite.prepare('PRAGMA table_info(tasks)').all().map(c => c.name);
+    assert.ok(taskCols.includes('priority'));
+    assert.ok(taskCols.includes('due_date'));
+  });
+
+  await t.test('persists White & Pink default palette, userName, language & chart visibility', () => {
+    const def = repo.getAppPreferences();
+    assert.strictEqual(def.colorPalette, 'pink');
+    assert.strictEqual(def.userName, 'User');
+    assert.strictEqual(def.language, 'en');
+    assert.strictEqual(def.showReportCharts, true);
+
+    const savedLayout = repo.saveDashboardLayout([
+      { id: 'w-fin', visible: true, size: 'full', label: 'My Wallet' },
+      { id: 'w-hlth', visible: false, size: 'half', label: 'Health Hub' },
+    ]);
+    assert.strictEqual(savedLayout[0].label, 'My Wallet');
+    assert.strictEqual(repo.getDashboardLayout()[1].label, 'Health Hub');
+    assert.strictEqual(repo.getDashboardLayout()[1].visible, false);
+
+    const updated = repo.saveAppPreferences({
+      colorPalette: 'lavender',
+      userName: 'Luthfi',
+      language: 'id',
+      showReportCharts: false,
+      waterGoalGlasses: 10,
+      weightGoalKg: '60',
+    });
+    assert.strictEqual(updated.colorPalette, 'lavender');
+    assert.strictEqual(updated.userName, 'Luthfi');
+    assert.strictEqual(updated.language, 'id');
+    assert.strictEqual(updated.showReportCharts, false);
+    assert.strictEqual(updated.waterGoalGlasses, 10);
+    assert.strictEqual(updated.weightGoalKg, '60');
+    assert.strictEqual(db.getMeta('user_name_customized'), 'true');
+  });
+
+  await t.test('supports savings goals, recurring bills, meal slots, gratitude, note pin, and JSON restore', () => {
+    const today = '2026-11-18';
+    const goal = repo.saveSavingsGoal({ name: 'Emergency Fund', target_amount: 1000000, current_amount: 250000 });
+    const bill = repo.saveRecurringBill({ name: 'Internet', kind: 'bill', amount: 300000, due_day: 20 });
+    repo.saveHealthEntry({ day: today, kind: 'food', meal_slot: 'breakfast', name: 'Oats', value_num: 320 });
+    repo.saveHealthEntry({ day: today, kind: 'measurement', name: 'Waist', value_num: 74, unit: 'cm' });
+    repo.saveWellnessEntry({ day: today, mood: 'Calm', mood_score: 4, energy: 4, stress: 2, sleep_hours: 7.5, gratitude_text: 'Quiet morning' });
+    repo.saveMenstrualEntry({ day: today, phase: 'Menstrual', cycle_day: 1, is_period_start: 1, cycle_length: 28 });
+    const note = repo.saveNote({ day: today, title: 'Pinned Note', body: 'Hello world', category: 'braindump', is_pinned: 1 });
+
+    const finRep = repo.getModuleReport({ module: 'finance', range: 'week', today });
+    assert.strictEqual(finRep.savingsGoals.length, 1);
+    assert.strictEqual(finRep.savingsGoals[0].id, goal.id);
+    assert.strictEqual(finRep.recurringBills.length, 1);
+    assert.strictEqual(finRep.recurringBills[0].id, bill.id);
+
+    const hlthRep = repo.getModuleReport({ module: 'health', range: 'week', today });
+    assert.strictEqual(hlthRep.foodLogs[0].meal_slot, 'breakfast');
+    assert.strictEqual(hlthRep.latestMeasurements.Waist.value_num, 74);
+
+    const mensRep = repo.getModuleReport({ module: 'menstrual', range: 'week', today });
+    assert.ok(mensRep.nextPeriodEstimate);
+    assert.strictEqual(mensRep.nextPeriodEstimate.isEstimate, true);
+    assert.strictEqual(mensRep.nextPeriodEstimate.estimatedStartDay, '2026-12-16');
+
+    const exported = repo.exportAllDataJson();
+    assert.strictEqual(exported.prefs.userName, 'Luthfi');
+    assert.ok(exported.changes.savings_goals.some(s => s.id === goal.id));
+    assert.ok(exported.changes.notes.some(n => n.id === note.id && n.is_pinned === 1));
+
+    const freshDb = new Database(':memory:');
+    const freshRepo = new Repository(freshDb);
+    const restored = freshRepo.importAllDataJson(exported);
+    assert.strictEqual(restored.ok, true);
+    assert.strictEqual(freshRepo.getAppPreferences().userName, 'Luthfi');
+    assert.strictEqual(freshRepo.getSavingsGoals().length, 1);
+    freshDb.close();
+  });
+
+  await t.test('Milestone 7: SyncServer binds custom IP & live-restarts on custom port', async () => {
+    const srv = new SyncServer(db, repo);
+    const p1 = await srv.start(9288, '127.0.0.1', { fallbackRange: false });
+    assert.strictEqual(p1, 9288);
+    assert.strictEqual(srv.host, '127.0.0.1');
+
+    const p2 = await srv.restart(9289, '127.0.0.1', { fallbackRange: false });
+    assert.strictEqual(p2, 9289);
+    const ping = await new Promise((resolve, reject) => {
+      const req = http.get({ hostname: '127.0.0.1', port: 9289, path: '/api/v1/ping', agent: false }, res => {
+        let raw = '';
+        res.on('data', c => raw += c);
+        res.on('end', () => resolve({ status: res.statusCode, json: JSON.parse(raw) }));
+      });
+      req.on('error', reject);
+    });
+    assert.strictEqual(ping.status, 200);
+    assert.strictEqual(ping.json.app, 'langkah-kecil');
+    await srv.stop();
+  });
+
+  await t.test('Milestone 8: pinned motivational reminder, envelope edit/delete, notes newest-first & task permanent deletion tombstone', () => {
+    const today = '2026-11-19';
+    // 1. Little Note pinned motivational reminder + Notes newest-first ordering
+    const mot = repo.saveNote({
+      id: 'little-note-motivation',
+      day: '2026-11-10',
+      title: 'Motivational Reminder ♡',
+      body: 'Keep going steadily',
+      category: 'gratitude',
+      is_pinned: 1,
+    });
+    const newerNote = repo.saveNote({
+      day: today,
+      title: 'Just Saved Top Note',
+      body: 'Appears first above older pinned notes',
+      category: 'journal',
+      is_pinned: 0,
+    });
+    db.sqlite.prepare('UPDATE notes SET updated_at = ? WHERE id = ?').run(Date.now() - 50000, mot.id);
+    db.sqlite.prepare('UPDATE notes SET updated_at = ? WHERE id = ?').run(Date.now() + 50000, newerNote.id);
+    const sum = repo.getLifeOsSummary(today);
+    assert.ok(sum.notes.pinnedReminder);
+    assert.strictEqual(sum.notes.pinnedReminder.id, 'little-note-motivation');
+    assert.strictEqual(sum.notes.latestTitle, 'Just Saved Top Note');
+    const notesRep = repo.getModuleReport({ module: 'notes', range: 'month', today });
+    assert.strictEqual(notesRep.entries[0].id, newerNote.id);
+
+    // 2. Finance Envelope edit & delete
+    const env = repo.saveEnvelope({ name: 'Jajan', monthly_budget: 300000 });
+    const envEdited = repo.saveEnvelope({ id: env.id, name: 'Jajan & Kopi', monthly_budget: 450000 });
+    assert.strictEqual(envEdited.id, env.id);
+    assert.strictEqual(envEdited.name, 'Jajan & Kopi');
+    assert.strictEqual(envEdited.monthly_budget, 450000);
+    assert.strictEqual(repo.getEnvelopes().filter(e => e.id === env.id).length, 1);
+    repo._softDeleteRow('finance_envelopes', env.id);
+    assert.strictEqual(repo.getEnvelopes().some(e => e.id === env.id), false);
+
+    // 3. Permanent deletion of deactivated task step + deleted_tasks sync tombstone
+    const g = repo.saveGroup({ name: 'M8 Group' });
+    const step = repo.saveTask({ group_id: g.id, name: 'Delete Me Forever' });
+    repo.toggleCheck(step.id, today, true);
+    repo.deactivateTask(step.id);
+    assert.strictEqual(repo.getInactiveItems().tasks.some(x => x.id === step.id), true);
+
+    const delRes = repo.deleteTaskPermanently(step.id);
+    assert.strictEqual(delRes, true);
+    assert.strictEqual(repo.getInactiveItems().tasks.some(x => x.id === step.id), false);
+    assert.strictEqual(db.sqlite.prepare('SELECT COUNT(*) as c FROM checks WHERE task_id = ?').get(step.id).c, 0);
+
+    const outChanges = repo.getChangesSince(0);
+    assert.ok(outChanges.deleted_tasks.some(d => d.id === step.id));
+
+    // Tombstone blocks stale re-creation from older device snapshot
+    repo.applyChanges({
+      groups: [{ id: g.id, name: g.name, sort_order: 0, is_active: 1, updated_at: Date.now() }],
+      tasks: [{ id: step.id, group_id: g.id, name: 'Resurrected?', is_core: 0, sort_order: 0, is_active: 0, updated_at: Date.now() - 10000 }],
+      rewards: [],
+      checks: [],
+      claims: [],
+    });
+    assert.strictEqual(db.sqlite.prepare('SELECT COUNT(*) as c FROM tasks WHERE id = ?').get(step.id).c, 0);
+
+    // Receiving deleted_tasks from peer removes a local task & its checks
+    const peerStep = repo.saveTask({ group_id: g.id, name: 'Peer Deleted' });
+    repo.toggleCheck(peerStep.id, today, true);
+    repo.applyChanges({ deleted_tasks: [{ id: peerStep.id, deleted_at: Date.now() + 1000 }] });
+    assert.strictEqual(db.sqlite.prepare('SELECT COUNT(*) as c FROM tasks WHERE id = ?').get(peerStep.id).c, 0);
+    assert.strictEqual(db.sqlite.prepare('SELECT COUNT(*) as c FROM checks WHERE task_id = ?').get(peerStep.id).c, 0);
+  });
+
+  db.close();
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+});

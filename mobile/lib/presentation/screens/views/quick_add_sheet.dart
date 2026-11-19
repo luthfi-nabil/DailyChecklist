@@ -1,23 +1,24 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/l10n/app_strings.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../providers/checklist_provider.dart';
 import '../../widgets/calm_widgets.dart';
 
-const _quickAddOptions = [
-  (kind: 'task', label: 'Add task', icon: '✓'),
-  (kind: 'finance', label: 'Add income/expense', icon: 'Rp'),
-  (kind: 'food', label: 'Add food entry', icon: '🍽'),
-  (kind: 'weight', label: 'Add weight entry', icon: '⚖'),
-  (kind: 'water', label: 'Add water intake', icon: '💧'),
-  (kind: 'workout', label: 'Add workout', icon: '🏃'),
-  (kind: 'mood', label: 'Mood check-in', icon: '◐'),
-  (kind: 'menstrual', label: 'Menstrual symptom', icon: '✿'),
-  (kind: 'note', label: 'Create quick note', icon: '✎'),
-];
-
 Future<void> showQuickAddSheet(
     BuildContext context, ChecklistProvider provider) async {
+  final s = AppStrings(provider.prefs.language);
+  final quickAddOptions = [
+    (kind: 'task', label: s.tr('Add task', 'Tambah tugas'), icon: '✓'),
+    (kind: 'finance', label: s.tr('Income / expense', 'Keuangan'), icon: 'Rp'),
+    (kind: 'food', label: s.tr('Food entry', 'Makanan'), icon: '🍽'),
+    (kind: 'weight', label: s.tr('Weight entry', 'Berat badan'), icon: '⚖'),
+    (kind: 'water', label: s.tr('Water intake', 'Minum air'), icon: '💧'),
+    (kind: 'workout', label: s.tr('Workout', 'Olahraga'), icon: '🏃'),
+    (kind: 'mood', label: s.tr('Mood check-in', 'Suasana hati'), icon: '◐'),
+    (kind: 'menstrual', label: s.tr('Cycle symptom', 'Siklus haid'), icon: '✿'),
+    (kind: 'note', label: s.tr('Quick note', 'Catatan cepat'), icon: '✎'),
+  ];
   await showModalBottomSheet<void>(
     context: context,
     backgroundColor: AppColors.surface(context),
@@ -32,19 +33,19 @@ Future<void> showQuickAddSheet(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Global Quick Add',
+              Text(s.tr('Global Quick Add', 'Tambah Cepat Global'),
                   style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: AppColors.muted(sheetCtx))),
               const SizedBox(height: 2),
-              Text('Catat Cepat Tanpa Pindah Halaman',
+              Text(s.tr('Capture from Anywhere', 'Catat Cepat Tanpa Pindah Halaman'),
                   style: AppTheme.displayStyle(sheetCtx, fontSize: 20)),
               const SizedBox(height: 14),
               GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: _quickAddOptions.length,
+                itemCount: quickAddOptions.length,
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 3,
                   crossAxisSpacing: 8,
@@ -52,7 +53,7 @@ Future<void> showQuickAddSheet(
                   mainAxisExtent: 94,
                 ),
                 itemBuilder: (ctx, i) {
-                  final opt = _quickAddOptions[i];
+                  final opt = quickAddOptions[i];
                   return InkWell(
                     borderRadius: BorderRadius.circular(14),
                     onTap: () {

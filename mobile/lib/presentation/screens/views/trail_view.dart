@@ -2,22 +2,21 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/l10n/app_strings.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/repositories/checklist_repository.dart';
 import '../../providers/checklist_provider.dart';
 import '../../widgets/calm_widgets.dart';
 import '../home_screen.dart';
 
-const _monthsFull = [
-  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-];
-const _monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+const _monthsShortEn = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const _monthsShortId = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 
-String _fmtMs(int? ms) {
+String _fmtMs(int? ms, AppStrings s) {
   if (ms == null) return '';
   final d = DateTime.fromMillisecondsSinceEpoch(ms);
-  return '${d.day} ${_monthsShort[d.month - 1]}';
+  final arr = s.isId ? _monthsShortId : _monthsShortEn;
+  return '${d.day} ${arr[d.month - 1]}';
 }
 
 class TrailView extends StatefulWidget {
@@ -32,13 +31,14 @@ class _TrailViewState extends State<TrailView> {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppStrings(context.watch<ChecklistProvider>().prefs.language);
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
       children: [
         CalmSegmentedControl<String>(
-          items: const [
-            (value: 'dash', label: 'Dasbor'),
-            (value: 'log', label: 'Riwayat'),
+          items: [
+            (value: 'dash', label: s.tr('Overview', 'Dasbor')),
+            (value: 'log', label: s.tr('History', 'Riwayat')),
           ],
           selected: _subTab,
           onChanged: (val) => setState(() => _subTab = val),
@@ -56,6 +56,7 @@ class _DashboardSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ChecklistProvider>();
+    final s = AppStrings(provider.prefs.language);
     final stats = provider.dashboardStats;
     if (stats == null) {
       return const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()));
@@ -67,10 +68,10 @@ class _DashboardSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         CalmSegmentedControl<String>(
-          items: const [
-            (value: 'week', label: 'Minggu ini'),
-            (value: 'month', label: 'Bulan ini'),
-            (value: 'all', label: 'Semua'),
+          items: [
+            (value: 'week', label: s.tr('This week', 'Minggu ini')),
+            (value: 'month', label: s.tr('This month', 'Bulan ini')),
+            (value: 'all', label: s.tr('All', 'Semua')),
           ],
           selected: provider.dashPeriod,
           onChanged: (p) => provider.setDashPeriod(p),
@@ -301,7 +302,7 @@ class _DashboardSection extends StatelessWidget {
                                           borderRadius: BorderRadius.circular(999),
                                         ),
                                         child: Text(
-                                          'Nonaktif sejak ${_fmtMs(t.deactivatedAt)}',
+                                          '${s.tr('Inactive since', 'Nonaktif sejak')} ${_fmtMs(t.deactivatedAt, s)}',
                                           style: TextStyle(
                                             fontSize: 11,
                                             fontWeight: FontWeight.w600,
@@ -408,6 +409,7 @@ class _LogSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ChecklistProvider>();
+    final s = AppStrings(provider.prefs.language);
     final year = provider.calYear;
     final month = provider.calMonth;
     final now = DateTime.now();
@@ -432,7 +434,7 @@ class _LogSection extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '${_monthsFull[month - 1]} $year',
+                    '${(s.isId ? _monthsShortId : _monthsShortEn)[month - 1]} $year',
                     style: AppTheme.displayStyle(context, fontSize: 17),
                   ),
                   Row(
@@ -661,7 +663,7 @@ class _LogSection extends StatelessWidget {
                                                 borderRadius: BorderRadius.circular(999),
                                               ),
                                               child: Text(
-                                                'Nonaktif sejak ${_fmtMs(t.deactivatedAt)}',
+                                                '${s.tr('Inactive since', 'Nonaktif sejak')} ${_fmtMs(t.deactivatedAt, s)}',
                                                 style: TextStyle(
                                                   fontSize: 11,
                                                   fontWeight: FontWeight.w600,

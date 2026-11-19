@@ -1,10 +1,13 @@
 const { app, BrowserWindow, Tray, Menu, nativeImage } = require('electron');
 const path = require('node:path');
+const fs = require('node:fs');
 const { Database } = require('./data/db');
 const { Repository } = require('./data/repository');
 const { SyncServer } = require('./services/syncServer');
 const { DiscoveryService } = require('./services/discoveryService');
 const { registerIpcHandlers } = require('./ipc/handlers');
+
+app.setName('Lifolio');
 
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
@@ -21,12 +24,23 @@ let repository = null;
 let syncServer = null;
 let discoveryService = null;
 
-function createTrayIcon() {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-    <rect width="16" height="16" rx="4" fill="#1D7487"/>
-    <path d="M4 8.5l3 3L12 5" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  </svg>`;
-  return nativeImage.createFromDataURL('data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64'));
+function createAppIcon(forTray = false) {
+  const candidates = forTray
+    ? [
+        path.join(__dirname, '../assets/tray-icon.png'),
+        path.join(__dirname, '../assets/icon.png'),
+      ]
+    : [
+        path.join(__dirname, process.platform === 'win32' ? '../assets/icon.ico' : '../assets/icon.png'),
+        path.join(__dirname, '../assets/icon.png'),
+      ];
+  for (const p of candidates) {
+    if (fs.existsSync(p)) {
+      const img = nativeImage.createFromPath(p);
+      if (!img.isEmpty()) return img;
+    }
+  }
+  return nativeImage.createEmpty();
 }
 
 async function shutdownServices() {
@@ -113,13 +127,18 @@ function setupAppMenu() {
 }
 
 function setupTray() {
-  const icon = createTrayIcon();
+  const icon = createAppIcon(true);
+  if (tray) {
+    try {
+      tray.destroy();
+    } catch (_) {}
+  }
   tray = new Tray(icon);
-  tray.setToolTip('Langkah Kecil — Checklist & Kebiasaan');
+  tray.setToolTip('Lifolio — Personal Life OS');
 
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: 'Buka Langkah Kecil',
+      label: 'Open Lifolio',
       click: () => {
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.show();
@@ -129,12 +148,12 @@ function setupTray() {
     },
     { type: 'separator' },
     {
-      label: 'Sinkron aktif (Port ' + (syncServer ? syncServer.port : 47800) + ')',
+      label: 'Sync active (Port ' + (syncServer ? syncServer.port : 47800) + ')',
       enabled: false
     },
     { type: 'separator' },
     {
-      label: 'Keluar (Exit)',
+      label: 'Quit Lifolio',
       click: () => {
         quitCompletely();
       }
@@ -156,8 +175,9 @@ function createWindow() {
     height: 780,
     minWidth: 800,
     minHeight: 560,
+    title: 'Lifolio',
     backgroundColor: '#F2F5F7',
-    icon: createTrayIcon(),
+    icon: createAppIcon(false),
     webPreferences: {
       preload: path.join(__dirname, '../preload/preload.js'),
       contextIsolation: true,
@@ -193,14 +213,32 @@ app.whenReady().then(async () => {
   db = new Database(dbPath);
   repository = new Repository(db);
 
+  const savedBindIp = (db.getMeta('sync_bind_ip') || '0.0.0.0').trim() || '0.0.0.0';
+  const savedPort = Math.min(65535, Math.max(1, parseInt(db.getMeta('sync_port') || '47800', 10) || 47800));
+
   syncServer = new SyncServer(db, repository);
-  const port = await syncServer.start(47800);
-  console.log(`Sync Server listening on port ${port}`);
+  let port;
+  try {
+    port = await syncServer.start(savedPort, savedBindIp, { fallbackRange: true });
+  } catch (err) {
+    console.warn(`Saved network endpoint ${savedBindIp}:${savedPort} failed (${err.message}); falling back to 0.0.0.0:47800`);
+    db.setMeta('sync_bind_ip', '0.0.0.0');
+    db.setMeta('sync_port', '47800');
+    port = await syncServer.start(47800, '0.0.0.0', { fallbackRange: true });
+  }
+  console.log(`Sync Server listening on ${syncServer.host}:${port}`);
 
   discoveryService = new DiscoveryService(db, port);
   discoveryService.start();
 
-  registerIpcHandlers(repository, db, syncServer, () => mainWindow, quitCompletely);
+  const onApplyNetworkConfig = async ({ host, port: nextPort }) => {
+    const actualPort = await syncServer.restart(nextPort, host, { fallbackRange: false });
+    if (discoveryService) discoveryService.updatePort(actualPort);
+    setupTray();
+    return { bindHost: syncServer.host, syncPort: actualPort };
+  };
+
+  registerIpcHandlers(repository, db, syncServer, () => mainWindow, quitCompletely, onApplyNetworkConfig);
 
   setupAppMenu();
   setupTray();

@@ -5,50 +5,78 @@ import '../constants/app_colors.dart';
 class AppTheme {
   static bool useFonts = true;
 
-  static ThemeData light({bool useGoogleFonts = true}) {
+  static ThemeData light({bool useGoogleFonts = true, String palette = 'pink'}) {
     useFonts = useGoogleFonts;
+    final spec = AppColors.specFor(palette);
     final baseText = ThemeData.light().textTheme;
-    final textTheme = useGoogleFonts
-        ? GoogleFonts.dmSansTextTheme(baseText)
-        : baseText;
+    final textTheme = useGoogleFonts ? GoogleFonts.dmSansTextTheme(baseText) : baseText;
     return ThemeData(
       brightness: Brightness.light,
-      scaffoldBackgroundColor: AppColors.lightBg,
-      colorScheme: const ColorScheme.light(
+      scaffoldBackgroundColor: spec.lightBg,
+      colorScheme: ColorScheme.light(
         surface: AppColors.lightSurface,
-        primary: AppColors.lightAccent,
-        onPrimary: AppColors.lightAccentInk,
-        onSurface: AppColors.lightInk,
+        primary: spec.lightAccent,
+        onPrimary: spec.lightAccentInk,
+        onSurface: spec.lightInk,
       ),
       textTheme: textTheme.apply(
-        bodyColor: AppColors.lightInk,
-        displayColor: AppColors.lightInk,
+        bodyColor: spec.lightInk,
+        displayColor: spec.lightInk,
       ),
-      dividerColor: AppColors.lightLine,
+      dividerColor: spec.lightLine,
+      extensions: [
+        AppPaletteColors(
+          bg: spec.lightBg,
+          surface: AppColors.lightSurface,
+          soft: spec.lightSoft,
+          ink: spec.lightInk,
+          muted: spec.lightMuted,
+          line: spec.lightLine,
+          tabBg: spec.lightTabBg,
+          accent: spec.lightAccent,
+          accentDeep: spec.lightAccentDeep,
+          accentInk: spec.lightAccentInk,
+          accentSoft: spec.lightAccentSoft,
+        ),
+      ],
       useMaterial3: true,
     );
   }
 
-  static ThemeData dark({bool useGoogleFonts = true}) {
+  static ThemeData dark({bool useGoogleFonts = true, String palette = 'pink'}) {
     useFonts = useGoogleFonts;
+    final spec = AppColors.specFor(palette);
     final baseText = ThemeData.dark().textTheme;
-    final textTheme = useGoogleFonts
-        ? GoogleFonts.dmSansTextTheme(baseText)
-        : baseText;
+    final textTheme = useGoogleFonts ? GoogleFonts.dmSansTextTheme(baseText) : baseText;
     return ThemeData(
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: AppColors.darkBg,
-      colorScheme: const ColorScheme.dark(
-        surface: AppColors.darkSurface,
-        primary: AppColors.darkAccent,
-        onPrimary: AppColors.darkAccentInk,
+      scaffoldBackgroundColor: spec.darkBg,
+      colorScheme: ColorScheme.dark(
+        surface: spec.darkSurface,
+        primary: spec.darkAccent,
+        onPrimary: spec.darkAccentInk,
         onSurface: AppColors.darkInk,
       ),
       textTheme: textTheme.apply(
         bodyColor: AppColors.darkInk,
         displayColor: AppColors.darkInk,
       ),
-      dividerColor: AppColors.darkLine,
+      dividerColor: spec.darkLine,
+      extensions: [
+        AppPaletteColors(
+          bg: spec.darkBg,
+          surface: spec.darkSurface,
+          soft: spec.darkBg,
+          ink: AppColors.darkInk,
+          muted: AppColors.darkMuted,
+          line: spec.darkLine,
+          tabBg: AppColors.darkTabBg,
+          accent: spec.darkAccent,
+          accentDeep: spec.darkAccentDeep,
+          accentInk: spec.darkAccentInk,
+          accentSoft: spec.darkAccentSoft,
+        ),
+      ],
       useMaterial3: true,
     );
   }

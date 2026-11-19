@@ -1,6 +1,123 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 
+InputDecoration m6InputDecoration(
+  BuildContext context, {
+  String? label,
+  String? hint,
+  Widget? prefixIcon,
+}) {
+  final line = AppColors.line(context);
+  return InputDecoration(
+    labelText: label,
+    hintText: hint,
+    prefixIcon: prefixIcon,
+    isDense: true,
+    filled: true,
+    fillColor: AppColors.surface(context),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: BorderSide(color: line),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: BorderSide(color: line),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: BorderSide(color: AppColors.accent(context), width: 1.5),
+    ),
+  );
+}
+
+ButtonStyle m6PrimaryButtonStyle(BuildContext context) {
+  return ElevatedButton.styleFrom(
+    backgroundColor: AppColors.accent(context),
+    foregroundColor: AppColors.accentInk(context),
+    elevation: 0,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+    textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+  );
+}
+
+ButtonStyle m6GhostButtonStyle(BuildContext context) {
+  return OutlinedButton.styleFrom(
+    backgroundColor: AppColors.soft(context),
+    foregroundColor: AppColors.accentDeep(context),
+    side: BorderSide(color: AppColors.line(context)),
+    elevation: 0,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+    textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+  );
+}
+
+class M6StatBox extends StatelessWidget {
+  final String label;
+  final String value;
+  const M6StatBox({super.key, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      decoration: BoxDecoration(
+        color: AppColors.soft(context),
+        borderRadius: BorderRadius.circular(13),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: AppColors.ink(context),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 11, color: AppColors.muted(context)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class M6Pill extends StatelessWidget {
+  final String text;
+  const M6Pill({super.key, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.tabBg(context),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: AppColors.accentDeep(context),
+        ),
+      ),
+    );
+  }
+}
+
 class CalmCard extends StatelessWidget {
   final Widget child;
   final Color? color;
@@ -24,6 +141,13 @@ class CalmCard extends StatelessWidget {
         color: color ?? AppColors.surface(context),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: borderColor ?? AppColors.line(context)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A8D6070),
+            blurRadius: 14,
+            offset: Offset(0, 3),
+          ),
+        ],
       ),
       child: child,
     );
@@ -40,15 +164,15 @@ class CalmProgressBar extends StatelessWidget {
     super.key,
     required this.percent,
     this.gold = false,
-    this.height = 12,
+    this.height = 8,
     this.barColor,
   });
 
   @override
   Widget build(BuildContext context) {
     final clamped = percent.clamp(0, 100);
-    final bg = gold ? AppColors.goldSoft(context) : AppColors.accentSoft(context);
-    final fg = barColor ?? (gold ? AppColors.gold(context) : AppColors.accent(context));
+    final bg = AppColors.tabBg(context);
+    final fg = barColor ?? AppColors.accent(context);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(999),
@@ -134,9 +258,11 @@ void showCalmSnackBar(
   BuildContext context,
   String message, {
   VoidCallback? onUndo,
+  String undoLabel = 'Undo',
 }) {
-  final messenger = ScaffoldMessenger.of(context);
-  messenger.hideCurrentSnackBar();
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  if (messenger == null || !messenger.mounted) return;
+  messenger.removeCurrentSnackBar();
   messenger.showSnackBar(
     SnackBar(
       behavior: SnackBarBehavior.floating,
@@ -149,7 +275,7 @@ void showCalmSnackBar(
       ),
       action: onUndo != null
           ? SnackBarAction(
-              label: 'Urungkan',
+              label: undoLabel,
               textColor: AppColors.bg(context),
               onPressed: onUndo,
             )

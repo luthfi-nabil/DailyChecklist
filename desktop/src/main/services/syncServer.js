@@ -8,19 +8,23 @@ class SyncServer extends EventEmitter {
     this.db = db;
     this.repository = repository;
     this.server = null;
+    this.host = '0.0.0.0';
     this.port = 47800;
     this.failedPairAttempts = [];
   }
 
-  start(preferredPort = 47800) {
+  start(preferredPort = 47800, host = '0.0.0.0', { fallbackRange = true } = {}) {
     return new Promise((resolve, reject) => {
-      let currentPort = preferredPort;
+      const parsedPort = Number(preferredPort);
+      let currentPort = Number.isInteger(parsedPort) && parsedPort >= 0 ? parsedPort : 47800;
+      const bindHost = String(host || '0.0.0.0').trim() || '0.0.0.0';
 
       const tryListen = () => {
         this.server = http.createServer((req, res) => this.handleRequest(req, res));
 
         this.server.once('error', (err) => {
-          if (err.code === 'EADDRINUSE' && currentPort < 47810) {
+          this.server = null;
+          if (fallbackRange && err.code === 'EADDRINUSE' && currentPort >= 47800 && currentPort < 47810) {
             currentPort++;
             tryListen();
           } else {
@@ -28,7 +32,8 @@ class SyncServer extends EventEmitter {
           }
         });
 
-        this.server.listen(currentPort, '0.0.0.0', () => {
+        this.server.listen(currentPort, bindHost, () => {
+          this.host = bindHost;
           this.port = this.server.address().port;
           resolve(this.port);
         });
@@ -36,6 +41,18 @@ class SyncServer extends EventEmitter {
 
       tryListen();
     });
+  }
+
+  async restart(port, host = '0.0.0.0', options = { fallbackRange: false }) {
+    const prevPort = this.port;
+    const prevHost = this.host;
+    await this.stop();
+    try {
+      return await this.start(port, host, options);
+    } catch (err) {
+      await this.start(prevPort, prevHost, { fallbackRange: true }).catch(() => {});
+      throw err;
+    }
   }
 
   stop() {

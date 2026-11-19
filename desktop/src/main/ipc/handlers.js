@@ -1,6 +1,20 @@
+const os = require('node:os');
 const { ipcMain, app } = require('electron');
 
-function registerIpcHandlers(repository, db, syncServer, getMainWindow, onQuitApp) {
+function getDesktopLanIps() {
+  const nets = os.networkInterfaces();
+  const ips = [];
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name] || []) {
+      if (net.family === 'IPv4' && !net.internal) {
+        ips.push({ iface: name, address: net.address });
+      }
+    }
+  }
+  return ips;
+}
+
+function registerIpcHandlers(repository, db, syncServer, getMainWindow, onQuitApp, onApplyNetworkConfig = null) {
   ipcMain.handle('app:quit', async () => {
     if (typeof onQuitApp === 'function') {
       await onQuitApp();
@@ -28,6 +42,10 @@ function registerIpcHandlers(repository, db, syncServer, getMainWindow, onQuitAp
   ipcMain.handle('checklist:reactivate-task', async (event, id) => {
     repository.reactivateTask(id);
     return true;
+  });
+
+  ipcMain.handle('checklist:delete-task-permanently', async (event, id) => {
+    return repository.deleteTaskPermanently(id);
   });
 
   ipcMain.handle('checklist:save-group', async (event, group) => {
@@ -131,6 +149,66 @@ function registerIpcHandlers(repository, db, syncServer, getMainWindow, onQuitAp
     return repository.getEnvelopes();
   });
 
+  ipcMain.handle('lifeos:get-prefs', async () => {
+    return repository.getAppPreferences();
+  });
+
+  ipcMain.handle('lifeos:save-prefs', async (event, prefs) => {
+    return repository.saveAppPreferences(prefs || {});
+  });
+
+  ipcMain.handle('lifeos:save-project', async (event, p) => {
+    return repository.saveProject(p || {});
+  });
+
+  ipcMain.handle('lifeos:save-focus', async (event, fs) => {
+    return repository.saveFocusSession(fs || {});
+  });
+
+  ipcMain.handle('lifeos:save-envelope', async (event, env) => {
+    return repository.saveEnvelope(env || {});
+  });
+
+  ipcMain.handle('lifeos:save-finance-entry', async (event, entry) => {
+    return repository.saveFinanceEntry(entry || {});
+  });
+
+  ipcMain.handle('lifeos:save-savings-goal', async (event, goal) => {
+    return repository.saveSavingsGoal(goal || {});
+  });
+
+  ipcMain.handle('lifeos:save-recurring-bill', async (event, bill) => {
+    return repository.saveRecurringBill(bill || {});
+  });
+
+  ipcMain.handle('lifeos:save-health-entry', async (event, entry) => {
+    return repository.saveHealthEntry(entry || {});
+  });
+
+  ipcMain.handle('lifeos:save-wellness-entry', async (event, entry) => {
+    return repository.saveWellnessEntry(entry || {});
+  });
+
+  ipcMain.handle('lifeos:save-menstrual-entry', async (event, entry) => {
+    return repository.saveMenstrualEntry(entry || {});
+  });
+
+  ipcMain.handle('lifeos:save-note', async (event, note) => {
+    return repository.saveNote(note || {});
+  });
+
+  ipcMain.handle('lifeos:delete-item', async (event, { table, id }) => {
+    return repository._softDeleteRow(table, id);
+  });
+
+  ipcMain.handle('lifeos:export-json', async () => {
+    return repository.exportAllDataJson();
+  });
+
+  ipcMain.handle('lifeos:import-json', async (event, payload) => {
+    return repository.importAllDataJson(payload);
+  });
+
   ipcMain.handle('lifeos:get-audit-logs', async (event, params) => {
     return repository.getAuditLogs(params || {});
   });
@@ -153,16 +231,22 @@ function registerIpcHandlers(repository, db, syncServer, getMainWindow, onQuitAp
       expires_at: d.expires_at || (d.paired_at + ttlDays * 24 * 60 * 60 * 1000),
       last_synced_at: d.last_synced_at || null
     }));
+    const ips = getDesktopLanIps();
     return {
       deviceId: db.getMeta('device_id'),
       deviceName: db.getMeta('device_name') || 'Desktop',
       pairingCode: db.getMeta('pairing_code'),
       pairedDevices,
       syncPort: syncServer.port,
+      bindHost: db.getMeta('sync_bind_ip') || syncServer.host || '0.0.0.0',
+      configuredPort: parseInt(db.getMeta('sync_port') || String(syncServer.port), 10) || syncServer.port,
+      localIp: ips.length > 0 ? ips[0].address : null,
+      localIps: ips,
       autostart: loginSettings.openAtLogin,
       minimizeToTray: db.getMeta('minimize_to_tray') !== 'false',
       autoSync: db.getMeta('auto_sync') !== 'false',
       tokenTtlDays: ttlDays,
+      prefs: repository.getAppPreferences(),
       appVersion: app.getVersion()
     };
   });
@@ -202,6 +286,26 @@ function registerIpcHandlers(repository, db, syncServer, getMainWindow, onQuitAp
     const clamped = Math.min(7, Math.max(3, parseInt(days, 10) || 7));
     db.setMeta('token_ttl_days', String(clamped));
     return clamped;
+  });
+
+  ipcMain.handle('settings:set-network', async (event, payload) => {
+    const rawHost = String((payload && payload.host) || '0.0.0.0').trim() || '0.0.0.0';
+    const rawPort = parseInt(payload && payload.port, 10);
+    if (!Number.isInteger(rawPort) || rawPort < 1 || rawPort > 65535) {
+      throw new Error('Port must be between 1 and 65535.');
+    }
+    const ipv4Ok = /^(\d{1,3}\.){3}\d{1,3}$/.test(rawHost)
+      && rawHost.split('.').every(n => Number(n) >= 0 && Number(n) <= 255);
+    if (rawHost !== '0.0.0.0' && rawHost !== 'localhost' && !ipv4Ok) {
+      throw new Error('Bind IP must be 0.0.0.0, localhost, or a valid IPv4 address.');
+    }
+    let applied = { bindHost: rawHost, syncPort: rawPort };
+    if (typeof onApplyNetworkConfig === 'function') {
+      applied = await onApplyNetworkConfig({ host: rawHost, port: rawPort });
+    }
+    db.setMeta('sync_bind_ip', applied.bindHost || rawHost);
+    db.setMeta('sync_port', String(applied.syncPort || rawPort));
+    return { ok: true, ...applied };
   });
 
   syncServer.on('sync_completed', (data) => {

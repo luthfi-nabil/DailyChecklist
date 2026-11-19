@@ -1,8 +1,8 @@
 {
   "name": "langkah-kecil-desktop",
-  "version": "0.2.0",
-  "description": "Langkah Kecil - Desktop Daily Checklist & Habit Tracking",
-  "author": "Langkah Kecil",
+  "version": "0.3.1",
+  "description": "Lifolio - Desktop Daily Checklist & Personal Life OS",
+  "author": "Lifolio",
   "main": "src/main/main.js",
   "scripts": {
     "start": "node scripts/start.js",
@@ -12,7 +12,7 @@
   },
   "build": {
     "appId": "com.langkahkecil.desktop",
-    "productName": "Langkah Kecil",
+    "productName": "Lifolio",
     "directories": {
       "output": "dist"
     },
@@ -21,12 +21,19 @@
       "package.json"
     ],
     "win": {
+      "icon": "build/icon.ico",
       "target": [
         {
           "target": "nsis",
           "arch": ["x64"]
         }
       ]
+    },
+    "mac": {
+      "icon": "build/icon.png"
+    },
+    "linux": {
+      "icon": "build/icon.png"
     },
     "nsis": {
       "oneClick": false,

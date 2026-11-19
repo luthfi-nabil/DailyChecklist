@@ -19,6 +19,7 @@ CREATE TABLE groups   (id TEXT PRIMARY KEY, name TEXT NOT NULL, sort INTEGER NOT
                        is_active INTEGER NOT NULL DEFAULT 1, deactivated_at INTEGER, updated_at INTEGER NOT NULL);
 CREATE TABLE tasks    (id TEXT PRIMARY KEY, group_id TEXT NOT NULL, name TEXT NOT NULL, core INTEGER NOT NULL DEFAULT 0,
                        sort INTEGER NOT NULL DEFAULT 0, freq TEXT NOT NULL DEFAULT 'daily', freq_days TEXT,
+                       priority TEXT NOT NULL DEFAULT 'normal', due_date TEXT,
                        is_active INTEGER NOT NULL DEFAULT 1, deactivated_at INTEGER, updated_at INTEGER NOT NULL);
 CREATE TABLE rewards  (id TEXT PRIMARY KEY, name TEXT NOT NULL, cost INTEGER NOT NULL, sort INTEGER NOT NULL DEFAULT 0,
                        is_active INTEGER NOT NULL DEFAULT 1, deactivated_at INTEGER, updated_at INTEGER NOT NULL);
@@ -27,28 +28,37 @@ CREATE TABLE checks   (task_id TEXT NOT NULL, day TEXT NOT NULL, checked INTEGER
 CREATE TABLE claims   (id TEXT PRIMARY KEY, reward_id TEXT, name TEXT NOT NULL, cost INTEGER NOT NULL, day TEXT NOT NULL,
                        claimed_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);   -- append-only (see undo semantics below)
 CREATE TABLE projects (id TEXT PRIMARY KEY, name TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active',
-                       progress INTEGER NOT NULL DEFAULT 0, is_active INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL);
+                       progress INTEGER NOT NULL DEFAULT 0, is_someday INTEGER NOT NULL DEFAULT 0,
+                       is_active INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL);
 CREATE TABLE focus_sessions (id TEXT PRIMARY KEY, task_id TEXT, project_id TEXT, day TEXT NOT NULL,
                              minutes INTEGER NOT NULL, note TEXT, updated_at INTEGER NOT NULL);
 CREATE TABLE finance_envelopes (id TEXT PRIMARY KEY, name TEXT NOT NULL, monthly_budget INTEGER NOT NULL DEFAULT 0,
                                 is_active INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL);
 CREATE TABLE finance_entries (id TEXT PRIMARY KEY, day TEXT NOT NULL, type TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'general',
                               amount INTEGER NOT NULL, envelope_id TEXT, note TEXT, is_active INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL);
+CREATE TABLE savings_goals   (id TEXT PRIMARY KEY, name TEXT NOT NULL, target_amount INTEGER NOT NULL DEFAULT 0,
+                              current_amount INTEGER NOT NULL DEFAULT 0, deadline TEXT,
+                              is_active INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL);
+CREATE TABLE recurring_bills (id TEXT PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'bill',
+                              amount INTEGER NOT NULL DEFAULT 0, due_day INTEGER NOT NULL DEFAULT 1,
+                              is_paid INTEGER NOT NULL DEFAULT 0, last_paid_month TEXT,
+                              is_active INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL);
 CREATE TABLE health_entries  (id TEXT PRIMARY KEY, day TEXT NOT NULL, kind TEXT NOT NULL, name TEXT,
-                              value_num REAL NOT NULL, value_num2 REAL, unit TEXT, note TEXT,
+                              meal_slot TEXT, value_num REAL NOT NULL, value_num2 REAL, unit TEXT, note TEXT,
                               is_active INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL);
 CREATE TABLE wellness_entries (id TEXT PRIMARY KEY, day TEXT NOT NULL, mood TEXT NOT NULL, mood_score INTEGER NOT NULL,
                                energy INTEGER NOT NULL, stress INTEGER NOT NULL, sleep_hours REAL NOT NULL,
-                               triggers_text TEXT, note TEXT, is_active INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL);
+                               triggers_text TEXT, gratitude_text TEXT, note TEXT, is_active INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL);
 CREATE TABLE menstrual_entries (id TEXT PRIMARY KEY, day TEXT NOT NULL, phase TEXT NOT NULL, cycle_day INTEGER NOT NULL DEFAULT 1,
                                 flow TEXT, symptoms_json TEXT, is_period_start INTEGER NOT NULL DEFAULT 0,
                                 cycle_length INTEGER, note TEXT, is_active INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL);
 CREATE TABLE notes    (id TEXT PRIMARY KEY, day TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL,
-                       tags_json TEXT, is_active INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL);
+                       tags_json TEXT, category TEXT NOT NULL DEFAULT 'journal', is_pinned INTEGER NOT NULL DEFAULT 0,
+                       is_active INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL);
 CREATE TABLE audit_logs (id TEXT PRIMARY KEY, created_at INTEGER NOT NULL, day TEXT NOT NULL, source TEXT NOT NULL,
                          category TEXT NOT NULL, level TEXT NOT NULL, endpoint TEXT NOT NULL, status_code INTEGER,
                          error_code TEXT, message TEXT NOT NULL, details_json TEXT); -- local-only per device, never synced
-CREATE TABLE meta     (key TEXT PRIMARY KEY, value TEXT);      -- device_id, device_name, last_sync_cursor, paired_token, dashboard_layout_v1, etc.
+CREATE TABLE meta     (key TEXT PRIMARY KEY, value TEXT);      -- device_id, device_name, last_sync_cursor, paired_token, dashboard_layout_v1, color_palette, user_name, language, show_report_charts, etc.
 ```
 Extra local-only bookkeeping columns are allowed (e.g. `dirty INTEGER` on mobile, `seq INTEGER` on desktop) but are NOT part of the wire format.
 
@@ -61,20 +71,22 @@ Undo semantics (UI): undo of deactivate → set `is_active=1` with new `updated_
 ## 3. Wire format (JSON, snake_case, ints for booleans)
 Entity shapes = the table columns above (no bookkeeping columns):
 - `group`: `{id,name,sort,is_active,deactivated_at,updated_at}`
-- `task`: `{id,group_id,name,core,sort,freq,freq_days,is_active,deactivated_at,updated_at}` (`freq`: `'daily'|'weekly'|'monthly'`, `freq_days`: JSON array string e.g. `"[1,3,5]"` or `null`)
+- `task`: `{id,group_id,name,core,sort,freq,freq_days,priority,due_date,is_active,deactivated_at,updated_at}` (`freq`: `'daily'|'weekly'|'monthly'`, `freq_days`: JSON array string e.g. `"[1,3,5]"` or `null`, `priority`: `'low'|'normal'|'high'`, `due_date`: `YYYY-MM-DD` or `null`)
 - `reward`: `{id,name,cost,sort,is_active,deactivated_at,updated_at}`
 - `check`: `{task_id,day,checked,updated_at}`
 - `claim`: `{id,reward_id,name,cost,day,claimed_at,updated_at}`
-- `project`: `{id,name,status,progress,is_active,updated_at}`
+- `project`: `{id,name,status,progress,is_someday,is_active,updated_at}`
 - `focus_session`: `{id,task_id,project_id,day,minutes,note,updated_at}`
 - `finance_envelope`: `{id,name,monthly_budget,is_active,updated_at}`
 - `finance_entry`: `{id,day,type,category,amount,envelope_id,note,is_active,updated_at}`
-- `health_entry`: `{id,day,kind,name,value_num,value_num2,unit,note,is_active,updated_at}` (`kind`: `'food'|'weight'|'water'|'workout'|'measurement'`)
-- `wellness_entry`: `{id,day,mood,mood_score,energy,stress,sleep_hours,triggers_text,note,is_active,updated_at}`
+- `savings_goal`: `{id,name,target_amount,current_amount,deadline,is_active,updated_at}`
+- `recurring_bill`: `{id,name,kind,amount,due_day,is_paid,last_paid_month,is_active,updated_at}`
+- `health_entry`: `{id,day,kind,name,meal_slot,value_num,value_num2,unit,note,is_active,updated_at}` (`kind`: `'food'|'weight'|'water'|'workout'|'measurement'`)
+- `wellness_entry`: `{id,day,mood,mood_score,energy,stress,sleep_hours,triggers_text,gratitude_text,note,is_active,updated_at}`
 - `menstrual_entry`: `{id,day,phase,cycle_day,flow,symptoms_json,is_period_start,cycle_length,note,is_active,updated_at}`
-- `note`: `{id,day,title,body,tags_json,is_active,updated_at}`
+- `note`: `{id,day,title,body,tags_json,category,is_pinned,is_active,updated_at}`
 
-`Changes` object: `{ "groups":[...], "tasks":[...], "rewards":[...], "checks":[...], "claims":[...], "projects":[...], "focus_sessions":[...], "finance_envelopes":[...], "finance_entries":[...], "health_entries":[...], "wellness_entries":[...], "menstrual_entries":[...], "notes":[...] }` (any key may be omitted/empty).
+`Changes` object: `{ "groups":[...], "tasks":[...], "rewards":[...], "checks":[...], "claims":[...], "projects":[...], "focus_sessions":[...], "finance_envelopes":[...], "finance_entries":[...], "savings_goals":[...], "recurring_bills":[...], "health_entries":[...], "wellness_entries":[...], "menstrual_entries":[...], "notes":[...] }` (any key may be omitted/empty).
 
 ## 4. HTTP API (desktop server, default port **47800**, plain HTTP, JSON, UTF-8)
 Server binds `0.0.0.0`. If 47800 is busy it tries 47801…47809 and advertises the real port.

@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/l10n/app_strings.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../domain/models/models.dart';
 import '../../providers/checklist_provider.dart';
 import '../../widgets/calm_widgets.dart';
 
-const _monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+const _monthsShortEn = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const _monthsShortId = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 
-String _fmtDay(String dayStr) {
+String _fmtDay(String dayStr, AppStrings s) {
   final p = dayStr.split('-');
   if (p.length < 3) return dayStr;
   final m = int.tryParse(p[1]) ?? 1;
   final d = int.tryParse(p[2]) ?? 1;
-  return '$d ${_monthsShort[m - 1]}';
+  final arr = s.isId ? _monthsShortId : _monthsShortEn;
+  return '$d ${arr[(m - 1).clamp(0, 11)]}';
 }
 
 class RewardsView extends StatelessWidget {
@@ -22,22 +25,24 @@ class RewardsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ChecklistProvider>();
+    final s = AppStrings(provider.prefs.language);
     final bal = provider.pointsBalance;
+    const rewardIcons = ['♡', '✿', '☆', '✦'];
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
       children: [
         CalmCard(
-          color: AppColors.goldSoft(context),
-          borderColor: Colors.transparent,
+          color: AppColors.soft(context),
+          borderColor: AppColors.line(context),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'POIN KAMU',
+                s.tr('YOUR POINTS', 'POIN KAMU'),
                 style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
                   letterSpacing: 0.8,
                   color: AppColors.muted(context),
                 ),
@@ -48,62 +53,59 @@ class RewardsView extends StatelessWidget {
                   text: '$bal',
                   style: AppTheme.displayStyle(
                     context,
-                    fontSize: 44,
-                    color: AppColors.goldInk(context),
+                    fontSize: 38,
+                    color: AppColors.ink(context),
                   ),
-                  children: const [
+                  children: [
                     TextSpan(
-                      text: ' poin',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      text: ' ${s.tr('points', 'poin')}',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.muted(context)),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
-                'Setiap langkah yang dicentang menambah 1 poin. Hari yang terlewat tidak mengurangi poin.',
-                style: TextStyle(color: AppColors.muted(context), fontSize: 14),
+                s.tr(
+                  'Every checked step earns 1 point. Missed days never take points away.',
+                  'Setiap langkah selesai bernilai 1 poin. Hari yang terlewat tidak pernah mengurangi poin.',
+                ),
+                style: TextStyle(color: AppColors.muted(context), fontSize: 13),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
 
-        ...provider.rewards.map((r) {
+        ...provider.rewards.asMap().entries.map((entry) {
+          final idx = entry.key;
+          final r = entry.value;
           final canClaim = bal >= r.cost;
           final pct = ((bal / (r.cost > 0 ? r.cost : 1)) * 100).round().clamp(0, 100);
+          final icon = rewardIcons[idx % rewardIcons.length];
 
           return Padding(
-            padding: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.only(bottom: 12),
             child: CalmCard(
               child: provider.editMode
                   ? _EditRewardRow(reward: r)
                   : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(r.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                                  Text(
-                                    '${r.cost} poin',
-                                    style: TextStyle(color: AppColors.muted(context), fontSize: 14),
-                                  ),
-                                ],
-                              ),
+                            Text(
+                              icon,
+                              style: TextStyle(fontSize: 22, color: AppColors.accentDeep(context), height: 1),
                             ),
-                            const SizedBox(width: 12),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                minimumSize: const Size(0, 44),
-                                backgroundColor: canClaim ? AppColors.gold(context) : AppColors.surface(context),
-                                foregroundColor: canClaim ? const Color(0xFF2A1B02) : AppColors.muted(context),
-                                side: canClaim ? null : BorderSide(color: AppColors.line(context)),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                elevation: 0,
+                            OutlinedButton(
+                              style: canClaim ? m6GhostButtonStyle(context) : OutlinedButton.styleFrom(
+                                backgroundColor: AppColors.surface(context),
+                                foregroundColor: AppColors.muted(context),
+                                side: BorderSide(color: AppColors.line(context)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               ),
                               onPressed: canClaim
                                   ? () async {
@@ -111,23 +113,34 @@ class RewardsView extends StatelessWidget {
                                       if (context.mounted) {
                                         showCalmSnackBar(
                                           context,
-                                          'Diambil: ${claim.name}. Nikmati tanpa rasa bersalah.',
+                                          s.tr(
+                                            'Redeemed: ${claim.name}. Enjoy guilt-free.',
+                                            'Ditukar: ${claim.name}. Nikmati tanpa rasa bersalah.',
+                                          ),
+                                          undoLabel: s.tr('Undo', 'Urungkan'),
                                           onUndo: () async {
                                             final ok = await provider.undoClaim(claim.id);
                                             if (!ok && context.mounted) {
-                                              showCalmSnackBar(context, 'Sudah tersinkronisasi, tidak bisa diurungkan.');
+                                              showCalmSnackBar(context, s.tr('Already synced, cannot undo.', 'Sudah tersinkronisasi, tidak bisa dibatalkan.'));
                                             }
                                           },
                                         );
                                       }
                                     }
                                   : null,
-                              child: Text(canClaim ? 'Ambil' : 'Kurang ${r.cost - bal}'),
+                              child: Text(canClaim ? s.tr('Redeem', 'Tukar') : s.tr('Need ${r.cost - bal} more', 'Kurang ${r.cost - bal} lagi')),
                             ),
                           ],
                         ),
+                        const SizedBox(height: 6),
+                        Text(r.name, style: AppTheme.displayStyle(context, fontSize: 15)),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${r.cost} ${s.tr('points', 'poin')}',
+                          style: TextStyle(color: AppColors.muted(context), fontSize: 12),
+                        ),
                         const SizedBox(height: 10),
-                        CalmProgressBar(percent: pct, gold: true),
+                        CalmProgressBar(percent: pct, height: 7),
                       ],
                     ),
             ),
@@ -138,26 +151,61 @@ class RewardsView extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(0, 44),
-                side: BorderSide(color: AppColors.line(context)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
+              style: m6GhostButtonStyle(context),
               onPressed: () => provider.addReward(),
-              child: Text(
-                '+ Tambah hadiah',
-                style: TextStyle(color: AppColors.muted(context), fontWeight: FontWeight.w600),
-              ),
+              child: Text('+ ${s.tr('Create reward', 'Buat hadiah')}'),
             ),
           ),
 
+        const SizedBox(height: 6),
+        CalmCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(s.tr('Achievements', 'Pencapaian'), style: AppTheme.displayStyle(context, fontSize: 16)),
+              const SizedBox(height: 8),
+              ...(provider.lifeOsSummary?.achievements ?? const []).map((a) {
+                final labels = {
+                  'first-step': s.tr('First step (1+ check)', 'Langkah pertama (1+ selesai)'),
+                  'streak-7': s.tr('Consistency week (7-day streak)', 'Pekan konsisten (7 hari beruntun)'),
+                  'checks-25': s.tr('Little by little (25 checks)', 'Sedikit demi sedikit (25 selesai)'),
+                  'focus-60': s.tr('Deep calm focus (60m focus)', 'Fokus tenang mendalam (60m fokus)'),
+                  'self-care-1': s.tr('Kind treat (1 reward claimed)', 'Apresiasi diri (1 hadiah ditukar)'),
+                };
+                return Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    border: Border(bottom: BorderSide(color: AppColors.line(context))),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          labels[a.id] ?? a.id,
+                          style: TextStyle(
+                            fontWeight: a.unlocked ? FontWeight.w700 : FontWeight.w500,
+                            color: a.unlocked ? AppColors.ink(context) : AppColors.muted(context),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      M6Pill(text: a.unlocked ? s.tr('Unlocked ✓', 'Terbuka ✓') : '${a.progress}/${a.target}'),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+
         if (!provider.editMode && provider.claims.isNotEmpty) ...[
-          const SizedBox(height: 4),
+          const SizedBox(height: 12),
           CalmCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Sudah diambil', style: AppTheme.displayStyle(context, fontSize: 17)),
+                Text(s.tr('Reward history', 'Riwayat hadiah'), style: AppTheme.displayStyle(context, fontSize: 16)),
                 const SizedBox(height: 8),
                 ...provider.claims.take(8).map((c) => Column(
                       children: [
@@ -167,10 +215,10 @@ class RewardsView extends StatelessWidget {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Expanded(child: Text(c.name, style: const TextStyle(fontSize: 15))),
+                              Expanded(child: Text(c.name, style: const TextStyle(fontSize: 14))),
                               Text(
-                                _fmtDay(c.day),
-                                style: TextStyle(color: AppColors.muted(context), fontSize: 14),
+                                _fmtDay(c.day, s),
+                                style: TextStyle(color: AppColors.muted(context), fontSize: 13),
                               ),
                             ],
                           ),
@@ -242,14 +290,7 @@ class _EditRewardRowState extends State<_EditRewardRow> {
           child: TextField(
             controller: _nameCtrl,
             focusNode: _nameFocus,
-            decoration: InputDecoration(
-              hintText: 'Nama hadiah',
-              filled: true,
-              fillColor: AppColors.bg(context),
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-            ),
+            decoration: m6InputDecoration(context, hint: 'Reward name'),
             onSubmitted: (_) => _save(),
           ),
         ),
@@ -261,13 +302,7 @@ class _EditRewardRowState extends State<_EditRewardRow> {
             focusNode: _costFocus,
             keyboardType: TextInputType.number,
             textAlign: TextAlign.center,
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: AppColors.bg(context),
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-            ),
+            decoration: m6InputDecoration(context),
             onSubmitted: (_) => _save(),
           ),
         ),

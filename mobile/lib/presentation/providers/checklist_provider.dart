@@ -38,6 +38,9 @@ class ChecklistProvider extends ChangeNotifier {
 
   // --- PERSONAL LIFE OS & AUDIT LOG STATE ---
   bool customizeDashboard = false;
+  AppPreferences prefs = const AppPreferences();
+  String? localIp;
+  List<({String iface, String address})> localIps = const [];
   LifeOsSummary? lifeOsSummary;
   String reportModule = 'productivity';
   String reportRange = 'week';
@@ -46,6 +49,8 @@ class ChecklistProvider extends ChangeNotifier {
   ModuleReportData? moduleReport;
   List<Map<String, dynamic>> projects = [];
   List<Map<String, dynamic>> envelopes = [];
+  List<Map<String, dynamic>> savingsGoals = [];
+  List<Map<String, dynamic>> recurringBills = [];
   String auditFilter = 'all';
   List<AuditLogEntry> auditLogs = [];
 
@@ -72,6 +77,7 @@ class ChecklistProvider extends ChangeNotifier {
     }
 
     await syncService.init();
+    await refreshLocalIp();
     _syncSub = syncService.statusStream.listen((st) {
       if (st == SyncStatus.connected) {
         refreshAll();
@@ -138,8 +144,11 @@ class ChecklistProvider extends ChangeNotifier {
     monthActivity = await repository.getMonthActivity(calYear, calMonth);
     selectedDayLog = await repository.getDayLog(selectedLogDay);
     lifeOsSummary = await repository.getLifeOsSummary(currentDay);
+    prefs = await repository.getAppPreferences();
     projects = await repository.getProjects();
     envelopes = await repository.getEnvelopes();
+    savingsGoals = await repository.getSavingsGoals();
+    recurringBills = await repository.getRecurringBills();
     moduleReport = await repository.getModuleReport(
       module: reportModule,
       range: reportRange,
@@ -318,6 +327,12 @@ class ChecklistProvider extends ChangeNotifier {
     syncService.triggerDebouncedSync();
   }
 
+  Future<void> deleteTaskPermanently(String id) async {
+    await repository.deleteTaskPermanently(id);
+    await refreshAll();
+    syncService.triggerDebouncedSync();
+  }
+
   Future<GroupItem> addGroup({String name = 'Kelompok baru'}) async {
     final group = await repository.saveGroup(GroupItem(
       id: '',
@@ -463,6 +478,30 @@ class ChecklistProvider extends ChangeNotifier {
     return ok;
   }
 
+  Future<({DiscoveredServer? server, bool synced})> configureManualSync({
+    required bool enabled,
+    required String host,
+    required int port,
+    bool testAndSync = false,
+  }) async {
+    await syncService.setManualEndpoint(enabled: enabled, host: host, port: port);
+    DiscoveredServer? found;
+    bool synced = false;
+    if (enabled && testAndSync) {
+      found = await syncService.connectManual(host: host, port: port);
+      if (found != null) {
+        final token = await repository.getMeta('paired_token');
+        if (token != null && token.isNotEmpty) {
+          synced = await syncService.sync();
+        } else {
+          syncService.status = SyncStatus.unauthorized;
+        }
+      }
+    }
+    await refreshAll();
+    return (server: found, synced: synced);
+  }
+
   // --- PERSONAL LIFE OS & AUDIT LOG ACTIONS ---
   void toggleCustomizeDashboard() {
     customizeDashboard = !customizeDashboard;
@@ -507,6 +546,19 @@ class ChecklistProvider extends ChangeNotifier {
     final idx = layout.indexWhere((w) => w.id == id);
     if (idx < 0) return;
     layout[idx] = layout[idx].copyWith(visible: !layout[idx].visible);
+    await repository.saveDashboardLayout(layout);
+    await refreshAll();
+  }
+
+  Future<void> renameDashboardWidget(String id, String newLabel) async {
+    final layout = List<DashboardWidgetConfig>.from(
+        lifeOsSummary?.layout ?? defaultDashboardLayout);
+    final idx = layout.indexWhere((w) => w.id == id);
+    if (idx < 0) return;
+    final clean = newLabel.trim();
+    layout[idx] = clean.isEmpty
+        ? layout[idx].copyWith(clearLabel: true)
+        : layout[idx].copyWith(label: clean.length > 32 ? clean.substring(0, 32) : clean);
     await repository.saveDashboardLayout(layout);
     await refreshAll();
   }
@@ -576,5 +628,56 @@ class ChecklistProvider extends ChangeNotifier {
   Future<void> clearAuditLogs() async {
     await repository.clearAuditLogs();
     await refreshAll();
+  }
+
+  Future<void> refreshLocalIp() async {
+    localIps = await syncService.getLocalIpAddresses();
+    localIp = localIps.isNotEmpty ? localIps.first.address : null;
+    notifyListeners();
+  }
+
+  Future<void> updateAppPreferences({
+    String? colorPalette,
+    String? userName,
+    String? language,
+    bool? showReportCharts,
+    bool? periodReminders,
+    int? waterGoalGlasses,
+    String? weightGoalKg,
+  }) async {
+    prefs = await repository.saveAppPreferences(
+      colorPalette: colorPalette,
+      userName: userName,
+      language: language,
+      showReportCharts: showReportCharts,
+      periodReminders: periodReminders,
+      waterGoalGlasses: waterGoalGlasses,
+      weightGoalKg: weightGoalKg,
+    );
+    await refreshAll();
+  }
+
+  Future<void> updateTaskMeta(TaskItem task, {String? priority, String? dueDate, bool clearDueDate = false}) async {
+    await repository.saveTask(task.copyWith(
+      priority: priority,
+      dueDate: dueDate,
+      clearDueDate: clearDueDate,
+    ));
+    await refreshAll();
+    syncService.triggerDebouncedSync();
+  }
+
+  Future<void> softDeleteItem(String table, String id) async {
+    await repository.softDeleteItem(table, id);
+    await refreshAll();
+    syncService.triggerDebouncedSync();
+  }
+
+  Future<Map<String, dynamic>> exportAllDataJson() => repository.exportAllDataJson();
+
+  Future<void> importAllDataJson(Map<String, dynamic> payload) async {
+    await repository.importAllDataJson(payload);
+    await refreshAll();
+    syncService.triggerDebouncedSync();
   }
 }

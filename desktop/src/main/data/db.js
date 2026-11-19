@@ -5,6 +5,7 @@ const crypto = require('node:crypto');
 
 class Database {
   constructor(dbPath) {
+    this.dbPath = dbPath;
     if (dbPath !== ':memory:') {
       const dir = path.dirname(dbPath);
       if (!fs.existsSync(dir)) {
@@ -15,7 +16,39 @@ class Database {
     this.initSchema();
   }
 
+  createBackupSnapshot(tag = 'pre-m6') {
+    if (!this.dbPath || this.dbPath === ':memory:' || !fs.existsSync(this.dbPath)) {
+      return null;
+    }
+    const backupPath = `${this.dbPath}.${tag}.bak`;
+    if (tag === 'pre-m6' && fs.existsSync(backupPath)) {
+      return backupPath;
+    }
+    fs.copyFileSync(this.dbPath, backupPath);
+    return backupPath;
+  }
+
+  _addColumnIfMissing(table, colDef, colName) {
+    const cols = this.sqlite.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
+    if (!cols.includes(colName)) {
+      this.sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${colDef}`);
+    }
+  }
+
   initSchema() {
+    // Pre-migration backup when upgrading an existing pre-M6 file DB
+    if (this.dbPath !== ':memory:' && fs.existsSync(this.dbPath)) {
+      const hasSavings = this.sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='savings_goals'")
+        .get();
+      const hasGroups = this.sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='groups'")
+        .get();
+      if (hasGroups && !hasSavings) {
+        this.createBackupSnapshot('pre-m6');
+      }
+    }
+
     this.sqlite.exec(`
       CREATE TABLE IF NOT EXISTS groups (
         id TEXT PRIMARY KEY,
@@ -170,6 +203,32 @@ class Database {
         title TEXT NOT NULL,
         body TEXT NOT NULL,
         tags_json TEXT,
+        category TEXT NOT NULL DEFAULT 'journal',
+        is_pinned INTEGER NOT NULL DEFAULT 0,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        updated_at INTEGER NOT NULL,
+        seq INTEGER NOT NULL DEFAULT 0
+      );
+
+      CREATE TABLE IF NOT EXISTS savings_goals (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        target_amount INTEGER NOT NULL DEFAULT 0,
+        current_amount INTEGER NOT NULL DEFAULT 0,
+        deadline TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        updated_at INTEGER NOT NULL,
+        seq INTEGER NOT NULL DEFAULT 0
+      );
+
+      CREATE TABLE IF NOT EXISTS recurring_bills (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        kind TEXT NOT NULL DEFAULT 'bill',
+        amount INTEGER NOT NULL DEFAULT 0,
+        due_day INTEGER NOT NULL DEFAULT 1,
+        is_paid INTEGER NOT NULL DEFAULT 0,
+        last_paid_month TEXT,
         is_active INTEGER NOT NULL DEFAULT 1,
         updated_at INTEGER NOT NULL,
         seq INTEGER NOT NULL DEFAULT 0
@@ -190,14 +249,16 @@ class Database {
       );
     `);
 
-    // Migrate existing DBs missing freq / freq_days on tasks
-    const taskCols = this.sqlite.prepare('PRAGMA table_info(tasks)').all().map(c => c.name);
-    if (!taskCols.includes('freq')) {
-      this.sqlite.exec("ALTER TABLE tasks ADD COLUMN freq TEXT NOT NULL DEFAULT 'daily'");
-    }
-    if (!taskCols.includes('freq_days')) {
-      this.sqlite.exec('ALTER TABLE tasks ADD COLUMN freq_days TEXT');
-    }
+    // Migrate existing DBs missing columns
+    this._addColumnIfMissing('tasks', "freq TEXT NOT NULL DEFAULT 'daily'", 'freq');
+    this._addColumnIfMissing('tasks', 'freq_days TEXT', 'freq_days');
+    this._addColumnIfMissing('tasks', "priority TEXT NOT NULL DEFAULT 'normal'", 'priority');
+    this._addColumnIfMissing('tasks', 'due_date TEXT', 'due_date');
+    this._addColumnIfMissing('projects', 'is_someday INTEGER NOT NULL DEFAULT 0', 'is_someday');
+    this._addColumnIfMissing('health_entries', 'meal_slot TEXT', 'meal_slot');
+    this._addColumnIfMissing('wellness_entries', 'gratitude_text TEXT', 'gratitude_text');
+    this._addColumnIfMissing('notes', "category TEXT NOT NULL DEFAULT 'journal'", 'category');
+    this._addColumnIfMissing('notes', 'is_pinned INTEGER NOT NULL DEFAULT 0', 'is_pinned');
 
     this.ensureMeta('server_seq', '0');
     this.ensureMeta('device_id', crypto.randomUUID());
@@ -207,6 +268,22 @@ class Database {
     this.ensureMeta('auto_sync', 'true');
     this.ensureMeta('minimize_to_tray', 'true');
     this.ensureMeta('token_ttl_days', '7');
+    this.ensureMeta('color_palette', 'pink');
+    this.ensureMeta('user_name', 'User');
+    this.ensureMeta('language', 'en');
+    this.ensureMeta('show_report_charts', 'true');
+    this.ensureMeta('period_reminders', 'false');
+    this.ensureMeta('water_goal_glasses', '8');
+    this.ensureMeta('weight_goal_kg', '');
+    this.ensureMeta('sync_bind_ip', '0.0.0.0');
+    this.ensureMeta('sync_port', '47800');
+
+    if (!this.getMeta('user_name_default_v2')) {
+      if (this.getMeta('user_name') === 'Ara' && this.getMeta('user_name_customized') !== 'true') {
+        this.setMeta('user_name', 'User');
+      }
+      this.setMeta('user_name_default_v2', '1');
+    }
 
     const groupCount = this.sqlite.prepare('SELECT COUNT(*) as count FROM groups').get().count;
     if (groupCount === 0) {

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/l10n/app_strings.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/repositories/checklist_repository.dart';
 import '../../../domain/models/models.dart';
 import '../../providers/checklist_provider.dart';
 import '../../widgets/calm_widgets.dart';
+import 'workspace_views.dart';
 
 const _calDaysId = [
   'Senin',
@@ -15,6 +17,15 @@ const _calDaysId = [
   'Jumat',
   'Sabtu',
   'Minggu',
+];
+const _calDaysEn = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
 ];
 const _calMonthsId = [
   'Januari',
@@ -30,10 +41,26 @@ const _calMonthsId = [
   'November',
   'Desember',
 ];
+const _calMonthsEn = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
 
-String _formatIndoDay(String dayStr) {
+String _formatDayLabel(String dayStr, bool isId) {
   final d = parseLocalDay(dayStr);
-  return '${_calDaysId[d.weekday - 1]}, ${d.day} ${_calMonthsId[d.month - 1]}';
+  final days = isId ? _calDaysId : _calDaysEn;
+  final months = isId ? _calMonthsId : _calMonthsEn;
+  return '${days[d.weekday - 1]}, ${d.day} ${months[d.month - 1]}';
 }
 const _calWeekdaysShort = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
 const _schedWeekdays = [
@@ -54,20 +81,21 @@ class TodayView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ChecklistProvider>();
+    final s = AppStrings(provider.prefs.language);
     final total = provider.totalCount;
     final done = provider.doneCount;
     final pct = total > 0 ? ((done / total) * 100).round() : 0;
 
-    String progressMsg = 'Belum ada langkah dijadwalkan pada tanggal ini.';
+    String progressMsg = s.tr('No steps scheduled for this date.', 'Belum ada langkah dijadwalkan pada tanggal ini.');
     if (total > 0) {
       if (provider.isFutureSelectedDate) {
-        progressMsg = 'Pratinjau: $total langkah dijadwalkan pada tanggal ini.';
+        progressMsg = s.tr('Preview: $total steps scheduled for this date.', 'Pratinjau: $total langkah dijadwalkan pada tanggal ini.');
       } else if (done == total) {
-        progressMsg = 'Semua selesai hari ini. Kamu boleh istirahat.';
+        progressMsg = s.tr('All done for today. You can rest.', 'Semua selesai hari ini. Kamu boleh istirahat.');
       } else if (done == 0) {
-        progressMsg = 'Belum mulai juga tidak apa-apa. Pilih satu yang paling kecil.';
+        progressMsg = s.tr('It is okay not to start yet. Pick the smallest step.', 'Belum mulai juga tidak apa-apa. Pilih satu yang paling kecil.');
       } else {
-        progressMsg = 'Sudah $done langkah hari ini. Lanjut kalau masih ada tenaga.';
+        progressMsg = s.tr('$done steps done today. Keep going if you still have energy.', 'Sudah $done langkah hari ini. Lanjut kalau masih ada tenaga.');
       }
     }
 
@@ -99,8 +127,8 @@ class TodayView extends StatelessWidget {
                 Expanded(
                   child: Text(
                     provider.isFutureSelectedDate
-                        ? 'Pratinjau jadwal mendatang (${_formatIndoDay(provider.selectedDate)}). Belum bisa dicentang.'
-                        : 'Melihat catatan ${_formatIndoDay(provider.selectedDate)}.',
+                        ? s.tr('Previewing upcoming schedule (${_formatDayLabel(provider.selectedDate, s.isId)}). Cannot check off yet.', 'Pratinjau jadwal mendatang (${_formatDayLabel(provider.selectedDate, s.isId)}). Belum bisa dicentang.')
+                        : '${s.tr('Viewing records for', 'Melihat catatan')} ${_formatDayLabel(provider.selectedDate, s.isId)}.',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
@@ -121,7 +149,7 @@ class TodayView extends StatelessWidget {
                   ),
                   onPressed: () => provider.backToToday(),
                   child: Text(
-                    'Kembali ke hari ini',
+                    s.tr('Back to today', 'Kembali ke hari ini'),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -151,7 +179,7 @@ class TodayView extends StatelessWidget {
                       style: AppTheme.displayStyle(context, fontSize: 32),
                       children: [
                         TextSpan(
-                          text: ' dari $total langkah',
+                          text: ' ${s.tr('of', 'dari')} $total ${s.tr('steps', 'langkah')}',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -498,6 +526,11 @@ class TodayView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
+        ],
+
+        if (!provider.editMode) ...[
+          const SizedBox(height: 8),
+          const ProductivityExtrasCard(),
         ],
 
         if (provider.editMode)

@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My Little Life — White & Pink Personal Life OS Prototype v3</title>
+<style>
+:root{--bg:#ffffff;--paper:#ffffff;--pink:#f4c6d8;--pink2:#fff0f5;--rose:#ed9fbd;--rose-dark:#b85f83;--ink:#493640;--muted:#a18c96;--line:#f2e5eb;--soft:#fff7fa;--green:#eaf3ed;--yellow:#fbf2df;--shadow:0 3px 14px #8d607008}
+:root[data-palette="sage"]{--bg:#f8f7f4;--paper:#ffffff;--pink:#bde0d2;--pink2:#dcece4;--rose:#3f7e68;--rose-dark:#235340;--ink:#242a30;--muted:#6c757d;--line:#e8e4dc;--soft:#f2efe9;--shadow:0 3px 14px #242a3008}
+:root[data-palette="teal"]{--bg:#f2f5f7;--paper:#ffffff;--pink:#bee0e8;--pink2:#ddeef2;--rose:#1d7487;--rose-dark:#145361;--ink:#1b2730;--muted:#566772;--line:#d9e1e6;--soft:#e9eef1;--shadow:0 3px 14px #1b273008}
+:root[data-palette="lavender"]{--bg:#faf8ff;--paper:#ffffff;--pink:#d8cef0;--pink2:#efeaf9;--rose:#8e7ab5;--rose-dark:#56437a;--ink:#2f283d;--muted:#7c728d;--line:#e8e1f5;--soft:#f4f0fc;--shadow:0 3px 14px #2f283d08}
+:root[data-palette="peach"]{--bg:#fffdf9;--paper:#ffffff;--pink:#f5d0c2;--pink2:#fbece6;--rose:#e29578;--rose-dark:#9c553b;--ink:#3d2c26;--muted:#8c756c;--line:#f2e2dc;--soft:#fdf6f2;--shadow:0 3px 14px #3d2c2608}
+:root[data-theme="dark"]{--bg:#181417;--paper:#221c20;--pink:#523040;--pink2:#33222a;--rose:#ed9fbd;--rose-dark:#f6c4d7;--ink:#f5ecf0;--muted:#b09aa4;--line:#382d33;--soft:#2a2126;--shadow:0 4px 16px #00000040;color-scheme:dark}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;transition:background .2s,color .2s}button,input,textarea,select{font:inherit}button{cursor:pointer}
+.app{min-height:100vh;display:grid;grid-template-columns:224px minmax(0,1fr);max-width:1480px;margin:auto;padding:22px 24px;gap:22px}
+.sidebar{position:sticky;top:18px;height:calc(100vh - 36px);background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:20px 14px;display:flex;flex-direction:column}
+.brand{padding:5px 10px 20px;border-bottom:1px solid var(--line);margin-bottom:14px}.brand .flower{font-size:25px;color:var(--rose)}.brand strong{display:block;font-size:16px;letter-spacing:-.3px}.brand small{color:var(--muted);font-size:11px}
+.nav{display:grid;gap:4px}.nav button{border:0;background:transparent;text-align:left;padding:10px 12px;border-radius:11px;color:var(--muted);display:flex;gap:11px;align-items:center;font-weight:550}.nav button:hover,.nav button.active{background:var(--pink2);color:var(--rose-dark)}.ico{width:20px;text-align:center;font-size:16px}.bottomnav{margin-top:auto;border-top:1px solid var(--line);padding-top:12px}
+.main{min-width:0;padding:7px 8px 44px;max-width:1120px;width:100%;margin:0 auto}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}.date{font-size:11px;color:var(--muted);letter-spacing:.7px;text-transform:uppercase}.hello{font-size:28px;letter-spacing:-1px;margin:4px 0}.subtitle{color:var(--muted);margin:0}.topright{display:flex;gap:8px;align-items:center}.search{border:1px solid var(--line);background:var(--paper);border-radius:30px;padding:9px 14px;color:var(--muted);min-width:190px}.circle{width:38px;height:38px;border:1px solid var(--line);background:var(--paper);border-radius:50%;color:var(--rose-dark)}
+.page{display:none}.page.active{display:block}.pagehead{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:18px}.pagehead h1{font-size:26px;letter-spacing:-.7px;margin:3px 0}.pagehead p{margin:0;color:var(--muted)}.button{border:0;border-radius:10px;background:var(--rose);color:#fff;padding:9px 14px;font-weight:650}.button.ghost{background:var(--soft);color:var(--rose-dark);border:1px solid var(--line)}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:var(--shadow);min-width:0}.card h3{font-size:14px;margin:0 0 12px}.muted{color:var(--muted)}.tiny{font-size:11px;color:var(--muted)}.grid2{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr);gap:16px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.stack{display:grid;gap:14px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.stat{background:var(--soft);border-radius:13px;padding:13px}.stat b{font-size:21px;display:block}.stat span{font-size:11px;color:var(--muted)}.line{height:1px;background:var(--line);margin:12px 0}
+.menu-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.menu{border:1px solid var(--line);border-radius:15px;background:var(--paper);padding:15px;text-align:left;min-height:90px;color:var(--ink)}.menu:hover{border-color:var(--rose);background:var(--soft)}.menu .symbol{display:block;color:var(--rose);font-size:21px;margin-bottom:9px}.menu strong{display:block;font-size:13px}.menu small{color:var(--muted);font-size:10px}
+.banner{background:var(--pink2);border-radius:17px;padding:19px 21px;display:flex;align-items:center;justify-content:space-between;margin-bottom:15px}.banner strong{font-size:17px}.banner p{color:var(--muted);margin:3px 0 0}.banner .heart{font-size:28px;color:var(--rose-dark)}
+.task{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}.task:last-child{border:0}.task input{accent-color:var(--rose);width:16px;height:16px}.task.done span{text-decoration:line-through;color:var(--muted)}
+.progress{height:7px;background:var(--pink2);border-radius:20px;overflow:hidden;margin:9px 0}.progress i{display:block;height:100%;background:var(--rose);border-radius:20px}
+.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}.calendar span{padding:7px 2px;border-radius:9px;font-size:11px}.calendar .day{color:var(--muted);font-weight:650}.calendar .today{background:var(--pink);color:var(--rose-dark);font-weight:800}.calendar .period{background:var(--pink2);color:var(--rose-dark)}
+.field{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 11px;background:var(--paper);color:var(--ink);outline-color:var(--rose)}.formrow{display:flex;gap:8px;flex-wrap:wrap}.formrow>*{flex:1;min-width:120px}.listrow{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--line);gap:10px}.listrow:last-child{border:0}.pill{font-size:10px;background:var(--pink2);color:var(--rose-dark);border-radius:20px;padding:4px 8px;white-space:nowrap}
+.amount{font-size:24px;font-weight:750;letter-spacing:-.5px}.pinkpanel{background:var(--soft);border:1px solid var(--line);border-radius:15px;padding:16px}.mood{display:flex;gap:9px;flex-wrap:wrap}.mood button{border:1px solid var(--line);background:var(--paper);border-radius:13px;padding:10px;font-size:20px}.mood button:focus{background:var(--pink2);border-color:var(--rose)}
+textarea.field{min-height:125px;resize:vertical}.note{background:var(--soft);border:1px solid var(--line);border-radius:13px;padding:13px;min-height:110px}.note h4{margin:0 0 6px;font-size:13px}.note p{margin:0;color:var(--muted);font-size:11px}
+.reward{border:1px solid var(--line);border-radius:15px;padding:16px;background:var(--paper)}.reward .star{font-size:23px;color:var(--rose-dark)}.reward h4{margin:8px 0 3px}.reward p{margin:0;color:var(--muted);font-size:11px}
+.swatch-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.swatch{width:30px;height:30px;border-radius:999px;border:2px solid var(--line);cursor:pointer;display:grid;place-items:center;font-size:12px;color:#fff;font-weight:700;padding:0}
+.swatch[aria-pressed="true"]{outline:2.5px solid var(--ink);outline-offset:2px}
+.mobilebar{display:none}.mobile-only{display:none}
+@media(max-width:1000px){.app{grid-template-columns:190px minmax(0,1fr);gap:14px;padding:14px}.main{padding-left:2px;padding-right:2px}.menu-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.app{display:block;padding:14px 13px 88px}.sidebar{display:none}.main{padding:0}.top{align-items:flex-start}.hello{font-size:24px}.topright .search,.topright .circle:nth-child(2){display:none}.grid2{grid-template-columns:1fr}.grid3{grid-template-columns:1fr 1fr}.stats{grid-template-columns:repeat(2,1fr)}.pagehead{align-items:flex-start}.pagehead h1{font-size:23px}.pagehead .button{font-size:11px;padding:8px}.banner{padding:15px}.menu-grid{grid-template-columns:repeat(2,1fr)}.mobilebar{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:space-around;background:var(--paper);border-top:1px solid var(--line);padding:8px 4px calc(8px + env(safe-area-inset-bottom));z-index:5}.mobilebar button{border:0;background:transparent;color:var(--muted);font-size:10px;display:grid;justify-items:center;gap:2px;padding:3px 9px}.mobilebar button b{font-size:18px;font-weight:500}.mobilebar button.active{color:var(--rose-dark)}.mobile-only{display:block}.hide-mobile{display:none!important}}
+body.preview-mobile .app{display:block;max-width:430px;margin:14px auto;border:2px solid var(--line);border-radius:30px;padding:14px 13px 88px;background:var(--bg);box-shadow:0 16px 40px #00000014}
+body.preview-mobile .sidebar{display:none}
+body.preview-mobile .main{padding:0}
+body.preview-mobile .topright .search{display:none}
+body.preview-mobile .grid2{grid-template-columns:1fr}
+body.preview-mobile .grid3{grid-template-columns:1fr 1fr}
+body.preview-mobile .stats{grid-template-columns:repeat(2,1fr)}
+body.preview-mobile .menu-grid{grid-template-columns:repeat(2,1fr)}
+body.preview-mobile .mobilebar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;display:flex;justify-content:space-around;background:var(--paper);border-top:1px solid var(--line);padding:8px 4px;z-index:5;border-radius:0 0 28px 28px}
+body.preview-mobile .mobilebar button{border:0;background:transparent;color:var(--muted);font-size:10px;display:grid;justify-items:center;gap:2px;padding:3px 9px}
+body.preview-mobile .mobilebar button b{font-size:18px;font-weight:500}
+body.preview-mobile .mobilebar button.active{color:var(--rose-dark)}
+.hide-report-charts .report-chart{display:none!important}.report-chart{border:1px dashed #efcbd9;border-radius:12px;padding:12px;background:#fffafd;color:#9a7c89;font-size:11px}\n</style></head>
+<body>
+<div class="app">
+<aside class="sidebar">
+ <div class="brand"><div class="flower">♡</div><strong>my little life</strong><small>PERSONAL LIFE OS</small></div>
+ <nav class="nav" id="sideNav">
+  <button class="active" data-page="home"><span class="ico">⌂</span>Home</button>
+  <button data-page="productivity"><span class="ico">☷</span>Productivity</button>
+  <button data-page="finance"><span class="ico">♡</span>Finance</button>
+  <button data-page="health"><span class="ico">✿</span>Health</button>
+  <button data-page="wellness"><span class="ico">☁</span>Wellness</button>
+  <button data-page="cycle"><span class="ico">▦</span>Menstrual</button>
+  <button data-page="notes"><span class="ico">✎</span>Notes & Journal</button>
+  <button data-page="rewards"><span class="ico">☆</span>Rewards</button>
+ </nav>
+ <nav class="nav bottomnav"><button data-page="settings"><span class="ico">⚙</span>Settings</button></nav>
+</aside>
+<main class="main">
+<header class="top"><div><div class="date">WEDNESDAY, 18 NOVEMBER</div><h1 class="hello">Hello, <span id="userNameDisplay">Ara</span> ♡</h1><p class="subtitle">A little progress is still progress.</p></div><div class="topright"><div class="search">⌕ &nbsp; Search</div><button class="button ghost" id="toggleMobileViewBtn" type="button" title="Switch PC / Mobile preview">📱 Mobile view</button><button class="circle" data-go="settings" title="Settings &amp; Network IP">⚙</button></div></header>
+
+<section class="page active" id="home">
+ <div class="banner"><div><strong>Take it one step at a time.</strong><p>You don't have to do everything today.</p></div><span class="heart">♡</span></div>
+ <div class="grid2">
+  <div class="stack">
+   <div><div class="pagehead"><div><h1 style="font-size:18px">Your spaces</h1><p>Everything you need, in one place.</p></div><button class="button ghost" onclick="document.getElementById('dashboardEditHint').style.display='block'">Edit</button></div>
+    <p id="dashboardEditHint" class="tiny" style="display:none">Dalam aplikasi final: atur urutan, tampil/sembunyi widget, dan ukuran kartu langsung dari dashboard.</p><div class="menu-grid">
+     <button class="menu" data-go="finance"><span class="symbol">♡</span><strong>Finance</strong><small>Money & budget</small></button>
+     <button class="menu" data-go="productivity"><span class="symbol">☷</span><strong>Productivity</strong><small>Tasks & plans</small></button>
+     <button class="menu" data-go="health"><span class="symbol">✿</span><strong>Health</strong><small>Body & movement</small></button>
+     <button class="menu" data-go="wellness"><span class="symbol">☁</span><strong>Wellness</strong><small>Mood & self-care</small></button>
+     <button class="menu" data-go="cycle"><span class="symbol">▦</span><strong>Menstrual</strong><small>Cycle & symptoms</small></button>
+     <button class="menu" data-go="notes"><span class="symbol">✎</span><strong>Notes</strong><small>Thoughts & ideas</small></button>
+     <button class="menu" data-go="rewards"><span class="symbol">☆</span><strong>Rewards</strong><small>Your little wins</small></button>
+    </div>
+   </div>
+   <div class="card"><h3>Today's tasks <span class="tiny" style="float:right">2 of 5 done</span></h3><div class="progress"><i style="width:40%"></i></div>
+    <label class="task done"><input type="checkbox" checked><span>Drink a glass of water</span></label><label class="task done"><input type="checkbox" checked><span>Make the bed</span></label><label class="task"><input type="checkbox"><span>Work on one important thing</span></label><label class="task"><input type="checkbox"><span>Eat a proper meal</span></label><label class="task"><input type="checkbox"><span>Stretch for 5 minutes</span></label>
+    <button class="button ghost" style="margin-top:10px" data-go="productivity">Open task list →</button>
+   </div>
+  </div>
+  <div class="stack">
+   <div class="card"><h3>November 2026</h3><div class="calendar">
+    <span class="day">M</span><span class="day">T</span><span class="day">W</span><span class="day">T</span><span class="day">F</span><span class="day">S</span><span class="day">S</span>
+    <span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span><span>17</span><span class="today">18</span><span>19</span><span>20</span><span>21</span><span>22</span><span>23</span><span>24</span><span>25</span><span>26</span><span>27</span><span>28</span><span>29</span><span>30</span>
+   </div></div>
+   <div class="card"><h3>How are you feeling?</h3><div class="mood"><button>😊</button><button>🙂</button><button>😐</button><button>😔</button><button>😣</button></div><p class="tiny">A quick check-in. No pressure.</p></div>
+   <div class="card"><h3>Little note</h3><textarea class="field" placeholder="Anything on your mind?"></textarea><button class="button" style="margin-top:8px">Save note</button></div>
+  </div>
+ </div>
+</section>
+
+<section class="page" id="productivity">
+ <div class="pagehead"><div><div class="date">PLAN YOUR DAY</div><h1>Productivity</h1><p>A gentle place for your plans and priorities.</p></div><button class="button" onclick="addItem('taskList','New task')">+ Add task</button></div>
+ <div class="grid2"><div class="stack">
+  <div class="card"><h3>Today · Wednesday</h3><div class="stats"><div class="stat"><b>5</b><span>Tasks</span></div><div class="stat"><b>2</b><span>Completed</span></div><div class="stat"><b>1</b><span>Priority</span></div></div><div class="progress"><i style="width:40%"></i></div></div>
+  <div class="card"><h3>My tasks <span class="tiny">Today</span></h3><div id="taskList"><label class="task"><input type="checkbox"><span>Important work task</span><span class="pill">Priority</span></label><label class="task"><input type="checkbox"><span>Reply to messages</span></label><label class="task"><input type="checkbox"><span>Prepare tomorrow's plan</span></label></div><div class="formrow" style="margin-top:12px"><input class="field" id="taskInput" placeholder="Write a task..."><button class="button" onclick="addFromInput('taskInput','taskList')">Add</button></div></div>
+  <div class="card"><h3>Projects</h3><div class="listrow"><span>Personal Life OS</span><span class="pill">In progress</span></div><div class="listrow"><span>Portfolio update</span><span class="pill">Someday</span></div></div>
+ </div><div class="stack">
+  <div class="card"><h3>Calendar</h3><div class="calendar"><span class="day">M</span><span class="day">T</span><span class="day">W</span><span class="day">T</span><span class="day">F</span><span class="day">S</span><span class="day">S</span><span>16</span><span>17</span><span class="today">18</span><span>19</span><span>20</span><span>21</span><span>22</span></div></div>
+  <div class="card"><h3>Daily routine</h3><label class="task"><input type="checkbox"><span>Morning routine</span></label><label class="task"><input type="checkbox"><span>Afternoon reset</span></label><label class="task"><input type="checkbox"><span>Night routine</span></label></div>
+  <div class="card"><h3>Focus timer</h3><div class="amount" style="font-size:34px;text-align:center">25:00</div><p class="tiny" style="text-align:center">One thing at a time.</p><button class="button" style="width:100%" onclick="alert('Pomodoro demo')">Start focus</button></div>
+ </div></div>
+
+  <div class="card" style="margin-top:14px"><h3>Insights & review</h3><div class="stats"><div class="stat"><b>—%</b><span>Task completion</span></div><div class="stat"><b>—</b><span>Most productive day</span></div><div class="stat"><b>—</b><span>Active projects</span></div></div><p class="tiny">Weekly/monthly review · Priority overview · Backlog / someday · Achievement history</p></div>
+</section>
+
+<section class="page" id="finance">
+ <div class="pagehead"><div><div class="date">YOUR MONEY, YOUR PACE</div><h1>Finance</h1><p>Keep track without making it complicated.</p></div><button class="button" onclick="document.getElementById('transactionForm').scrollIntoView({behavior:'smooth'})">+ Add transaction</button></div>
+ <div class="stats"><div class="stat"><span>Available balance</span><b>Rp —</b></div><div class="stat"><span>Income this month</span><b>Rp —</b></div><div class="stat"><span>Expenses this month</span><b>Rp —</b></div></div>
+ <div class="grid2" style="margin-top:14px"><div class="stack">
+  <div class="card" id="transactionForm"><h3>New transaction</h3><div class="formrow"><select class="field"><option>Expense</option><option>Income</option></select><input class="field" placeholder="Amount (Rp)"></div><div class="formrow" style="margin-top:8px"><input class="field" placeholder="Description"><select class="field"><option>Category</option><option>Food</option><option>Transport</option><option>Rent</option><option>Other</option></select></div><button class="button" style="margin-top:9px" onclick="alert('Demo: transaction form')">Save transaction</button></div>
+  <div class="card"><h3>Recent transactions</h3><div class="listrow"><span>Groceries <small class="tiny"> · Food</small></span><b>—</b></div><div class="listrow"><span>Salary <small class="tiny"> · Income</small></span><b>—</b></div><div class="listrow"><span>Transport <small class="tiny"> · Travel</small></span><b>—</b></div><p class="tiny">Full history · Search · Filter · Edit</p></div>
+ </div><div class="stack">
+  <div class="card"><h3>Envelope budget</h3><div class="listrow"><span>Food</span><span class="pill">Set budget</span></div><div class="listrow"><span>Transport</span><span class="pill">Set budget</span></div><div class="listrow"><span>Bills</span><span class="pill">Set budget</span></div><div class="listrow"><span>Personal</span><span class="pill">Set budget</span></div></div>
+  <div class="card"><h3>Savings goals</h3><div class="pinkpanel"><b>My savings goal</b><p class="tiny">Target and progress can be edited here.</p><div class="progress"><i style="width:25%"></i></div><span class="tiny">Rp — / Rp —</span></div></div>
+  <div class="card"><h3>Bills & debt</h3><div class="listrow"><span>Upcoming bills</span><span class="pill">View</span></div><div class="listrow"><span>Debt & installments</span><span class="pill">View</span></div></div>
+ </div></div>
+
+  <div class="card" style="margin-top:14px"><h3>Monthly report</h3><div class="stats"><div class="stat"><b>Rp —</b><span>Total income</span></div><div class="stat"><b>Rp —</b><span>Total expenses</span></div><div class="stat"><b>Rp —</b><span>Net balance</span></div></div><div class="line"></div><p class="tiny">Income vs expense · Spending by envelope · Savings progress · Bills paid/unpaid · Debt & installment history</p></div>
+</section>
+
+<section class="page" id="health">
+ <div class="pagehead"><div><div class="date">CARE FOR YOUR BODY</div><h1>Health</h1><p>Track gently. Progress, not perfection.</p></div><button class="button">+ Log today</button></div>
+ <div class="stats"><div class="stat"><span>Current weight</span><b>— kg</b></div><div class="stat"><span>Water today</span><b>— / —</b></div><div class="stat"><span>Movement</span><b>— min</b></div></div>
+ <div class="grid2" style="margin-top:14px"><div class="stack">
+  <div class="card"><h3>Weight progress</h3><div class="pinkpanel"><div class="amount">— kg</div><span class="tiny">Current · Goal — kg</span><div class="progress"><i style="width:35%"></i></div></div><p class="tiny">Weight history and body measurements</p></div>
+  <div class="card"><h3>Food diary</h3><div class="listrow"><span>Breakfast</span><button class="button ghost">+ Add food</button></div><div class="listrow"><span>Lunch</span><button class="button ghost">+ Add food</button></div><div class="listrow"><span>Dinner</span><button class="button ghost">+ Add food</button></div><div class="listrow"><span>Snacks</span><button class="button ghost">+ Add food</button></div></div>
+ </div><div class="stack">
+  <div class="card"><h3>Water tracker</h3><div class="amount">0 <span class="tiny">glasses</span></div><div class="progress"><i style="width:0%"></i></div><button class="button">+ Add a glass</button></div>
+  <div class="card"><h3>Workout</h3><p class="muted">Any movement counts.</p><button class="button ghost">+ Log workout</button></div>
+  <div class="card"><h3>Body measurements</h3><p class="tiny">Waist · Hip · Chest · Arm · Thigh</p><button class="button ghost">Update measurements</button></div>
+ </div></div>
+
+  <div class="card" style="margin-top:14px"><h3>Health insights</h3><div class="stats"><div class="stat"><b>— kg</b><span>Weight change</span></div><div class="stat"><b>— kcal</b><span>Average calories</span></div><div class="stat"><b>— min</b><span>Workout time</span></div></div><p class="tiny">Weight chart · Body measurement history · Food diary history · Water consistency · Workout progress</p></div>
+</section>
+
+<section class="page" id="wellness">
+ <div class="pagehead"><div><div class="date">A MOMENT FOR YOURSELF</div><h1>Wellness</h1><p>Notice how you feel, without judging it.</p></div><button class="button">Weekly review</button></div>
+ <div class="grid2"><div class="stack">
+  <div class="card"><h3>How are you today?</h3><div class="mood"><button>😊</button><button>🙂</button><button>😐</button><button>😔</button><button>😣</button></div><div class="line"></div><div class="formrow"><select class="field"><option>Energy level</option><option>Low</option><option>Medium</option><option>High</option></select><select class="field"><option>Stress level</option><option>Low</option><option>Medium</option><option>High</option></select></div></div>
+  <div class="card"><h3>Daily journal</h3><textarea class="field" placeholder="What is on your mind today?"></textarea><button class="button" style="margin-top:8px">Save journal</button></div>
+ </div><div class="stack">
+  <div class="card"><h3>Sleep</h3><div class="amount">— hrs</div><p class="tiny">Record last night's sleep</p><button class="button ghost">Log sleep</button></div>
+  <div class="card"><h3>Emotional triggers</h3><textarea class="field" placeholder="Anything that affected your mood?"></textarea><button class="button ghost" style="margin-top:8px">Save reflection</button></div>
+  <div class="card"><h3>Small gratitude</h3><textarea class="field" placeholder="One thing I'm grateful for..."></textarea></div>
+ </div></div>
+
+  <div class="card" style="margin-top:14px"><h3>Weekly mental wellness review</h3><div class="stats"><div class="stat"><b>—</b><span>Common mood</span></div><div class="stat"><b>—</b><span>Average energy</span></div><div class="stat"><b>—</b><span>Average sleep</span></div></div><p class="tiny">Mood trends · Stress patterns · Emotional triggers · Sleep history · Gratitude archive</p></div>
+</section>
+
+<section class="page" id="cycle">
+ <div class="pagehead"><div><div class="date">YOUR CYCLE, YOUR RECORD</div><h1>Menstrual cycle</h1><p>Personal cycle notes and estimates.</p></div><button class="button">+ Log period</button></div>
+ <div class="grid2"><div class="stack">
+  <div class="card"><h3>Cycle calendar · November 2026</h3><div class="calendar">
+   <span class="day">M</span><span class="day">T</span><span class="day">W</span><span class="day">T</span><span class="day">F</span><span class="day">S</span><span class="day">S</span>
+   <span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span class="period">13</span><span class="period">14</span><span class="period">15</span><span class="period">16</span><span>17</span><span class="today">18</span><span>19</span><span>20</span><span>21</span><span>22</span><span>23</span><span>24</span><span>25</span><span>26</span><span>27</span><span>28</span><span>29</span><span>30</span>
+  </div><p class="tiny">Predictions are estimates, not medical certainty.</p></div>
+  <div class="card"><h3>Cycle history</h3><div class="listrow"><span>Previous cycle</span><span class="pill">View details</span></div><div class="listrow"><span>Average cycle length</span><b>— days</b></div><div class="listrow"><span>Average period length</span><b>— days</b></div></div>
+ </div><div class="stack">
+  <div class="pinkpanel"><span class="tiny">NEXT PERIOD ESTIMATE</span><div class="amount">—</div><p class="tiny">Add cycle records to calculate an estimate.</p></div>
+  <div class="card"><h3>Today's symptoms</h3><div class="mood"><button> cramps</button><button> bloating</button><button> headache</button><button> fatigue</button><button> acne</button></div><textarea class="field" style="margin-top:10px" placeholder="Other symptoms or notes..."></textarea><button class="button" style="margin-top:8px">Save symptoms</button></div>
+  <div class="card"><h3>Mood during cycle</h3><p class="tiny">Connect mood notes with cycle dates.</p><button class="button ghost">View mood history</button></div>
+ </div></div>
+
+  <div class="card" style="margin-top:14px"><h3>Cycle insights</h3><div class="stats"><div class="stat"><b>— days</b><span>Average cycle</span></div><div class="stat"><b>— days</b><span>Average period</span></div><div class="stat"><b>—</b><span>Recorded cycles</span></div></div><p class="tiny">Cycle history · Symptom patterns · Mood by cycle phase · Reminder preferences. Predictions are estimates only.</p></div>
+</section>
+
+<section class="page" id="notes">
+ <div class="pagehead"><div><div class="date">YOUR THOUGHTS LIVE HERE</div><h1>Notes & Journal</h1><p>A quiet space to write things down.</p></div><button class="button" onclick="addItem('notesList','Untitled note')">+ New note</button></div>
+ <div class="grid2"><div class="stack">
+  <div class="card"><input class="field" placeholder="⌕ Search your notes..."><div class="line"></div><div id="notesList"><div class="listrow"><span>Daily journal · Today</span><span class="pill">Journal</span></div><div class="listrow"><span>Ideas to explore</span><span class="pill">Brain dump</span></div><div class="listrow"><span>Things I'm grateful for</span><span class="pill">Gratitude</span></div></div></div>
+  <div class="card"><h3>Pinned notes</h3><div class="note"><h4>Remember ♡</h4><p>Small steps are still steps.</p></div></div>
+ </div><div class="card"><h3>Quick editor</h3><input class="field" placeholder="Note title"><div style="height:9px"></div><textarea class="field" style="min-height:230px" placeholder="Start writing..."></textarea><div class="formrow" style="margin-top:10px"><select class="field"><option>Choose category</option><option>Journal</option><option>Brain dump</option><option>Gratitude</option></select><button class="button">Save note</button></div></div></div>
+
+  <div class="card" style="margin-top:14px"><h3>Browse & organize</h3><div class="formrow"><button class="button ghost">All notes</button><button class="button ghost">Daily journal</button><button class="button ghost">Brain dump</button><button class="button ghost">Gratitude</button><button class="button ghost">Pinned</button></div><p class="tiny" style="margin-top:10px">Tags · Categories · Search · Pin/unpin · Edit and archive notes</p></div>
+</section>
+
+<section class="page" id="rewards">
+ <div class="pagehead"><div><div class="date">CELEBRATE YOUR LITTLE WINS</div><h1>Rewards</h1><p>Earn points for showing up for yourself.</p></div><button class="button">+ Create reward</button></div>
+ <div class="pinkpanel" style="margin-bottom:14px"><span class="tiny">YOUR POINTS</span><div class="amount" style="font-size:34px">0 <span style="font-size:14px">points</span></div><p class="tiny">Missed days never take points away.</p></div>
+ <div class="grid3"><div class="reward"><div class="star">♡</div><h4>Favorite playlist</h4><p>15 minutes · 5 points</p><button class="button ghost" style="margin-top:12px">Redeem</button></div><div class="reward"><div class="star">✿</div><h4>Creative time</h4><p>30 minutes · 15 points</p><button class="button ghost" style="margin-top:12px">Redeem</button></div><div class="reward"><div class="star">☆</div><h4>Favorite snack</h4><p>20 points</p><button class="button ghost" style="margin-top:12px">Redeem</button></div></div>
+ <div class="card" style="margin-top:14px"><h3>Achievements</h3><div class="listrow"><span>First step</span><span class="pill">Not unlocked</span></div><div class="listrow"><span>Consistency week</span><span class="pill">Not unlocked</span></div><div class="listrow"><span>Little by little</span><span class="pill">Not unlocked</span></div></div>
+
+ <div class="card" style="margin-top:14px"><h3>Reward history</h3><p class="tiny">Redeemed rewards · Points earned by completed routine/task · Achievement timeline · Custom reward rules</p></div>
+</section>
+
+<section class="page" id="settings">
+ <div class="pagehead"><div><div class="date">MAKE IT YOURS</div><h1>Settings</h1><p>Only app-level preferences live here.</p></div></div>
+ <div class="grid2">
+ <div class="card"><h3>Profile &amp; Appearance</h3>
+  <div class="listrow"><span>Your name</span><div style="display:flex;gap:6px;align-items:center"><input class="field" id="userNameInput" value="Ara" placeholder="Your name" style="max-width:130px;padding:7px 10px"><button class="button ghost" id="saveNameBtn" type="button" style="padding:7px 11px">Save</button></div></div>
+  <div class="listrow"><span>Theme mode</span><select class="field" id="themeModeSelect" style="max-width:160px"><option value="light" selected>Light (White card)</option><option value="dark">Dark mode</option></select></div>
+  <div class="listrow" style="flex-direction:column;align-items:flex-start;gap:8px">
+   <div style="display:flex;justify-content:space-between;width:100%;align-items:center"><span>Color palette</span><span class="pill" id="paletteLabel">White &amp; Pink (Default)</span></div>
+   <div class="swatch-row" id="palettePicker" role="group" aria-label="Color palette picker">
+    <button type="button" class="swatch" data-pal="pink" data-name="White & Pink (Default)" aria-pressed="true" title="White & Pink (Default)" style="background:#ed9fbd">✓</button>
+    <button type="button" class="swatch" data-pal="sage" data-name="Soft Pastel Sage" aria-pressed="false" title="Soft Pastel Sage" style="background:#3f7e68"></button>
+    <button type="button" class="swatch" data-pal="teal" data-name="Calm Slate Teal" aria-pressed="false" title="Calm Slate Teal" style="background:#1d7487"></button>
+    <button type="button" class="swatch" data-pal="lavender" data-name="Lavender Mist" aria-pressed="false" title="Lavender Mist" style="background:#8e7ab5"></button>
+    <button type="button" class="swatch" data-pal="peach" data-name="Warm Peach" aria-pressed="false" title="Warm Peach" style="background:#e29578"></button>
+   </div>
+  </div>
+  <div class="listrow"><span>Language</span><select class="field" id="langSelect" style="max-width:160px"><option value="en" selected>English</option><option value="id">Bahasa Indonesia</option></select></div>
+  <div class="listrow"><span>Dashboard density</span><span class="pill">Balanced</span></div>
+ </div>
+ <div class="card"><h3>Reports, Sync &amp; Network</h3>
+  <div class="listrow"><span>Current device / phone IP</span><div style="display:flex;gap:6px;align-items:center"><span class="pill" id="deviceIpValue">192.168.1.24 (Wi-Fi)</span><button class="button ghost" id="refreshIpBtn" type="button" style="padding:5px 10px;font-size:11px">Refresh</button></div></div>
+  <div class="listrow"><span>Desktop sync server IP</span><span class="pill">192.168.1.10:47800</span></div>
+  <div class="listrow"><span>Local LAN auto-sync</span><span class="pill">Connected · mDNS/UDP</span></div>
+  <div class="listrow"><span>Show charts in reports</span><label style="display:flex;gap:8px;align-items:center"><input id="chartToggle" type="checkbox" checked> <span class="tiny">Optional</span></label></div>
+  <div class="listrow"><span>Automatic local backup</span><span class="pill">Active (pre-migration)</span></div>
+  <div class="listrow"><span>Export / restore data</span><button class="button ghost">Export JSON</button></div>
+ </div>
+ </div>
+ <p class="tiny">Grafik dapat ditampilkan atau disembunyikan. Angka ringkasan dan histori tetap tersedia saat grafik disembunyikan.</p>
+</section>
+<p class="tiny" style="text-align:center;margin-top:28px">WHITE & PINK PROTOTYPE v3 · PC balanced · HP previous layout · Optional charts · Demo data is not saved permanently</p>
+</main>
+</div>
+<nav class="mobilebar" id="mobileNav"><button class="active" data-page="home"><b>⌂</b>Home</button><button data-page="productivity"><b>☷</b>Tasks</button><button data-page="finance"><b>♡</b>Money</button><button data-page="health"><b>✿</b>Health</button><button id="moreToggle"><b>•••</b>More</button></nav>
+<div id="moreSheet" style="display:none;position:fixed;inset:0;background:#49364055;z-index:10;align-items:flex-end"><div style="background:var(--paper);width:100%;max-width:430px;margin:0 auto;border-radius:22px 22px 0 0;padding:20px 18px 35px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px"><div style="grid-column:1/-1;display:flex;justify-content:space-between;align-items:center"><div><b>More spaces</b><div class="tiny">Phone IP: <b id="moreSheetIp">192.168.1.24</b> · LAN Sync Ready</div></div><button class="button ghost" id="closeMore">Close</button></div><button class="menu" data-page="wellness">☁<strong>Wellness</strong></button><button class="menu" data-page="cycle">▦<strong>Menstrual</strong></button><button class="menu" data-page="notes">✎<strong>Notes</strong></button><button class="menu" data-page="rewards">☆<strong>Rewards</strong></button><button class="menu" data-page="settings">⚙<strong>Settings &amp; IP</strong></button></div></div>
+<script>
+const chartToggle=document.getElementById("chartToggle"); if(chartToggle){chartToggle.addEventListener("change",()=>document.body.classList.toggle("hide-report-charts",!chartToggle.checked));}
+function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id===id));document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===id));window.scrollTo({top:0,behavior:'smooth'})}
+document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',()=>{showPage(b.dataset.page);document.getElementById('moreSheet').style.display='none'}));
+document.getElementById('moreToggle').addEventListener('click',()=>document.getElementById('moreSheet').style.display='flex');
+document.getElementById('closeMore').addEventListener('click',()=>document.getElementById('moreSheet').style.display='none');
+document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.go)));
+function addFromInput(inputId,listId){let input=document.getElementById(inputId);if(!input.value.trim())return;addItem(listId,input.value.trim());input.value=''}
+function addItem(listId,text){let list=document.getElementById(listId);if(!list)return;let row=document.createElement('div');row.className='listrow';let label=document.createElement('span');label.textContent=text;let del=document.createElement('button');del.className='button ghost';del.textContent='Remove';del.onclick=()=>row.remove();row.append(label,del);list.append(row)}
+document.querySelectorAll('#palettePicker .swatch').forEach(btn=>{btn.addEventListener('click',()=>{const pal=btn.dataset.pal;if(pal==='pink')document.documentElement.removeAttribute('data-palette');else document.documentElement.setAttribute('data-palette',pal);document.querySelectorAll('#palettePicker .swatch').forEach(b=>{b.setAttribute('aria-pressed',String(b===btn));b.textContent=b===btn?'✓':''});document.getElementById('paletteLabel').textContent=btn.dataset.name;});});
+const themeSel=document.getElementById('themeModeSelect');if(themeSel){themeSel.addEventListener('change',()=>{if(themeSel.value==='dark')document.documentElement.setAttribute('data-theme','dark');else document.documentElement.removeAttribute('data-theme');});}
+const nameIn=document.getElementById('userNameInput'),nameDisp=document.getElementById('userNameDisplay'),saveNameBtn=document.getElementById('saveNameBtn');
+function applyUserName(){if(nameIn&&nameDisp){nameDisp.textContent=nameIn.value.trim()||'Friend';}}
+if(nameIn){nameIn.addEventListener('input',applyUserName);}if(saveNameBtn){saveNameBtn.addEventListener('click',applyUserName);}
+const mobBtn=document.getElementById('toggleMobileViewBtn');if(mobBtn){mobBtn.addEventListener('click',()=>{const on=document.body.classList.toggle('preview-mobile');mobBtn.textContent=on?'💻 PC view':'📱 Mobile view';});}
+const refIpBtn=document.getElementById('refreshIpBtn');if(refIpBtn){refIpBtn.addEventListener('click',()=>{const el=document.getElementById('deviceIpValue');if(el){el.textContent='192.168.1.24 (Wi-Fi · Updated)';}});}
+</script></body></html>

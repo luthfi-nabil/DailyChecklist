@@ -71,6 +71,26 @@ class DiscoveryService {
     }
   }
 
+  updatePort(newPort) {
+    const parsed = parseInt(newPort, 10);
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) return;
+    if (this.syncPort === parsed) return;
+    this.syncPort = parsed;
+    if (this.bonjourService) {
+      try {
+        this.bonjourService.stop();
+      } catch (e) {}
+      this.bonjourService = null;
+    }
+    if (this.bonjour) {
+      try {
+        this.bonjour.destroy();
+      } catch (e) {}
+      this.bonjour = null;
+    }
+    this.startMdns();
+  }
+
   stop() {
     if (this.udpSocket) {
       try {

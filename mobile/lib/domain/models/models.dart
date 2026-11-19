@@ -97,6 +97,8 @@ class TaskItem {
   final int sort;
   final String freq;
   final List<int> freqDays;
+  final String priority; // 'low' | 'normal' | 'high'
+  final String? dueDate;
   final bool isActive;
   final int? deactivatedAt;
   final int updatedAt;
@@ -111,6 +113,8 @@ class TaskItem {
     this.sort = 0,
     this.freq = 'daily',
     this.freqDays = const [],
+    this.priority = 'normal',
+    this.dueDate,
     this.isActive = true,
     this.deactivatedAt,
     required this.updatedAt,
@@ -136,6 +140,8 @@ class TaskItem {
       'sort': sort,
       'freq': freq,
       'freq_days': (freq == 'weekly' || freq == 'monthly') ? json.encode(freqDays) : null,
+      'priority': priority,
+      'due_date': dueDate,
       'is_active': isActive ? 1 : 0,
       'deactivated_at': deactivatedAt,
       'updated_at': updatedAt,
@@ -145,6 +151,8 @@ class TaskItem {
   factory TaskItem.fromMap(Map<String, dynamic> map, {bool done = false, bool scheduled = true}) {
     final freqRaw = map['freq'] as String?;
     final freq = (freqRaw == 'weekly' || freqRaw == 'monthly') ? freqRaw! : 'daily';
+    final priRaw = map['priority'] as String?;
+    final pri = (priRaw == 'low' || priRaw == 'high') ? priRaw! : 'normal';
     return TaskItem(
       id: map['id'] as String,
       groupId: map['group_id'] as String,
@@ -153,6 +161,8 @@ class TaskItem {
       sort: (map['sort'] as num?)?.toInt() ?? 0,
       freq: freq,
       freqDays: parseFreqDays(map['freq_days']),
+      priority: pri,
+      dueDate: map['due_date'] as String?,
       isActive: (map['is_active'] as num?)?.toInt() == 1,
       deactivatedAt: (map['deactivated_at'] as num?)?.toInt(),
       updatedAt: (map['updated_at'] as num?)?.toInt() ?? 0,
@@ -167,6 +177,9 @@ class TaskItem {
     int? sort,
     String? freq,
     List<int>? freqDays,
+    String? priority,
+    String? dueDate,
+    bool clearDueDate = false,
     bool? isActive,
     int? deactivatedAt,
     int? updatedAt,
@@ -181,6 +194,8 @@ class TaskItem {
       sort: sort ?? this.sort,
       freq: freq ?? this.freq,
       freqDays: freqDays ?? this.freqDays,
+      priority: priority ?? this.priority,
+      dueDate: clearDueDate ? null : (dueDate ?? this.dueDate),
       isActive: isActive ?? this.isActive,
       deactivatedAt: deactivatedAt ?? this.deactivatedAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -480,24 +495,28 @@ class DashboardWidgetConfig {
   final String id;
   final bool visible;
   final String size; // 's' | 'm' | 'l'
+  final String? label;
 
   const DashboardWidgetConfig({
     required this.id,
     this.visible = true,
     this.size = 'm',
+    this.label,
   });
 
-  DashboardWidgetConfig copyWith({bool? visible, String? size}) =>
+  DashboardWidgetConfig copyWith({bool? visible, String? size, String? label, bool clearLabel = false}) =>
       DashboardWidgetConfig(
         id: id,
         visible: visible ?? this.visible,
         size: size ?? this.size,
+        label: clearLabel ? null : (label ?? this.label),
       );
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'visible': visible,
         'size': size,
+        if (label != null && label!.isNotEmpty) 'label': label,
       };
 
   factory DashboardWidgetConfig.fromJson(Map<String, dynamic> m) =>
@@ -505,6 +524,7 @@ class DashboardWidgetConfig {
         id: m['id'] as String,
         visible: m['visible'] != false,
         size: (m['size'] as String?) ?? 'm',
+        label: m['label'] as String?,
       );
 }
 
@@ -518,6 +538,40 @@ const defaultDashboardLayout = [
   DashboardWidgetConfig(id: 'w-rew', visible: true, size: 'm'),
 ];
 
+class AppPreferences {
+  final String colorPalette; // pink | sage | teal | lavender | peach
+  final String userName;
+  final String language; // en | id
+  final bool showReportCharts;
+  final bool periodReminders;
+  final int waterGoalGlasses;
+  final String weightGoalKg;
+
+  const AppPreferences({
+    this.colorPalette = 'pink',
+    this.userName = 'User',
+    this.language = 'en',
+    this.showReportCharts = true,
+    this.periodReminders = false,
+    this.waterGoalGlasses = 8,
+    this.weightGoalKg = '',
+  });
+}
+
+class AchievementItem {
+  final String id;
+  final bool unlocked;
+  final int progress;
+  final int target;
+
+  const AchievementItem({
+    required this.id,
+    required this.unlocked,
+    required this.progress,
+    required this.target,
+  });
+}
+
 class LifeOsSummary {
   final List<DashboardWidgetConfig> layout;
   final int prodDone;
@@ -527,6 +581,8 @@ class LifeOsSummary {
   final int financeExpense;
   final int financeBalance;
   final int financeCount;
+  final int unpaidBillsCount;
+  final int savingsGoalsCount;
   final double? latestWeight;
   final double waterTodayMl;
   final double kcalToday;
@@ -534,14 +590,19 @@ class LifeOsSummary {
   final int? latestEnergy;
   final int? latestStress;
   final double? latestSleepHours;
+  final String? latestGratitude;
   final String? latestMenstrualPhase;
   final int? latestCycleDay;
   final List<String> latestSymptoms;
   final int notesCount;
   final String? latestNoteTitle;
+  final String? pinnedNoteId;
+  final String? pinnedNoteTitle;
+  final String? pinnedNoteBody;
   final int rewardsBalance;
   final int activeRewardsCount;
   final int errorAuditCount;
+  final List<AchievementItem> achievements;
 
   LifeOsSummary({
     required this.layout,
@@ -552,6 +613,8 @@ class LifeOsSummary {
     required this.financeExpense,
     required this.financeBalance,
     required this.financeCount,
+    this.unpaidBillsCount = 0,
+    this.savingsGoalsCount = 0,
     this.latestWeight,
     required this.waterTodayMl,
     required this.kcalToday,
@@ -559,14 +622,19 @@ class LifeOsSummary {
     this.latestEnergy,
     this.latestStress,
     this.latestSleepHours,
+    this.latestGratitude,
     this.latestMenstrualPhase,
     this.latestCycleDay,
     this.latestSymptoms = const [],
     required this.notesCount,
     this.latestNoteTitle,
+    this.pinnedNoteId,
+    this.pinnedNoteTitle,
+    this.pinnedNoteBody,
     required this.rewardsBalance,
     required this.activeRewardsCount,
     required this.errorAuditCount,
+    this.achievements = const [],
   });
 }
 
